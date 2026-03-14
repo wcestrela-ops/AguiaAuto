@@ -75,15 +75,12 @@ async function getVehicleLocation(vehicleName) {
 
   try {
     const coords = await page.evaluate(() => {
-      // Tenta pegar o centro atual do mapa Leaflet
-      if (window.map && typeof window.map.getCenter === 'function') {
-        const c = window.map.getCenter();
-        return { lat: c.lat, lng: c.lng };
-      }
-      // Alternativa: procura em objetos globais do GPSWox
-      if (window.objects && Array.isArray(window.objects)) {
-        return null; // será tratado abaixo
-      }
+      try {
+        if (window.map && typeof window.map.getCenter === 'function') {
+          const c = window.map.getCenter();
+          return { lat: c.lat, lng: c.lng };
+        }
+      } catch(e) {}
       return null;
     });
 
@@ -99,11 +96,10 @@ async function getVehicleLocation(vehicleName) {
   // ── 6. Alternativa: coordenadas via texto do popup ─────────────────────────
   if (!lat || !lng) {
     try {
-      const posEls = await page.$$('[data-device="lat"], [data-device="lng"], [data-device="position"]');
-      if (posEls.length >= 2) {
-        lat = await posEls[0].innerText();
-        lng = await posEls[1].innerText();
-      }
+      const posEl = await page.$('[data-device="lat"]');
+      const lngEl = await page.$('[data-device="lng"]');
+      if (posEl) lat = await posEl.innerText().catch(() => null);
+      if (lngEl) lng = await lngEl.innerText().catch(() => null);
     } catch { /* ignora */ }
   }
 
@@ -120,28 +116,29 @@ async function getVehicleLocation(vehicleName) {
   if (!lat || !lng) {
     try {
       const coords = await page.evaluate((name) => {
-        // GPSWox guarda os devices em objetos globais
-        const keys = ['devices', 'units', 'objects', 'markers'];
-        for (const key of keys) {
-          if (!window[key]) continue;
-          const list = Array.isArray(window[key])
-            ? window[key]
-            : Object.values(window[key]);
-          const match = list.find(d => {
-            const n = (d.name || d.unit_name || d.label || '').toLowerCase();
-            return n.includes(name.toLowerCase());
-          });
-          if (match) {
-            return {
-              lat: match.lat || match.lastlat || match.latitude,
-              lng: match.lng || match.lastlng || match.longitude,
-            };
+        try {
+          const keys = ['devices', 'units', 'objects', 'markers'];
+          for (const key of keys) {
+            if (!window[key]) continue;
+            const list = Array.isArray(window[key])
+              ? window[key]
+              : Object.values(window[key]);
+            const match = list.find(d => {
+              const n = ((d && (d.name || d.unit_name || d.label)) || '').toLowerCase();
+              return n.includes(name.toLowerCase());
+            });
+            if (match) {
+              return {
+                lat: match.lat || match.lastlat || match.latitude || null,
+                lng: match.lng || match.lastlng || match.longitude || null,
+              };
+            }
           }
-        }
+        } catch(e) {}
         return null;
       }, vehicleName);
 
-      if (coords?.lat && coords?.lng) {
+      if (coords && coords.lat && coords.lng) {
         lat = coords.lat;
         lng = coords.lng;
         logger.info('Coordenadas capturadas via objeto JS global.', { lat, lng });
