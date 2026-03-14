@@ -1,6 +1,5 @@
-// src/browser.js
+// src/browser.js — Seletores confirmados via diagnóstico (Águia Rastreamento)
 // Gerencia uma única instância do browser e reutiliza a sessão autenticada.
-// O login é feito uma vez; se a sessão expirar, faz re-login automático.
 
 require('dotenv').config();
 const { chromium } = require('playwright');
@@ -16,28 +15,30 @@ let browser = null;
 let context = null;
 let page    = null;
 
-// ─── Seletores da plataforma GPSWox ──────────────────────────────────────────
-// Ajuste estes seletores caso o seu domínio tenha customizações visuais.
+// ─── Seletores confirmados via diagnóstico — Águia Rastreamento (GPSWox) ─────
 const SEL = {
-  // Página de login
-  loginUser:     'input[name="email"], input[name="username"], #email, #username',
-  loginPass:     'input[name="password"], #password',
-  loginBtn:      'button[type="submit"], input[type="submit"], .login-btn',
+  // Login
+  loginUser:    'input[name="email"]',
+  loginPass:    'input[name="password"]',
+  loginBtn:     'button[type="submit"]',
 
-  // Indicador de sessão autenticada (elemento que só aparece quando logado)
-  sessionCheck:  '.top-menu, #top-menu, .navbar-user, .user-info, [class*="user-menu"]',
+  // Confirmação de sessão ativa
+  sessionCheck: 'input[name="search"]',
 
-  // Barra de busca de unidades/veículos no mapa
-  searchInput:   '#search_units, input[placeholder*="pesquis"], input[placeholder*="search"], input[placeholder*="buscar"], .search-input',
-  searchResult:  '.unit-list-item, .units-list li, [class*="unit-item"]',
+  // Busca de veículos (confirmado: placeholder "Pesquisa", name="search")
+  searchInput:  'input[name="search"]',
 
-  // Popup / painel de detalhes do veículo no mapa
-  vehiclePopup:  '.leaflet-popup-content, .unit-info-popup, [class*="popup-content"]',
-  addressField:  '[class*="address"], [class*="location"], .unit-address',
-  coordsField:   '[class*="lat"], [class*="coord"], .unit-coords',
+  // Itens da lista lateral de veículos
+  unitRow:      '[data-device="name"]',
 
-  // Alternativa: menu lateral de unidades
-  unitRow:       '.unit-row, .units-list .unit',
+  // Popup do mapa ao clicar no veículo
+  vehiclePopup: '.leaflet-popup-content',
+
+  // Endereço no popup (confirmado: data-device="address")
+  addressField: '[data-device="address"]',
+
+  // Painel inferior de detalhes
+  detailPanel:  '.details',
 };
 
 // ─── Inicializa o browser ─────────────────────────────────────────────────────
@@ -69,8 +70,11 @@ async function launchBrowser() {
 // ─── Verifica se já está autenticado ─────────────────────────────────────────
 async function isLoggedIn() {
   try {
-    await page.goto(GPSWOX_URL, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-    await page.waitForSelector(SEL.sessionCheck, { timeout: 5000 });
+    await page.goto(GPSWOX_URL , { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+    await page.waitForTimeout(2000);
+    const url = page.url();
+    if (url.includes('/authentication') || url.includes('/login')) return false;
+    await page.waitForSelector(SEL.searchInput, { timeout: 8000 });
     logger.info('Sessão ativa encontrada.');
     return true;
   } catch {
@@ -82,23 +86,24 @@ async function isLoggedIn() {
 async function login() {
   logger.info('Realizando login na plataforma...', { url: GPSWOX_URL });
 
-  await page.goto(GPSWOX_URL + '/login', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+  await page.goto(GPSWOX_URL + '/authentication/create', {
+    waitUntil: 'domcontentloaded',
+    timeout: NAV_TIMEOUT
+  });
 
-  // Aguarda campo de usuário aparecer
   await page.waitForSelector(SEL.loginUser, { timeout: 10000 });
-
   await page.fill(SEL.loginUser, GPSWOX_USER);
   await page.fill(SEL.loginPass, GPSWOX_PASS);
   await page.click(SEL.loginBtn);
 
-  // Aguarda confirmação de login
+  // Aguarda redirecionar para /objects após login
   try {
-    await page.waitForSelector(SEL.sessionCheck, { timeout: 15000 });
+    await page.waitForURL('**/objects**', { timeout: 15000 });
+    await page.waitForSelector(SEL.searchInput, { timeout: 10000 });
     logger.info('Login realizado com sucesso.');
   } catch (err) {
-    // Tira screenshot para diagnóstico
     await page.screenshot({ path: 'logs/login_fail.png' });
-    throw new Error('Falha no login — verifique credenciais ou seletores. Screenshot salvo em logs/login_fail.png');
+    throw new Error('Falha no login — verifique credenciais. Screenshot salvo em logs/login_fail.png');
   }
 }
 
