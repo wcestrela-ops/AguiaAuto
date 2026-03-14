@@ -1,241 +1,185 @@
-// src/tracker.js
-// Funções de automação da plataforma GPSWox.
-// Cada função retorna um objeto JSON limpo, pronto para o n8n consumir.
+// src/tracker.js — Lógica de busca de veículos para Águia Rastreamento (GPSWox)
+// Estratégia: busca pelo campo de pesquisa → clica no veículo → captura popup + coordenadas via Leaflet
 
 const { getPage, SEL } = require('./browser');
 const logger = require('./logger');
 
-// ─── Busca a localização de um veículo pelo nome/apelido ────────────────────
 async function getVehicleLocation(vehicleName) {
-  logger.info('Buscando localização do veículo...', { vehicleName });
+  logger.info('Buscando localização...', { vehicleName });
 
   const page = await getPage();
 
-  // ── Estratégia 1: usar a barra de busca de unidades ──────────────────────
-  try {
-    return await _searchViaSearchBar(page, vehicleName);
-  } catch (err) {
-    logger.warn('Estratégia 1 falhou, tentando estratégia 2...', { err: err.message });
+  // Garante que está na página correta
+  if (!page.url().includes('/objects')) {
+    await page.goto(process.env.GPSWOX_URL + '/objects', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(SEL.searchInput, { timeout: 10000 });
   }
 
-  // ── Estratégia 2: navegar direto para a URL de unidades e filtrar ─────────
-  try {
-    return await _searchViaUnitList(page, vehicleName);
-  } catch (err) {
-    logger.warn('Estratégia 2 falhou, tentando estratégia 3 (API interna)...', { err: err.message });
-  }
-
-  // ── Estratégia 3: interceptar requisição da API interna do GPSWox ─────────
-  try {
-    return await _searchViaInternalApi(page, vehicleName);
-  } catch (err) {
-    logger.error('Todas as estratégias falharam.', { vehicleName, err: err.message });
-    await page.screenshot({ path: `logs/search_fail_${Date.now()}.png` });
-    throw new Error(`Veículo "${vehicleName}" não encontrado ou plataforma não respondeu.`);
-  }
-}
-
-// ─── Estratégia 1: barra de pesquisa do mapa ─────────────────────────────────
-async function _searchViaSearchBar(page, vehicleName) {
-  // Garante que está na tela do mapa
-  const mapUrl = process.env.GPSWOX_URL;
-  if (!page.url().startsWith(mapUrl)) {
-    await page.goto(mapUrl, { waitUntil: 'domcontentloaded' });
-  }
-
-  await page.waitForSelector(SEL.searchInput, { timeout: 8000 });
+  // ── 1. Digita o nome na barra de pesquisa ────────────────────────────────
+  logger.info('Digitando na barra de pesquisa...');
+  await page.click(SEL.searchInput);
   await page.fill(SEL.searchInput, '');
   await page.type(SEL.searchInput, vehicleName, { delay: 80 });
+  await page.waitForTimeout(1500); // aguarda a lista filtrar
 
-  // Aguarda resultados aparecerem
-  await page.waitForSelector(SEL.searchResult, { timeout: 6000 });
-
-  // Clica no primeiro resultado que contenha o nome buscado
-  const results = await page.$$(SEL.searchResult);
+  // ── 2. Encontra o veículo na lista lateral ───────────────────────────────
+  const unitRows = await page.$$('[data-device="name"]');
   let found = false;
 
-  for (const el of results) {
-    const text = await el.innerText();
+  for (const row of unitRows) {
+    const text = await row.innerText().catch(() => '');
     if (text.toLowerCase().includes(vehicleName.toLowerCase())) {
-      await el.click();
+      logger.info('Veículo encontrado na lista, clicando...', { text });
+      // Clica no elemento pai (linha completa) para abrir o popup no mapa
+      const parent = await row.$('xpath=ancestor::li[1] | xpath=ancestor::div[contains(@class,"object")][1]');
+      if (parent) {
+        await parent.click();
+      } else {
+        await row.click();
+      }
       found = true;
       break;
     }
   }
 
-  if (!found) throw new Error('Veículo não encontrado na lista de busca.');
+  if (!found) {
+    await page.screenshot({ path: `logs/not_found_${Date.now()}.png` });
+    throw new Error(`Veículo "${vehicleName}" não encontrado na lista. Verifique o nome exato.`);
+  }
 
-  // Aguarda popup / painel com dados do veículo
-  await page.waitForSelector(SEL.vehiclePopup, { timeout: 8000 });
+  // ── 3. Aguarda popup ou painel abrir ─────────────────────────────────────
+  await page.waitForTimeout(2000);
 
-  return await _extractLocationData(page, vehicleName);
-}
-
-// ─── Estratégia 2: lista de unidades (página /units ou /objects) ──────────────
-async function _searchViaUnitList(page, vehicleName) {
-  const urls = [
-    process.env.GPSWOX_URL + '/objects',
-    process.env.GPSWOX_URL + '/units',
-    process.env.GPSWOX_URL + '/map',
-  ];
-
-  for (const url of urls) {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    const rows = await page.$$(SEL.unitRow);
-
-    for (const row of rows) {
-      const text = await row.innerText().catch(() => '');
-      if (text.toLowerCase().includes(vehicleName.toLowerCase())) {
-        await row.click();
-        await page.waitForTimeout(1500);
-        return await _extractLocationData(page, vehicleName);
+  // ── 4. Captura endereço via data-device="address" ─────────────────────────
+  let endereco = null;
+  try {
+    // Aguarda o campo de endereço ser preenchido (pode demorar um pouco)
+    await page.waitForSelector('[data-device="address"]', { timeout: 8000 });
+    
+    // Pega o endereço do popup aberto (pode haver vários na página, pega o visível)
+    const addressEls = await page.$$('[data-device="address"]');
+    for (const el of addressEls) {
+      const visible = await el.isVisible();
+      const text    = await el.innerText().catch(() => '');
+      if (visible && text.trim().length > 5) {
+        endereco = text.trim();
+        break;
       }
     }
-  }
-
-  throw new Error('Veículo não encontrado na lista de unidades.');
-}
-
-// ─── Estratégia 3: interceptar API interna do GPSWox ─────────────────────────
-// O GPSWox faz chamadas AJAX para /api/get_devices ou similar.
-// Esta estratégia escuta as respostas de rede para extrair dados diretamente.
-async function _searchViaInternalApi(page, vehicleName) {
-  const apiPatterns = ['/get_devices', '/objects/get', '/units/get', '/api/objects'];
-  let capturedData = null;
-
-  // Intercepta respostas JSON da plataforma
-  page.on('response', async (response) => {
-    const url = response.url();
-    const isApiCall = apiPatterns.some(p => url.includes(p));
-    if (!isApiCall) return;
-
-    try {
-      const json = await response.json();
-      // Procura o veículo no JSON retornado
-      const list = Array.isArray(json) ? json : (json.data || json.objects || json.devices || []);
-      const match = list.find(item => {
-        const name = (item.name || item.unit_name || item.label || '').toLowerCase();
-        return name.includes(vehicleName.toLowerCase());
-      });
-      if (match) capturedData = match;
-    } catch {
-      // Resposta não é JSON, ignora
-    }
-  });
-
-  // Força um reload para disparar as chamadas de API
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForTimeout(3000);
-
-  if (!capturedData) throw new Error('API interna não retornou dados do veículo.');
-
-  // Normaliza os campos da API interna do GPSWox
-  const lat  = capturedData.lat  || capturedData.lastlat  || capturedData.latitude  || null;
-  const lng  = capturedData.lng  || capturedData.lastlng  || capturedData.longitude || null;
-  const addr = capturedData.address || capturedData.last_address || null;
-  const speed = capturedData.speed || capturedData.last_speed || 0;
-
-  if (!lat || !lng) throw new Error('Coordenadas não encontradas na resposta da API interna.');
-
-  const googleMapsLink = `https://maps.google.com/?q=${lat},${lng}`;
-
-  logger.info('Localização extraída via API interna.', { vehicleName, lat, lng });
-
-  return {
-    success:     true,
-    veiculo:     vehicleName,
-    latitude:    parseFloat(lat),
-    longitude:   parseFloat(lng),
-    endereco:    addr || 'Endereço não disponível',
-    velocidade:  `${parseFloat(speed).toFixed(0)} km/h`,
-    maps_link:   googleMapsLink,
-    fonte:       'api_interna',
-    capturado_em: new Date().toISOString(),
-  };
-}
-
-// ─── Extrai dados de localização do popup/painel aberto no mapa ───────────────
-async function _extractLocationData(page, vehicleName) {
-  await page.waitForTimeout(1000); // deixa o popup renderizar
-
-  // Tenta capturar endereço
-  let address = null;
-  try {
-    address = await page.$eval(SEL.addressField, el => el.innerText.trim());
   } catch {
-    // tenta texto completo do popup
-    try {
-      address = await page.$eval(SEL.vehiclePopup, el => el.innerText.trim());
-    } catch { /* ignora */ }
+    logger.warn('Campo de endereço não encontrado no popup.');
   }
 
-  // Tenta capturar coordenadas (podem estar em atributos data- ou em texto)
+  // ── 5. Captura coordenadas via objeto Leaflet (mais confiável) ────────────
   let lat = null, lng = null;
 
-  // Método 1: data-lat / data-lng no elemento do popup
   try {
-    const popup = await page.$(SEL.vehiclePopup);
-    lat = await popup.getAttribute('data-lat');
-    lng = await popup.getAttribute('data-lng');
-  } catch { /* ignora */ }
+    const coords = await page.evaluate(() => {
+      // Tenta pegar o centro atual do mapa Leaflet
+      if (window.map && typeof window.map.getCenter === 'function') {
+        const c = window.map.getCenter();
+        return { lat: c.lat, lng: c.lng };
+      }
+      // Alternativa: procura em objetos globais do GPSWox
+      if (window.objects && Array.isArray(window.objects)) {
+        return null; // será tratado abaixo
+      }
+      return null;
+    });
 
-  // Método 2: URL do mapa (muitas versões do GPSWox atualizam o hash com lat/lng)
-  if (!lat || !lng) {
-    const url = page.url();
-    const hashMatch = url.match(/[@/](-?\d+\.\d+)[,/](-?\d+\.\d+)/);
-    if (hashMatch) {
-      lat = hashMatch[1];
-      lng = hashMatch[2];
+    if (coords && coords.lat && coords.lng) {
+      lat = coords.lat;
+      lng = coords.lng;
+      logger.info('Coordenadas capturadas via Leaflet.', { lat, lng });
     }
+  } catch {
+    logger.warn('Leaflet não acessível via window.map.');
   }
 
-  // Método 3: captura via execução de JS — leaflet expõe o centro do mapa
+  // ── 6. Alternativa: coordenadas via texto do popup ─────────────────────────
   if (!lat || !lng) {
     try {
-      const coords = await page.evaluate(() => {
-        if (window.map && window.map.getCenter) {
-          const c = window.map.getCenter();
-          return { lat: c.lat, lng: c.lng };
-        }
-        // Wialon/GPSWox às vezes expõe um objeto global de unidades
-        if (window.wialon && window.wialon.core && window.wialon.core.Session) {
-          return null; // Wialon puro tem SDK próprio
-        }
-        return null;
-      });
-      if (coords) { lat = coords.lat; lng = coords.lng; }
+      const posEls = await page.$$('[data-device="lat"], [data-device="lng"], [data-device="position"]');
+      if (posEls.length >= 2) {
+        lat = await posEls[0].innerText();
+        lng = await posEls[1].innerText();
+      }
     } catch { /* ignora */ }
   }
 
+  // ── 7. Alternativa: captura da URL do mapa (hash com coordenadas) ─────────
   if (!lat || !lng) {
-    // Retorna só o endereço textual se não conseguiu coordenadas
-    logger.warn('Coordenadas não extraídas, retornando apenas texto.', { vehicleName });
-    return {
-      success:     true,
-      veiculo:     vehicleName,
-      latitude:    null,
-      longitude:   null,
-      endereco:    address || 'Localização encontrada mas coordenadas indisponíveis.',
-      velocidade:  null,
-      maps_link:   null,
-      fonte:       'popup_texto',
-      capturado_em: new Date().toISOString(),
-    };
+    try {
+      const url = page.url();
+      const match = url.match(/[@#](-?\d+\.\d+)[,/](-?\d+\.\d+)/);
+      if (match) { lat = match[1]; lng = match[2]; }
+    } catch { /* ignora */ }
   }
 
-  const googleMapsLink = `https://maps.google.com/?q=${lat},${lng}`;
+  // ── 8. Alternativa: intercepta o objeto do veículo via JS global ──────────
+  if (!lat || !lng) {
+    try {
+      const coords = await page.evaluate((name) => {
+        // GPSWox guarda os devices em objetos globais
+        const keys = ['devices', 'units', 'objects', 'markers'];
+        for (const key of keys) {
+          if (!window[key]) continue;
+          const list = Array.isArray(window[key])
+            ? window[key]
+            : Object.values(window[key]);
+          const match = list.find(d => {
+            const n = (d.name || d.unit_name || d.label || '').toLowerCase();
+            return n.includes(name.toLowerCase());
+          });
+          if (match) {
+            return {
+              lat: match.lat || match.lastlat || match.latitude,
+              lng: match.lng || match.lastlng || match.longitude,
+            };
+          }
+        }
+        return null;
+      }, vehicleName);
 
-  logger.info('Localização extraída com sucesso.', { vehicleName, lat, lng });
+      if (coords?.lat && coords?.lng) {
+        lat = coords.lat;
+        lng = coords.lng;
+        logger.info('Coordenadas capturadas via objeto JS global.', { lat, lng });
+      }
+    } catch { /* ignora */ }
+  }
+
+  // ── Captura velocidade ────────────────────────────────────────────────────
+  let velocidade = null;
+  try {
+    const speedEls = await page.$$('[data-device="speed"]');
+    for (const el of speedEls) {
+      const visible = await el.isVisible();
+      const text    = await el.innerText().catch(() => '');
+      if (visible && text.trim()) { velocidade = text.trim(); break; }
+    }
+  } catch { /* ignora */ }
+
+  // ── Monta link do Google Maps ─────────────────────────────────────────────
+  const mapsLink = lat && lng
+    ? `https://maps.google.com/?q=${lat},${lng}`
+    : null;
+
+  // ── Limpa a busca para não interferir na próxima consulta ─────────────────
+  try {
+    await page.fill(SEL.searchInput, '');
+  } catch { /* ignora */ }
+
+  logger.info('Localização capturada com sucesso.', { vehicleName, lat, lng, endereco });
 
   return {
-    success:     true,
-    veiculo:     vehicleName,
-    latitude:    parseFloat(lat),
-    longitude:   parseFloat(lng),
-    endereco:    address || 'Endereço não disponível',
-    velocidade:  null,
-    maps_link:   googleMapsLink,
-    fonte:       'popup_mapa',
+    success:      true,
+    veiculo:      vehicleName,
+    latitude:     lat ? parseFloat(lat) : null,
+    longitude:    lng ? parseFloat(lng) : null,
+    endereco:     endereco || 'Endereço não disponível',
+    velocidade:   velocidade || '0 Km/h',
+    maps_link:    mapsLink,
     capturado_em: new Date().toISOString(),
   };
 }
