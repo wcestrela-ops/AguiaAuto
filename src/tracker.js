@@ -30,13 +30,7 @@ async function getVehicleLocation(vehicleName) {
     const text = await row.innerText().catch(() => '');
     if (text.toLowerCase().includes(vehicleName.toLowerCase())) {
       logger.info('Veículo encontrado na lista, clicando...', { text });
-      // Clica no elemento pai (linha completa) para abrir o popup no mapa
-      const parent = await row.$('xpath=ancestor::li[1] | xpath=ancestor::div[contains(@class,"object")][1]');
-      if (parent) {
-        await parent.click();
-      } else {
-        await row.click();
-      }
+      await row.click();
       found = true;
       break;
     }
