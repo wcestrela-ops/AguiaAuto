@@ -48,7 +48,8 @@ async function getVehicleLocation(vehicleName) {
   }
 
   // ── 3. Aguarda popup ou painel abrir ─────────────────────────────────────
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
+  await page.waitForLoadState('domcontentloaded');
 
   // ── 4. Captura endereço via data-device="address" ─────────────────────────
   let endereco = null;
@@ -70,27 +71,27 @@ async function getVehicleLocation(vehicleName) {
     logger.warn('Campo de endereço não encontrado no popup.');
   }
 
-  // ── 5. Captura coordenadas via objeto Leaflet (mais confiável) ────────────
+  // ── 5. Captura coordenadas via objeto Leaflet ─────────────────────────────
   let lat = null, lng = null;
 
   try {
+    await page.waitForFunction(() => window.map !== undefined, { timeout: 5000 }).catch(() => {});
     const coords = await page.evaluate(() => {
       try {
         if (window.map && typeof window.map.getCenter === 'function') {
           const c = window.map.getCenter();
-          return { lat: c.lat, lng: c.lng };
+          if (c && c.lat && c.lng) return { lat: c.lat, lng: c.lng };
         }
       } catch(e) {}
       return null;
     });
-
     if (coords && coords.lat && coords.lng) {
       lat = coords.lat;
       lng = coords.lng;
-      logger.info('Coordenadas capturadas via Leaflet.', { lat, lng });
+      logger.info('Coordenadas via Leaflet.', { lat, lng });
     }
   } catch {
-    logger.warn('Leaflet não acessível via window.map.');
+    logger.warn('Leaflet não disponível.');
   }
 
   // ── 6. Alternativa: coordenadas via texto do popup ─────────────────────────
