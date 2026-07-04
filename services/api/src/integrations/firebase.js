@@ -1,11 +1,8 @@
-const { getStore } = require('@aguia/integrations');
-
-async function getConfig() {
-  const store = getStore();
-  return store.getSettings('firebase');
-}
+const firebase = require('../services/firebase');
 
 module.exports = {
-  getConfig,
-  sendPush: async () => ({ status: 'not_implemented' }),
+  getConfig: firebase.getConfig,
+  getPublicConfig: firebase.getPublicConfig,
+  sendPush: firebase.sendPush,
+  testConnection: firebase.testConnection,
 };

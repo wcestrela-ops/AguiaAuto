@@ -3,6 +3,21 @@ const { getStore, getSchema, maskSettings } = require('@aguia/integrations');
 
 const router = Router();
 
+const SECRET_FIELDS = ['api_key', 'pass', 'secret', 'private_key', 'web_api_key', 'vapid_key', 'access_token', 'app_secret', 'verify_token'];
+
+function stripMaskedSecrets(body, currentSettings) {
+  const cleaned = { ...body };
+  for (const field of SECRET_FIELDS) {
+    if (cleaned[field] && String(cleaned[field]).includes('*') && currentSettings?.[field]) {
+      cleaned[field] = currentSettings[field];
+    }
+    if (cleaned[field] === '') {
+      delete cleaned[field];
+    }
+  }
+  return cleaned;
+}
+
 router.get('/', async (req, res) => {
   try {
     const store = getStore();
@@ -33,8 +48,10 @@ router.get('/:key', async (req, res) => {
 router.put('/:key', async (req, res) => {
   try {
     const store = getStore();
+    const current = await store.get(req.params.key, { useCache: false });
     const { settings = {}, enabled } = req.body;
-    const updated = await store.update(req.params.key, settings, {
+    const cleaned = stripMaskedSecrets(settings, current.settings);
+    const updated = await store.update(req.params.key, cleaned, {
       enabled,
       updatedBy: req.headers['x-admin-user'] || 'admin',
     });
@@ -92,6 +109,12 @@ router.post('/:key/test', async (req, res) => {
         message: response.ok ? 'Conexão Asaas OK.' : 'Falha na conexão Asaas.',
         status: response.status,
       });
+    }
+
+    if (key === 'firebase') {
+      const firebase = require('../../../services/firebase');
+      const result = await firebase.testConnection();
+      return res.json({ success: true, data: result });
     }
 
     res.status(400).json({ success: false, error: `Teste automático não disponível para "${key}".` });

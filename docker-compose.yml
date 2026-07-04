@@ -47,11 +47,25 @@ services:
       API_PORT: 3000
       GATEWAY_URL: http://gpswox-gateway:3001
       DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
+      CORS_ORIGIN: http://localhost:8080
     ports:
       - "3000:3000"
     depends_on:
       - postgres
       - gpswox-gateway
+    networks:
+      - aguia_network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: aguia-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
     networks:
       - aguia_network
 

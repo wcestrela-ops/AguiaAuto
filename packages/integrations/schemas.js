@@ -36,13 +36,17 @@ const INTEGRATIONS = {
       { key: 'sandbox', label: 'Modo sandbox', type: 'boolean', default: false, env: 'ASAAS_SANDBOX' },
     ],
   },
-  asaas: {
+  firebase: {
     label: 'Firebase',
-    description: 'Notificações push (PWA e apps)',
+    description: 'Notificações push (PWA e apps) — configure pelo painel admin',
     fields: [
       { key: 'project_id', label: 'Project ID', type: 'text', required: true, env: 'FIREBASE_PROJECT_ID' },
-      { key: 'client_email', label: 'Client Email', type: 'text', required: true, env: 'FIREBASE_CLIENT_EMAIL' },
-      { key: 'private_key', label: 'Private Key', type: 'password', secret: true, required: true, env: 'FIREBASE_PRIVATE_KEY' },
+      { key: 'web_api_key', label: 'Web API Key', type: 'password', secret: true, required: true, env: 'FIREBASE_WEB_API_KEY' },
+      { key: 'messaging_sender_id', label: 'Messaging Sender ID', type: 'text', required: true, env: 'FIREBASE_MESSAGING_SENDER_ID' },
+      { key: 'app_id', label: 'App ID', type: 'text', required: true, env: 'FIREBASE_APP_ID' },
+      { key: 'vapid_key', label: 'VAPID Key (Web Push)', type: 'password', secret: true, env: 'FIREBASE_VAPID_KEY' },
+      { key: 'client_email', label: 'Service Account Email', type: 'text', required: true, env: 'FIREBASE_CLIENT_EMAIL' },
+      { key: 'private_key', label: 'Service Account Private Key', type: 'password', secret: true, required: true, env: 'FIREBASE_PRIVATE_KEY' },
     ],
   },
 };

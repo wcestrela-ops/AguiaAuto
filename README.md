@@ -22,7 +22,7 @@ Integrações
 ```
 aguia-gestao-veicular/
 ├── apps/
-│   └── web/                       # PWA (Fase 2)
+│   └── web/                       # PWA + Painel Admin
 ├── services/
 │   ├── api/                       # API principal
 │   └── gpswox-gateway/            # Gateway interno GPSWOX
@@ -42,7 +42,22 @@ cp .env.example .env
 
 npm install
 docker compose up -d --build
+# Painel admin: http://localhost:8080/admin
+# API: http://localhost:3000
 ```
+
+### Painel Admin (PWA)
+
+Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
+
+| Tela | Caminho |
+|------|---------|
+| Dashboard | `/admin` |
+| Integrações (Firebase, GPSWOX, Asaas) | `/admin/integracoes` |
+| Firebase Push | `/admin/integracoes/firebase` |
+| WhatsApp Multi-Provedor | `/admin/whatsapp` |
+
+**Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
 
 ### Endpoints disponíveis
 
@@ -193,6 +208,7 @@ Para adicionar uma nova API no futuro, basta registrar o schema em `packages/int
 ## Desenvolvimento local
 
 ```bash
+npm run dev:web        # PWA + painel admin na porta 5173
 npm run dev:api        # API na porta 3000
 npm run dev:gateway    # Gateway na porta 3001
 npm run diagnostico    # Descobrir seletores GPSWOX

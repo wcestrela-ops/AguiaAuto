@@ -11,8 +11,10 @@
   "scripts": {
     "dev:api": "npm run dev -w @aguia/api",
     "dev:gateway": "npm run dev -w @aguia/gpswox-gateway",
+    "dev:web": "npm run dev -w @aguia/web",
     "start:api": "npm run start -w @aguia/api",
     "start:gateway": "npm run start -w @aguia/gpswox-gateway",
+    "build:web": "npm run build -w @aguia/web",
     "diagnostico": "npm run diagnostico -w @aguia/gpswox-gateway"
   }
 }
