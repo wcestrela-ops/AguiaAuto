@@ -2,11 +2,10 @@ const { Router } = require('express');
 const { getAuthService } = require('../../services/auth-service');
 
 const router = Router();
-const auth = getAuthService();
 
 router.get('/', async (req, res) => {
   try {
-    const user = await auth.me(req.user.id);
+    const user = await getAuthService().me(req.user.id);
     res.json({ success: true, data: user });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
