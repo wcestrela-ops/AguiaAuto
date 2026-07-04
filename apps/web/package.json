@@ -1,0 +1,6 @@
+{
+  "name": "@aguia/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PWA Águia Gestão Veicular — React + Vite (Fase 2)"
+}

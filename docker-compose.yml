@@ -2,44 +2,62 @@ version: "3.8"
 
 services:
 
-  # ─── Serviço Playwright GPSWox ──────────────────────────────────────────────
-  playwright-gpswox:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aguia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aguia
+      POSTGRES_PASSWORD: aguia
+      POSTGRES_DB: aguia
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - aguia_network
+
+  gpswox-gateway:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: playwright-gpswox
+      dockerfile: services/gpswox-gateway/Dockerfile
+    container_name: aguia-gpswox-gateway
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "3001:3001"          # Exponha apenas internamente se n8n estiver na mesma rede
+    environment:
+      DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
     volumes:
-      - ./logs:/app/logs     # Persiste logs e screenshots de diagnóstico
+      - ./services/gpswox-gateway/logs:/app/logs
     networks:
-      - n8n_network
-    # Necessário para Playwright/Chromium em Docker
+      - aguia_network
     shm_size: "512mb"
     security_opt:
-      - seccomp:unconfined   # Necessário para o Chromium em alguns ambientes
+      - seccomp:unconfined
 
-  # ─── n8n (descomente se ainda não tiver seu próprio compose) ─────────────────
-  # n8n:
-  #   image: n8nio/n8n:latest
-  #   container_name: n8n
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5678:5678"
-  #   environment:
-  #     - N8N_HOST=0.0.0.0
-  #     - N8N_PORT=5678
-  #   volumes:
-  #     - n8n_data:/home/node/.n8n
-  #   networks:
-  #     - n8n_network
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    container_name: aguia-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      API_PORT: 3000
+      GATEWAY_URL: http://gpswox-gateway:3001
+      DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - gpswox-gateway
+    networks:
+      - aguia_network
 
 networks:
-  n8n_network:
-    external: true   # Use a rede que seu n8n já está. Crie com: docker network create n8n_network
+  aguia_network:
+    driver: bridge
 
-# volumes:
-#   n8n_data:
+volumes:
+  postgres_data:
