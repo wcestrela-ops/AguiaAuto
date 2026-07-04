@@ -11,6 +11,8 @@ import ClientRegisterPage from './pages/client/ClientRegisterPage';
 import ClientLayout from './pages/client/ClientLayout';
 import ClientHomePage from './pages/client/ClientHomePage';
 import ClientProfilePage from './pages/client/ClientProfilePage';
+import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
+import ResetPasswordPage from './pages/client/ResetPasswordPage';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -31,6 +33,8 @@ export default function App() {
       {/* Cliente */}
       <Route path="/login" element={<ClientLoginPage />} />
       <Route path="/cadastro" element={<ClientRegisterPage />} />
+      <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
+      <Route path="/recuperar-senha/confirmar" element={<ResetPasswordPage />} />
       <Route
         path="/app"
         element={

@@ -174,6 +174,20 @@ class ApiClient {
     return this.request('/v1/notificacoes/teste', { method: 'POST' }, { useClient: true });
   }
 
+  requestPasswordReset(email) {
+    return this.request('/v1/auth/recuperar-senha/solicitar', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  confirmPasswordReset({ email, code, new_password }) {
+    return this.request('/v1/auth/recuperar-senha/confirmar', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, new_password }),
+    });
+  }
+
   // ─── Admin ───────────────────────────────────────────────────────────────
   getIntegrations() {
     return this.request('/v1/admin/integracoes', {}, { useAdmin: true });

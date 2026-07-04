@@ -1,10 +1,20 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getUserRepository } = require('../repositories/user-repository');
+const { getPasswordResetRepository } = require('../repositories/password-reset-repository');
+const whatsapp = require('./whatsapp');
+const firebase = require('./firebase');
+const { normalizePhone } = require('../lib/phone');
+const logger = require('../logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || '1h';
 const REFRESH_EXPIRES_DAYS = parseInt(process.env.JWT_REFRESH_DAYS || '7', 10);
+const RESET_CODE_EXPIRES_MIN = parseInt(process.env.RESET_CODE_EXPIRES_MIN || '10', 10);
+const RESET_MAX_REQUESTS = parseInt(process.env.RESET_MAX_REQUESTS || '3', 10);
+
+const GENERIC_RESET_MESSAGE =
+  'Se o e-mail estiver cadastrado, você receberá um código de recuperação no WhatsApp.';
 
 function ensureJwtSecret() {
   if (!JWT_SECRET) {
@@ -58,6 +68,100 @@ function sanitizeUser(user) {
 class AuthService {
   constructor() {
     this.users = getUserRepository();
+    this.passwordReset = getPasswordResetRepository();
+  }
+
+  _generateResetCode() {
+    return String(crypto.randomInt(100000, 999999));
+  }
+
+  _resetExpiresAt() {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() + RESET_CODE_EXPIRES_MIN);
+    return date;
+  }
+
+  async requestPasswordReset(email) {
+    if (!email) {
+      throw new Error('E-mail é obrigatório.');
+    }
+
+    const user = await this.users.findByEmail(email);
+
+    if (!user || !user.active) {
+      return {
+        success: true,
+        message: GENERIC_RESET_MESSAGE,
+        channel: null,
+      };
+    }
+
+    const recentCount = await this.passwordReset.countRecentRequests(user.id);
+    if (recentCount >= RESET_MAX_REQUESTS) {
+      throw new Error('Muitas tentativas. Aguarde 15 minutos e tente novamente.');
+    }
+
+    const code = this._generateResetCode();
+    await this.passwordReset.create(user.id, code, this._resetExpiresAt());
+
+    let channel = null;
+
+    if (user.phone) {
+      try {
+        await whatsapp.sendPasswordRecovery(normalizePhone(user.phone), code, { user: user.email });
+        channel = 'whatsapp';
+        logger.info('Código de recuperação enviado via WhatsApp.', { email: user.email });
+      } catch (err) {
+        logger.warn('Falha ao enviar código via WhatsApp.', { email: user.email, err: err.message });
+      }
+    }
+
+    try {
+      await firebase.sendPushToUser(user.id, {
+        title: 'Recuperação de senha — Águia',
+        body: `Seu código: ${code}. Válido por ${RESET_CODE_EXPIRES_MIN} minutos.`,
+        data: { type: 'password_reset' },
+      });
+      if (!channel) channel = 'push';
+    } catch {
+      // Push é opcional — usuário pode não ter dispositivo registrado
+    }
+
+    return {
+      success: true,
+      message: GENERIC_RESET_MESSAGE,
+      channel,
+    };
+  }
+
+  async confirmPasswordReset({ email, code, new_password }) {
+    if (!email || !code || !new_password) {
+      throw new Error('E-mail, código e nova senha são obrigatórios.');
+    }
+    if (new_password.length < 6) {
+      throw new Error('Nova senha deve ter no mínimo 6 caracteres.');
+    }
+
+    const user = await this.users.findByEmail(email);
+    if (!user || !user.active) {
+      throw new Error('Código inválido ou expirado.');
+    }
+
+    const token = await this.passwordReset.findValid(user.id, String(code).trim());
+    if (!token) {
+      throw new Error('Código inválido ou expirado.');
+    }
+
+    await this.users.updatePassword(user.id, new_password);
+    await this.passwordReset.markUsed(token.id);
+    await this.users.revokeAllUserTokens(user.id);
+
+    logger.info('Senha redefinida com sucesso.', { userId: user.id });
+
+    return {
+      success: true,
+      message: 'Senha alterada com sucesso. Faça login com a nova senha.',
+    };
   }
 
   async register({ email, password, name, phone, cpf_cnpj }) {

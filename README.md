@@ -85,6 +85,20 @@ Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: 
 Firebase deve estar configurado no painel admin antes de registrar tokens.
 Cliente PWA: Perfil → Ativar notificações.
 
+### Recuperação de senha
+
+| Rota | Descrição |
+|------|-----------|
+| `POST /v1/auth/recuperar-senha/solicitar` | Envia código de 6 dígitos via WhatsApp |
+| `POST /v1/auth/recuperar-senha/confirmar` | Redefine senha com código |
+
+Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirmar`
+
+- Código válido por 10 minutos
+- Máximo 3 solicitações a cada 15 minutos
+- Push notification enviado como canal secundário (se FCM registrado)
+- WhatsApp configurado pelo painel admin
+
 ### Endpoints disponíveis
 
 **API Águia** (`http://localhost:3000`)

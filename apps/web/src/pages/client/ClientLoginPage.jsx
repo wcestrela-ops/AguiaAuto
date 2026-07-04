@@ -50,6 +50,9 @@ export default function ClientLoginPage() {
         </button>
 
         <p className="text-center muted">
+          <Link to="/recuperar-senha">Esqueci minha senha</Link>
+        </p>
+        <p className="text-center muted">
           Não tem conta? <Link to="/cadastro">Cadastre-se</Link>
         </p>
         <p className="text-center muted">

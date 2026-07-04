@@ -230,6 +230,9 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-danger { background: var(--error); color: white; }
 
+.btn-link { display: block; text-decoration: none; }
+.btn-link button { width: 100%; }
+
 /* Alerts & badges */
 .alert {
   padding: 0.75rem 1rem;

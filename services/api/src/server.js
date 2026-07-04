@@ -9,6 +9,7 @@ const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
 const { migrateFcmTokens } = require('./db/migrate-fcm');
+const { migratePasswordReset } = require('./db/migrate-password-reset');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -90,6 +91,9 @@ async function bootstrap() {
 
     await migrateFcmTokens();
     logger.info('FCM tokens (push notifications) inicializado.');
+
+    await migratePasswordReset();
+    logger.info('Recuperação de senha inicializada.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
