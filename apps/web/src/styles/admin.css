@@ -268,6 +268,25 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .client-shell .sidebar-brand small { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
+.device-list {
+  list-style: none;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.device-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.device-list li small {
+  display: block;
+  font-family: monospace;
+  font-size: 0.75rem;
+  margin-top: 0.125rem;
+}
+
 /* Table */
 .table-card {
   background: var(--surface);

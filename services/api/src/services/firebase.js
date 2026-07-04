@@ -1,4 +1,5 @@
 const { getStore } = require('@aguia/integrations');
+const { getFcmTokenRepository } = require('../repositories/fcm-token-repository');
 const logger = require('../logger');
 
 let adminApp = null;
@@ -10,12 +11,18 @@ async function getConfig() {
 
 async function getPublicConfig() {
   const config = await getConfig();
+  const required = ['project_id', 'web_api_key', 'messaging_sender_id', 'app_id'];
+  const missing = required.filter(k => !config[k]);
+  if (missing.length) {
+    throw new Error(`Firebase incompleto: ${missing.join(', ')}`);
+  }
+
   return {
     project_id: config.project_id,
     api_key: config.web_api_key,
     messaging_sender_id: config.messaging_sender_id,
     app_id: config.app_id,
-    vapid_key: config.vapid_key,
+    vapid_key: config.vapid_key || null,
   };
 }
 
@@ -54,12 +61,70 @@ async function sendPush({ token, title, body, data = {} }) {
     token,
     notification: { title, body },
     data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
+    webpush: {
+      notification: { title, body, icon: '/favicon.svg' },
+    },
   };
 
   const result = await app.messaging().send(message);
   logger.info('Push Firebase enviado.', { title, responseTime: Date.now() - start });
-
   return { success: true, message_id: result };
+}
+
+async function sendPushToUser(userId, { title, body, data = {} }) {
+  const fcmRepo = getFcmTokenRepository();
+  const tokens = await fcmRepo.getActiveTokens(userId);
+
+  if (tokens.length === 0) {
+    throw new Error('Nenhum dispositivo registrado para push.');
+  }
+
+  const results = [];
+  const errors = [];
+
+  for (const token of tokens) {
+    try {
+      const result = await sendPush({ token, title, body, data });
+      results.push({ token: token.slice(0, 12) + '...', ...result });
+    } catch (err) {
+      errors.push({ token: token.slice(0, 12) + '...', error: err.message });
+
+      if (
+        err.code === 'messaging/registration-token-not-registered' ||
+        err.code === 'messaging/invalid-registration-token'
+      ) {
+        await fcmRepo.deactivateToken(token);
+        logger.warn('FCM token inválido desativado.', { userId });
+      }
+    }
+  }
+
+  return {
+    success: results.length > 0,
+    sent: results.length,
+    failed: errors.length,
+    results,
+    errors,
+  };
+}
+
+async function registerToken(userId, { token, device_name, platform }) {
+  if (!token || token.length < 20) {
+    throw new Error('Token FCM inválido.');
+  }
+  const fcmRepo = getFcmTokenRepository();
+  return fcmRepo.register({ userId, token, device_name, platform });
+}
+
+async function unregisterToken(userId, token) {
+  const fcmRepo = getFcmTokenRepository();
+  await fcmRepo.unregister(userId, token);
+  return { success: true };
+}
+
+async function listDevices(userId) {
+  const fcmRepo = getFcmTokenRepository();
+  return fcmRepo.listByUser(userId);
 }
 
 async function testConnection() {
@@ -83,5 +148,9 @@ module.exports = {
   getConfig,
   getPublicConfig,
   sendPush,
+  sendPushToUser,
+  registerToken,
+  unregisterToken,
+  listDevices,
   testConnection,
 };

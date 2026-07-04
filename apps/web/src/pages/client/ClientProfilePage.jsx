@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export default function ClientProfilePage() {
   const [profile, setProfile] = useState({ name: '', phone: '', email: '' });
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const push = usePushNotifications();
 
   useEffect(() => {
     api.getPerfil()
@@ -40,12 +42,92 @@ export default function ClientProfilePage() {
     }
   }
 
+  async function handleEnablePush() {
+    setMessage('');
+    setError('');
+    try {
+      await push.enablePush();
+      setMessage('Notificações push ativadas neste dispositivo.');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDisablePush() {
+    setMessage('');
+    setError('');
+    try {
+      await push.disablePush();
+      setMessage('Notificações push desativadas.');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleTestPush() {
+    setMessage('');
+    setError('');
+    try {
+      await push.sendTestPush();
+      setMessage('Notificação de teste enviada!');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div>
       <header className="page-header">
         <h1>Meu Perfil</h1>
-        <p>Gerencie seus dados e senha.</p>
+        <p>Gerencie seus dados, senha e notificações.</p>
       </header>
+
+      <div className="form-card">
+        <h3>🔔 Notificações Push</h3>
+        <p className="muted" style={{ marginBottom: '1rem' }}>
+          Firebase configurado pelo administrador. Ative para receber alertas de veículos, cobranças e emergências.
+        </p>
+
+        <div className="card-meta" style={{ marginBottom: '1rem' }}>
+          <span className={`badge ${push.isEnabled ? 'success' : 'warning'}`}>
+            {push.isEnabled ? 'Ativado' : 'Desativado'}
+          </span>
+          {push.status === 'denied' && <span className="badge error">Permissão negada</span>}
+        </div>
+
+        <div className="form-actions">
+          {!push.isEnabled ? (
+            <button type="button" onClick={handleEnablePush} disabled={push.status === 'loading'}>
+              {push.status === 'loading' ? 'Ativando...' : 'Ativar notificações'}
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn-secondary" onClick={handleTestPush}>
+                Enviar teste
+              </button>
+              <button type="button" className="btn-danger btn-sm" onClick={handleDisablePush}>
+                Desativar
+              </button>
+            </>
+          )}
+        </div>
+
+        {push.devices.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            <strong style={{ fontSize: '0.875rem' }}>Dispositivos registrados:</strong>
+            <ul className="device-list">
+              {push.devices.map((d) => (
+                <li key={d.id}>
+                  {d.platform} — {d.device_name?.slice(0, 40) || 'Dispositivo'}
+                  <small>{d.token}</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {push.error && <div className="alert error" style={{ marginTop: '0.75rem' }}>{push.error}</div>}
+      </div>
 
       <form className="form-card" onSubmit={saveProfile}>
         <h3>Dados pessoais</h3>

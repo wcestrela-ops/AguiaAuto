@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refresh_token: refreshToken } = req.body;
-    const data = await auth.refresh(refreshToken);
+    const data = await getAuthService().refresh(refreshToken);
     res.json({ success: true, data });
   } catch (err) {
     res.status(401).json({ success: false, error: err.message });
@@ -35,7 +35,7 @@ router.post('/refresh', async (req, res) => {
 router.post('/logout', async (req, res) => {
   try {
     const { refresh_token: refreshToken } = req.body;
-    await auth.logout(refreshToken);
+    await getAuthService().logout(refreshToken);
     res.json({ success: true, message: 'Logout realizado.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -44,7 +44,7 @@ router.post('/logout', async (req, res) => {
 
 router.get('/me', jwtAuth, async (req, res) => {
   try {
-    const user = await auth.me(req.user.id);
+    const user = await getAuthService().me(req.user.id);
     res.json({ success: true, data: user });
   } catch (err) {
     res.status(404).json({ success: false, error: err.message });

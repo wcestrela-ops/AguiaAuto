@@ -73,6 +73,18 @@ PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admi
 
 Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
 
+### FCM Token (Push Notifications)
+
+| Rota | Descrição |
+|------|-----------|
+| `POST /v1/notificacoes/token` | Registrar token FCM do dispositivo |
+| `DELETE /v1/notificacoes/token` | Remover token |
+| `GET /v1/notificacoes/dispositivos` | Listar dispositivos do usuário |
+| `POST /v1/notificacoes/teste` | Enviar push de teste |
+
+Firebase deve estar configurado no painel admin antes de registrar tokens.
+Cliente PWA: Perfil → Ativar notificações.
+
 ### Endpoints disponíveis
 
 **API Águia** (`http://localhost:3000`)

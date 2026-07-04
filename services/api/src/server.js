@@ -8,6 +8,7 @@ const { jwtAuth, requireRole } = require('./middleware/jwt-auth');
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
+const { migrateFcmTokens } = require('./db/migrate-fcm');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -16,6 +17,7 @@ const financeiroRoutes = require('./modules/financeiro/routes');
 const alertasRoutes = require('./modules/alertas/routes');
 const emergenciaRoutes = require('./modules/emergencia/routes');
 const perfilRoutes = require('./modules/perfil/routes');
+const notificacoesRoutes = require('./modules/notificacoes/routes');
 const indicacoesRoutes = require('./modules/indicacoes/routes');
 const instaladorRoutes = require('./modules/instalador/routes');
 const webhooksRoutes = require('./modules/webhooks/routes');
@@ -63,6 +65,7 @@ app.use('/v1/financeiro', jwtAuth, financeiroRoutes);
 app.use('/v1/alertas', jwtAuth, alertasRoutes);
 app.use('/v1/emergencia', jwtAuth, emergenciaRoutes);
 app.use('/v1/perfil', jwtAuth, perfilRoutes);
+app.use('/v1/notificacoes', jwtAuth, notificacoesRoutes);
 app.use('/v1/indicacoes', jwtAuth, indicacoesRoutes);
 
 // Área do instalador — JWT + role
@@ -84,6 +87,9 @@ async function bootstrap() {
 
     await migrateUsers();
     logger.info('Autenticação JWT (clientes) inicializada.');
+
+    await migrateFcmTokens();
+    logger.info('FCM tokens (push notifications) inicializado.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

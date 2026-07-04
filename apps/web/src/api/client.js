@@ -152,6 +152,28 @@ class ApiClient {
     }, { useClient: true });
   }
 
+  registerFcmToken({ token, device_name, platform = 'web' }) {
+    return this.request('/v1/notificacoes/token', {
+      method: 'POST',
+      body: JSON.stringify({ token, device_name, platform }),
+    }, { useClient: true });
+  }
+
+  unregisterFcmToken(token) {
+    return this.request('/v1/notificacoes/token', {
+      method: 'DELETE',
+      body: JSON.stringify({ token }),
+    }, { useClient: true });
+  }
+
+  getFcmDevices() {
+    return this.request('/v1/notificacoes/dispositivos', {}, { useClient: true });
+  }
+
+  testPushNotification() {
+    return this.request('/v1/notificacoes/teste', { method: 'POST' }, { useClient: true });
+  }
+
   // ─── Admin ───────────────────────────────────────────────────────────────
   getIntegrations() {
     return this.request('/v1/admin/integracoes', {}, { useAdmin: true });
