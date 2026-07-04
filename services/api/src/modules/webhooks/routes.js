@@ -1,5 +1,6 @@
 const { Router } = require('express');
-const asaas = require('../integrations/asaas');
+const asaas = require('../../integrations/asaas');
+const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 
 const router = Router();
 
@@ -15,5 +16,8 @@ router.post('/asaas', async (req, res) => {
 router.post('/gpswox', (req, res) => {
   res.status(501).json({ success: false, error: 'Webhook GPSWOX em desenvolvimento.' });
 });
+
+router.get('/whatsapp/meta', verifyMetaWebhook);
+router.post('/whatsapp/meta', receiveMetaWebhook);
 
 module.exports = router;

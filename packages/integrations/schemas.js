@@ -36,16 +36,7 @@ const INTEGRATIONS = {
       { key: 'sandbox', label: 'Modo sandbox', type: 'boolean', default: false, env: 'ASAAS_SANDBOX' },
     ],
   },
-  evolution: {
-    label: 'Evolution API',
-    description: 'Mensagens via WhatsApp',
-    fields: [
-      { key: 'url', label: 'URL da API', type: 'url', required: true, env: 'EVOLUTION_API_URL' },
-      { key: 'api_key', label: 'API Key', type: 'password', secret: true, required: true, env: 'EVOLUTION_API_KEY' },
-      { key: 'instance', label: 'Instância', type: 'text', env: 'EVOLUTION_INSTANCE' },
-    ],
-  },
-  firebase: {
+  asaas: {
     label: 'Firebase',
     description: 'Notificações push (PWA e apps)',
     fields: [

@@ -94,20 +94,6 @@ router.post('/:key/test', async (req, res) => {
       });
     }
 
-    if (key === 'evolution') {
-      if (!settings.url || !settings.api_key) {
-        return res.status(400).json({ success: false, error: 'Configure url e api_key para testar a Evolution API.' });
-      }
-      const response = await fetch(`${settings.url.replace(/\/$/, '')}/instance/fetchInstances`, {
-        headers: { apikey: settings.api_key },
-      });
-      return res.json({
-        success: response.ok,
-        message: response.ok ? 'Conexão Evolution API OK.' : 'Falha na conexão Evolution API.',
-        status: response.status,
-      });
-    }
-
     res.status(400).json({ success: false, error: `Teste automático não disponível para "${key}".` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

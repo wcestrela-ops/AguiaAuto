@@ -13,7 +13,7 @@ Integrações
 ├── GPSWOX Gateway                 ← services/gpswox-gateway
 ├── Asaas (financeiro)
 ├── Firebase (push)
-├── Evolution API (WhatsApp)
+├── WhatsAppService (multi-provedor) ← packages/whatsapp
 └── PostgreSQL
 ```
 
@@ -28,7 +28,8 @@ aguia-gestao-veicular/
 │   └── gpswox-gateway/            # Gateway interno GPSWOX
 ├── packages/
 │   ├── shared/                    # Constantes compartilhadas
-│   └── integrations/              # Configurações de APIs (banco + schemas)
+│   ├── integrations/              # Configurações de APIs (banco + schemas)
+│   └── whatsapp/                  # WhatsApp multi-provedor (Strategy Pattern)
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -77,8 +78,73 @@ As credenciais ficam no PostgreSQL (`integration_configs`). API e Gateway leem d
 | `gateway` | Segredo interno do gateway |
 | `gateway_client` | Conexão API → Gateway |
 | `asaas` | Financeiro |
-| `evolution` | WhatsApp |
 | `firebase` | Push notifications |
+
+> **WhatsApp** usa módulo dedicado em `/v1/admin/whatsapp` (Evolution, WAHA, Meta Cloud).
+
+## WhatsApp Multi-Provedor
+
+Nenhum módulo acessa WhatsApp diretamente — tudo passa pelo **WhatsAppService**.
+
+```
+Sistema → WhatsAppService → Provider (Evolution | WAHA | Meta Cloud)
+```
+
+### Provedores suportados
+
+| Tipo | Provider |
+|------|----------|
+| `evolution` | Evolution API |
+| `waha` | WAHA (WhatsApp HTTP API) |
+| `meta_cloud` | Meta Cloud API (oficial) |
+
+### Painel Admin — Configurações → Integrações → WhatsApp
+
+```bash
+# Listar provedores + principal/backup
+curl http://localhost:3000/v1/admin/whatsapp \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET"
+
+# Cadastrar Evolution API
+curl -X POST http://localhost:3000/v1/admin/whatsapp \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "evolution",
+    "base_url": "https://evolution.exemplo.com",
+    "api_key": "sua-key",
+    "instance": "aguia",
+    "enabled": true
+  }'
+
+# Definir como principal
+curl -X PUT http://localhost:3000/v1/admin/whatsapp/1/primary \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET"
+
+# Definir backup (failover automático)
+curl -X PUT http://localhost:3000/v1/admin/whatsapp/2/backup \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET"
+
+# Testar conexão
+curl -X POST http://localhost:3000/v1/admin/whatsapp/1/test \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET"
+
+# Enviar mensagem (failover automático se principal falhar)
+curl -X POST http://localhost:3000/v1/admin/whatsapp/send \
+  -H "Authorization: Bearer SEU_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"text","to":"5585999999999","text":"Olá!"}'
+```
+
+### Failover automático
+
+1. Tenta enviar pelo provedor **principal**
+2. Se falhar (timeout, auth, offline) → usa o **backup**
+3. Registra log em `whatsapp_logs` (provedor, tempo, sucesso/erro)
+
+### Adicionar novo provedor
+
+Crie uma classe em `packages/whatsapp/providers/` implementando `WhatsAppProvider` e registre em `provider-factory.js`.
 
 ### Exemplos
 

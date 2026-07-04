@@ -4,6 +4,7 @@ const express = require('express');
 const logger = require('./logger');
 const adminAuth = require('./middleware/admin-auth');
 const { getStore } = require('@aguia/integrations');
+const { getRepository } = require('@aguia/whatsapp');
 
 const dashboardRoutes = require('./modules/dashboard/routes');
 const veiculosRoutes = require('./modules/veiculos/routes');
@@ -16,6 +17,7 @@ const instaladorRoutes = require('./modules/instalador/routes');
 const webhooksRoutes = require('./modules/webhooks/routes');
 const onboardingRoutes = require('./modules/onboarding/routes');
 const adminIntegracoesRoutes = require('./modules/admin/integracoes/routes');
+const adminWhatsappRoutes = require('./modules/admin/whatsapp/routes');
 
 const app = express();
 const PORT = process.env.API_PORT || process.env.PORT || 3000;
@@ -47,8 +49,8 @@ app.use('/v1/instalador', instaladorRoutes);
 app.use('/v1/onboarding', onboardingRoutes);
 app.use('/webhooks', webhooksRoutes);
 
-// Painel admin — todas as APIs/keys são configuradas aqui
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
+app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -59,13 +61,17 @@ async function bootstrap() {
     const store = getStore();
     await store.migrate();
     logger.info('Banco de integrações inicializado.');
+
+    const whatsappRepo = getRepository();
+    await whatsappRepo.migrate();
+    logger.info('Módulo WhatsApp multi-provedor inicializado.');
   } else {
     logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
   }
 
   app.listen(PORT, () => {
     logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
-    logger.info('Integrações configuráveis em: PUT /v1/admin/integracoes/:key');
+    logger.info('WhatsApp: PUT /v1/admin/whatsapp/:id (Configurações → Integrações → WhatsApp)');
   });
 }
 

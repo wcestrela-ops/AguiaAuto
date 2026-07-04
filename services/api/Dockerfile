@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json ./
 COPY packages/shared packages/shared
 COPY packages/integrations packages/integrations
+COPY packages/whatsapp packages/whatsapp
 COPY services/api services/api
 
 RUN npm install --omit=dev -w @aguia/api
