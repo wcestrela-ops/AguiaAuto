@@ -264,6 +264,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .muted { color: var(--muted); }
 
+.text-center { text-align: center; font-size: 0.875rem; }
+
+.client-shell .sidebar-brand small { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+
 /* Table */
 .table-card {
   background: var(--surface);

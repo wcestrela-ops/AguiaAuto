@@ -4,9 +4,12 @@ const express = require('express');
 const logger = require('./logger');
 const cors = require('./middleware/cors');
 const adminAuth = require('./middleware/admin-auth');
+const { jwtAuth, requireRole } = require('./middleware/jwt-auth');
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
+const { migrateUsers } = require('./db/migrate-users');
 
+const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
 const veiculosRoutes = require('./modules/veiculos/routes');
 const financeiroRoutes = require('./modules/financeiro/routes');
@@ -41,18 +44,31 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use('/v1/dashboard', dashboardRoutes);
-app.use('/v1/veiculos', veiculosRoutes);
-app.use('/v1/financeiro', financeiroRoutes);
-app.use('/v1/alertas', alertasRoutes);
-app.use('/v1/emergencia', emergenciaRoutes);
-app.use('/v1/perfil', perfilRoutes);
-app.use('/v1/indicacoes', indicacoesRoutes);
-app.use('/v1/instalador', instaladorRoutes);
-app.use('/v1/onboarding', onboardingRoutes);
+// Auth público
+app.use('/v1/auth', authRoutes);
+
+// Config pública (Firebase web config)
 app.use('/v1/config', configRoutes);
+
+// Webhooks públicos
 app.use('/webhooks', webhooksRoutes);
 
+// Onboarding (parcialmente público durante cadastro)
+app.use('/v1/onboarding', onboardingRoutes);
+
+// Rotas do cliente — requer JWT
+app.use('/v1/dashboard', jwtAuth, dashboardRoutes);
+app.use('/v1/veiculos', jwtAuth, veiculosRoutes);
+app.use('/v1/financeiro', jwtAuth, financeiroRoutes);
+app.use('/v1/alertas', jwtAuth, alertasRoutes);
+app.use('/v1/emergencia', jwtAuth, emergenciaRoutes);
+app.use('/v1/perfil', jwtAuth, perfilRoutes);
+app.use('/v1/indicacoes', jwtAuth, indicacoesRoutes);
+
+// Área do instalador — JWT + role
+app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
+
+// Painel admin — ADMIN_SECRET
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
 
@@ -66,6 +82,9 @@ async function bootstrap() {
     await store.migrate();
     logger.info('Banco de integrações inicializado.');
 
+    await migrateUsers();
+    logger.info('Autenticação JWT (clientes) inicializada.');
+
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
     logger.info('Módulo WhatsApp multi-provedor inicializado.');
@@ -75,7 +94,7 @@ async function bootstrap() {
 
   app.listen(PORT, () => {
     logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
-    logger.info('WhatsApp: PUT /v1/admin/whatsapp/:id (Configurações → Integrações → WhatsApp)');
+    logger.info('Auth cliente: POST /v1/auth/login | POST /v1/auth/register');
   });
 }
 

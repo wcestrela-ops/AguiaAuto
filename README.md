@@ -59,13 +59,30 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 
 **Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
 
+### Auth JWT (Clientes)
+
+| Rota | Descrição |
+|------|-----------|
+| `POST /v1/auth/register` | Cadastro |
+| `POST /v1/auth/login` | Login → access_token + refresh_token |
+| `POST /v1/auth/refresh` | Renovar access_token |
+| `POST /v1/auth/logout` | Encerrar sessão |
+| `GET /v1/auth/me` | Dados do usuário logado |
+
+PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admin`
+
+Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
+
 ### Endpoints disponíveis
 
 **API Águia** (`http://localhost:3000`)
 
 | Módulo | Rota | Status |
 |--------|------|--------|
-| Health | `GET /health` | ✅ |
+| **Auth Cliente** | `POST /v1/auth/login` | ✅ |
+| **Auth Cliente** | `POST /v1/auth/register` | ✅ |
+| **Auth Cliente** | `POST /v1/auth/refresh` | ✅ |
+| **Auth Cliente** | `GET /v1/auth/me` | ✅ |
 | Dashboard | `GET /v1/dashboard` | 🚧 |
 | Meu Veículo | `GET /v1/veiculos/:id/localizacao` | ✅ |
 | Bloqueio | `POST /v1/veiculos/:id/bloqueio` | ✅ |
