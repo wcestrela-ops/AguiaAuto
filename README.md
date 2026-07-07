@@ -437,6 +437,8 @@ O cliente acessa `/app/contratos` para:
 
 Ao aceitar o termo de entrega, o cliente declara que verificou o relatório e concorda que o veículo (carro ou moto) deixou a instalação com o rastreador em **funcionamento normal**.
 
+**Bloqueio obrigatório:** o cliente só acessa o restante do app (`/app/*`) após aceitar o Contrato de Prestação de Serviços. Até lá, apenas `/app/contratos` fica disponível (API retorna `403 CONTRACT_REQUIRED` nas demais rotas).
+
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/v1/contratos` | Contrato + entregas pendentes/aceitas |

@@ -17,7 +17,11 @@ export default function ClientLoginPage() {
     try {
       const res = await api.login(email, password);
       const role = res.data?.user?.role || api.getStoredUser().role;
-      navigate(role === 'installer' ? '/instalador' : '/app');
+      if (role === 'installer') {
+        navigate('/instalador');
+      } else {
+        navigate(await api.getClientAppPath());
+      }
     } catch (err) {
       setError(err.message);
     } finally {

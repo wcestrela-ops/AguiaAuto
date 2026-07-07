@@ -162,6 +162,11 @@ class ContractService {
     return { fullPath, photo };
   }
 
+  async getStatus(userId) {
+    const serviceAccepted = await this.contracts.hasServiceAcceptance(userId);
+    return { service_accepted: serviceAccepted };
+  }
+
   async getInstallationForVehicle(userId, vehicleId, baseUrl = '') {
     const vehicle = await this.vehicles.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');

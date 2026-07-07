@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '../../api/client';
 import AuthenticatedImage from '../../components/AuthenticatedImage';
 
@@ -90,6 +91,8 @@ function DeliveryCard({ delivery, termoHtml, onAccept, acceptingId }) {
 }
 
 export default function ClientContratosPage() {
+  const navigate = useNavigate();
+  const outlet = useOutletContext() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -104,6 +107,9 @@ export default function ClientContratosPage() {
     try {
       const res = await api.getContratos();
       setData(res.data);
+      const accepted = Boolean(res.data?.contrato_servico?.accepted);
+      api.setServiceContractAccepted(accepted);
+      outlet.setServiceAccepted?.(accepted);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -120,7 +126,10 @@ export default function ClientContratosPage() {
     try {
       const res = await api.acceptServiceContract();
       setMessage(res.message || 'Contrato aceito.');
+      api.setServiceContractAccepted(true);
+      outlet.setServiceAccepted?.(true);
       await load();
+      navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -151,6 +160,12 @@ export default function ClientContratosPage() {
         <h1>Contratos</h1>
         <p>Contrato de serviço e termos de entrega das instalações.</p>
       </header>
+
+      {data?.contrato_servico && !data.contrato_servico.accepted && (
+        <div className="alert warning contract-block-banner">
+          Para usar o aplicativo, leia e aceite o Contrato de Prestação de Serviços abaixo.
+        </div>
+      )}
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}

@@ -504,6 +504,25 @@ td.actions { white-space: nowrap; }
   margin-top: 0.75rem;
 }
 
+.contract-block-hint {
+  color: var(--warning);
+  line-height: 1.4;
+}
+
+.contract-block-banner {
+  margin-bottom: 1rem;
+}
+
+.client-shell.contract-blocked .main-content {
+  max-width: 900px;
+}
+
+.alert.warning {
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid var(--warning);
+  color: var(--text);
+}
+
 .dashboard-section { margin-top: 1.5rem; }
 
 .section-header {

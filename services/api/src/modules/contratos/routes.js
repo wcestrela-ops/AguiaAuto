@@ -16,6 +16,15 @@ function baseUrl(req) {
   return `${proto}://${host}`;
 }
 
+router.get('/status', async (req, res) => {
+  try {
+    const data = await getContractService().getStatus(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const data = await getContractService().getOverview(req.user.id, baseUrl(req));

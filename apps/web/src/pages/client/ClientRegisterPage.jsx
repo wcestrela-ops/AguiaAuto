@@ -54,8 +54,9 @@ export default function ClientRegisterPage() {
         setMessage('Conta criada. O provisionamento será concluído em breve.');
       }
 
-      setTimeout(() => navigate('/app'), prov ? 1500 : 0);
-      if (!prov) navigate('/app');
+      const target = await api.getClientAppPath();
+      setTimeout(() => navigate(target), prov ? 1500 : 0);
+      if (!prov) navigate(target);
     } catch (err) {
       setError(err.message);
     } finally {

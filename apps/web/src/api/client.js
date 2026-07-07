@@ -44,6 +44,15 @@ class ApiClient {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    localStorage.removeItem('service_contract_accepted');
+  }
+
+  setServiceContractAccepted(accepted) {
+    localStorage.setItem('service_contract_accepted', accepted ? '1' : '0');
+  }
+
+  isServiceContractAccepted() {
+    return localStorage.getItem('service_contract_accepted') === '1';
   }
 
   isClientLoggedIn() {
@@ -82,7 +91,9 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      throw new Error(data?.error || `Erro ${response.status}`);
+      const err = new Error(data?.message || data?.error || `Erro ${response.status}`);
+      err.code = data?.error;
+      throw err;
     }
     return data;
   }
@@ -444,6 +455,23 @@ class ApiClient {
 
   getContratos() {
     return this.request('/v1/contratos', {}, { useClient: true });
+  }
+
+  getContractStatus() {
+    return this.request('/v1/contratos/status', {}, { useClient: true });
+  }
+
+  async getClientAppPath() {
+    const role = this.getStoredUser().role;
+    if (role === 'installer') return '/instalador';
+    try {
+      const res = await this.getContractStatus();
+      const accepted = Boolean(res.data?.service_accepted);
+      this.setServiceContractAccepted(accepted);
+      return accepted ? '/app' : '/app/contratos';
+    } catch {
+      return '/app/contratos';
+    }
   }
 
   acceptServiceContract() {

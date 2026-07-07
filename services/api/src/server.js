@@ -5,6 +5,7 @@ const logger = require('./logger');
 const cors = require('./middleware/cors');
 const adminAuth = require('./middleware/admin-auth');
 const { jwtAuth, requireRole } = require('./middleware/jwt-auth');
+const { requireServiceContract } = require('./middleware/require-service-contract');
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
@@ -77,15 +78,16 @@ app.use('/webhooks', webhooksRoutes);
 // Onboarding (parcialmente público durante cadastro)
 app.use('/v1/onboarding', onboardingRoutes);
 
-// Rotas do cliente — requer JWT
-app.use('/v1/dashboard', jwtAuth, dashboardRoutes);
-app.use('/v1/veiculos', jwtAuth, veiculosRoutes);
-app.use('/v1/financeiro', jwtAuth, financeiroRoutes);
-app.use('/v1/alertas', jwtAuth, alertasRoutes);
-app.use('/v1/emergencia', jwtAuth, emergenciaRoutes);
-app.use('/v1/perfil', jwtAuth, perfilRoutes);
-app.use('/v1/notificacoes', jwtAuth, notificacoesRoutes);
-app.use('/v1/indicacoes', jwtAuth, indicacoesRoutes);
+// Rotas do cliente — requer JWT (+ contrato de serviço aceito, exceto /contratos)
+app.use('/v1/dashboard', jwtAuth, requireServiceContract, dashboardRoutes);
+app.use('/v1/veiculos', jwtAuth, requireServiceContract, veiculosRoutes);
+app.use('/v1/financeiro', jwtAuth, requireServiceContract, financeiroRoutes);
+app.use('/v1/alertas', jwtAuth, requireServiceContract, alertasRoutes);
+app.use('/v1/emergencia', jwtAuth, requireServiceContract, emergenciaRoutes);
+app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
+app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
+app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
+app.use('/v1/contratos', jwtAuth, contratosRoutes);
 app.use('/v1/contratos', jwtAuth, contratosRoutes);
 
 // Área do instalador — JWT + role
