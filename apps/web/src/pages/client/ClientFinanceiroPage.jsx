@@ -25,6 +25,37 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('pt-BR');
 }
 
+const PROVIDER_LABELS = {
+  asaas: 'Asaas',
+  mercadopago: 'Mercado Pago',
+};
+
+function PixBlock({ fatura, onCopy }) {
+  const [copied, setCopied] = useState(false);
+  if (!fatura.pix_copy_paste) return null;
+
+  async function copyPix() {
+    try {
+      await navigator.clipboard.writeText(fatura.pix_copy_paste);
+      setCopied(true);
+      onCopy?.();
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback silencioso
+    }
+  }
+
+  return (
+    <div className="pix-box">
+      <strong>PIX Copia e Cola</strong>
+      <code className="pix-code">{fatura.pix_copy_paste}</code>
+      <button type="button" className="btn-sm" onClick={copyPix}>
+        {copied ? 'Copiado!' : 'Copiar PIX'}
+      </button>
+    </div>
+  );
+}
+
 export default function ClientFinanceiroPage() {
   const [resumo, setResumo] = useState(null);
   const [faturas, setFaturas] = useState([]);
@@ -146,13 +177,18 @@ export default function ClientFinanceiroPage() {
                     <td>{fatura.description || 'Mensalidade'}</td>
                     <td>{formatMoney(fatura.amount)}</td>
                     <td>{formatDate(fatura.due_date)}</td>
-                    <td>
-                      <span className={`badge ${STATUS_BADGE[fatura.status] || 'info'}`}>
-                        {STATUS_LABELS[fatura.status] || fatura.status}
-                      </span>
-                    </td>
-                    <td className="actions">
-                      {fatura.status !== 'paid' && fatura.invoice_url && (
+                  <td>
+                    <span className={`badge ${STATUS_BADGE[fatura.status] || 'info'}`}>
+                      {STATUS_LABELS[fatura.status] || fatura.status}
+                    </span>
+                    <br />
+                    <small className="muted">{PROVIDER_LABELS[fatura.payment_provider] || fatura.payment_provider}</small>
+                  </td>
+                  <td className="actions">
+                    {fatura.status !== 'paid' && fatura.pix_copy_paste && (
+                      <PixBlock fatura={fatura} onCopy={() => setMessage('Código PIX copiado!')} />
+                    )}
+                    {fatura.status !== 'paid' && fatura.invoice_url && (
                         <a href={fatura.invoice_url} target="_blank" rel="noreferrer" className="btn-sm btn-secondary">
                           Pagar
                         </a>

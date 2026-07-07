@@ -30,11 +30,34 @@ const INTEGRATIONS = {
   },
   asaas: {
     label: 'Asaas',
-    description: 'Pagamentos, cobranças e recorrência',
+    description: 'Pagamentos recorrentes, PIX e boletos mensais',
     fields: [
       { key: 'api_key', label: 'API Key', type: 'password', secret: true, required: true, env: 'ASAAS_API_KEY' },
       { key: 'webhook_token', label: 'Token do webhook', type: 'password', secret: true, env: 'ASAAS_WEBHOOK_TOKEN' },
       { key: 'sandbox', label: 'Modo sandbox', type: 'boolean', default: false, env: 'ASAAS_SANDBOX' },
+    ],
+  },
+  mercadopago: {
+    label: 'Mercado Pago',
+    description: 'Pagamento inicial de assinaturas e failover PIX',
+    fields: [
+      { key: 'access_token', label: 'Access Token', type: 'password', secret: true, required: true, env: 'MP_ACCESS_TOKEN' },
+      { key: 'public_key', label: 'Public Key', type: 'text', env: 'MP_PUBLIC_KEY' },
+      { key: 'webhook_secret', label: 'Webhook Secret', type: 'password', secret: true, env: 'MP_WEBHOOK_SECRET' },
+      { key: 'notification_url', label: 'URL de notificação (webhook)', type: 'url', env: 'MP_NOTIFICATION_URL' },
+      { key: 'sandbox', label: 'Modo sandbox', type: 'boolean', default: false, env: 'MP_SANDBOX' },
+    ],
+  },
+  payment_gateways: {
+    label: 'Gateways de Pagamento',
+    description: 'Roteamento Asaas + Mercado Pago com failover automático',
+    fields: [
+      { key: 'initial_primary', label: 'Inicial — principal', type: 'text', default: 'mercadopago' },
+      { key: 'initial_backup', label: 'Inicial — backup', type: 'text', default: 'asaas' },
+      { key: 'recurring_primary', label: 'Recorrente — principal', type: 'text', default: 'asaas' },
+      { key: 'recurring_backup', label: 'Recorrente — backup', type: 'text', default: 'mercadopago' },
+      { key: 'failover_enabled', label: 'Failover automático', type: 'boolean', default: true },
+      { key: 'prefer_pix', label: 'Priorizar PIX nas cobranças', type: 'boolean', default: true },
     ],
   },
   firebase: {

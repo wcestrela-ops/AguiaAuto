@@ -12,6 +12,7 @@ const { migrateFcmTokens } = require('./db/migrate-fcm');
 const { migratePasswordReset } = require('./db/migrate-password-reset');
 const { migrateVehicles } = require('./db/migrate-vehicles');
 const { migrateFinanceiro } = require('./db/migrate-financeiro');
+const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -114,6 +115,9 @@ async function bootstrap() {
 
     await migrateFinanceiro();
     logger.info('Financeiro (Asaas + faturas) inicializado.');
+
+    await migratePaymentGateways();
+    logger.info('Gateways de pagamento (Asaas + Mercado Pago) inicializados.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

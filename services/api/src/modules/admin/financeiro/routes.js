@@ -16,7 +16,7 @@ router.get('/cobrancas', async (req, res) => {
 
 router.post('/cobrancas', async (req, res) => {
   try {
-    const { user_id, value, due_date, billing_type, description, plan_id } = req.body;
+    const { user_id, value, due_date, billing_type, description, plan_id, charge_type } = req.body;
 
     if (!user_id || value == null || !due_date) {
       return res.status(400).json({
@@ -29,14 +29,24 @@ router.post('/cobrancas', async (req, res) => {
       user_id,
       value,
       due_date,
-      billing_type,
+      billing_type: billing_type || 'PIX',
       description,
       plan_id,
+      charge_type: charge_type || 'monthly',
     });
 
     res.status(201).json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/gateways', async (req, res) => {
+  try {
+    const data = await getFinanceiroService().getGatewayStatus();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

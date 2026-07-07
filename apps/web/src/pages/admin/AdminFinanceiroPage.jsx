@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 
 const BILLING_TYPES = [
+  { value: 'PIX', label: 'PIX (recomendado)' },
   { value: 'UNDEFINED', label: 'Cliente escolhe (link)' },
   { value: 'BOLETO', label: 'Boleto' },
-  { value: 'PIX', label: 'PIX' },
   { value: 'CREDIT_CARD', label: 'Cartão de crédito' },
 ];
+
+const CHARGE_TYPES = [
+  { value: 'monthly', label: 'Mensalidade recorrente' },
+  { value: 'initial', label: 'Adesão inicial (Mercado Pago primeiro)' },
+];
+
+const PROVIDER_LABELS = {
+  asaas: 'Asaas',
+  mercadopago: 'Mercado Pago',
+};
 
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -27,13 +38,15 @@ export default function AdminFinanceiroPage() {
   const [charges, setCharges] = useState([]);
   const [users, setUsers] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [gateways, setGateways] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     user_id: '',
     value: '',
     due_date: addDays(3),
-    billing_type: 'UNDEFINED',
+    billing_type: 'PIX',
+    charge_type: 'monthly',
     description: 'Mensalidade Águia',
     plan_id: '',
   });
@@ -44,14 +57,16 @@ export default function AdminFinanceiroPage() {
   async function load() {
     setLoading(true);
     try {
-      const [chargesRes, usersRes, plansRes] = await Promise.all([
+      const [chargesRes, usersRes, plansRes, gatewaysRes] = await Promise.all([
         api.getAdminCharges(),
         api.getAdminUsers(),
         api.getAdminPlans(),
+        api.getPaymentGateways(),
       ]);
       setCharges(chargesRes.data || []);
       setUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
+      setGateways(gatewaysRes.data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,6 +99,7 @@ export default function AdminFinanceiroPage() {
         value: Number(form.value),
         due_date: form.due_date,
         billing_type: form.billing_type,
+        charge_type: form.charge_type,
         description: form.description,
         plan_id: form.plan_id ? Number(form.plan_id) : undefined,
       });
@@ -164,6 +180,15 @@ export default function AdminFinanceiroPage() {
           </label>
 
           <label>
+            Tipo de cobrança
+            <select value={form.charge_type} onChange={(e) => updateForm('charge_type', e.target.value)}>
+              {CHARGE_TYPES.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
             Forma de pagamento
             <select value={form.billing_type} onChange={(e) => updateForm('billing_type', e.target.value)}>
               {BILLING_TYPES.map((opt) => (
@@ -184,9 +209,33 @@ export default function AdminFinanceiroPage() {
         </form>
       )}
 
+      {gateways && (
+        <div className="card-grid">
+          {Object.entries(gateways.providers || {}).map(([key, provider]) => (
+            <div key={key} className="card">
+              <h3>{provider.label}</h3>
+              <span className={`badge ${provider.configured ? 'success' : 'warning'}`}>
+                {provider.configured ? 'Configurado' : 'Pendente'}
+              </span>
+            </div>
+          ))}
+          <div className="card">
+            <h3>Failover</h3>
+            <p className="muted" style={{ fontSize: '0.8125rem' }}>
+              Inicial: {gateways.config?.initial_primary} → {gateways.config?.initial_backup}
+              <br />
+              Recorrente: {gateways.config?.recurring_primary} → {gateways.config?.recurring_backup}
+            </p>
+            <Link to="/admin/integracoes/payment_gateways" className="btn-sm btn-secondary" style={{ marginTop: '0.5rem', display: 'inline-block' }}>
+              Configurar
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="info-box">
-        <strong>Provisionamento automático:</strong> ao cadastrar com plano, o sistema cria cliente no Asaas e GPSWOX.
-        Use &quot;Reprovisionar&quot; se algo falhou.
+        <strong>Dois gateways:</strong> Mercado Pago para adesão inicial (PIX) e Asaas para recorrência.
+        Se um falhar, o outro é usado automaticamente. Configure em Integrações → Gateways de Pagamento.
       </div>
 
       <div className="table-card" style={{ marginBottom: '1.5rem' }}>
@@ -239,6 +288,7 @@ export default function AdminFinanceiroPage() {
               <th>Descrição</th>
               <th>Valor</th>
               <th>Vencimento</th>
+              <th>Gateway</th>
               <th>Status</th>
               <th>Link</th>
             </tr>
@@ -253,6 +303,7 @@ export default function AdminFinanceiroPage() {
                   <td>{charge.description}</td>
                   <td>{formatMoney(charge.amount)}</td>
                   <td>{formatDate(charge.due_date)}</td>
+                  <td><span className="badge info">{PROVIDER_LABELS[charge.payment_provider] || charge.payment_provider}</span></td>
                   <td><span className="badge info">{charge.status}</span></td>
                   <td>
                     {charge.invoice_url ? (

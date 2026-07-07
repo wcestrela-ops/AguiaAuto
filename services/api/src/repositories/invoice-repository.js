@@ -25,12 +25,17 @@ class InvoiceRepository {
     return rows;
   }
 
-  async findByAsaasPaymentId(asaasPaymentId) {
+  async findByExternalPayment(provider, externalPaymentId) {
     const { rows } = await this.pool.query(
-      'SELECT * FROM invoices WHERE asaas_payment_id = $1',
-      [asaasPaymentId]
+      `SELECT * FROM invoices
+       WHERE payment_provider = $1 AND external_payment_id = $2`,
+      [provider, externalPaymentId]
     );
     return rows[0] || null;
+  }
+
+  async findByAsaasPaymentId(asaasPaymentId) {
+    return this.findByExternalPayment('asaas', asaasPaymentId);
   }
 
   async findById(id) {
@@ -46,9 +51,12 @@ class InvoiceRepository {
     return rows[0] || null;
   }
 
-  async upsertFromAsaas(data) {
-    const existing = data.asaas_payment_id
-      ? await this.findByAsaasPaymentId(data.asaas_payment_id)
+  async upsertFromPayment(data) {
+    const provider = data.payment_provider || data.provider || 'asaas';
+    const externalId = data.external_payment_id || data.asaas_payment_id;
+
+    const existing = externalId
+      ? await this.findByExternalPayment(provider, externalId)
       : null;
 
     if (existing) {
@@ -62,12 +70,13 @@ class InvoiceRepository {
           pix_qrcode = COALESCE($7, pix_qrcode),
           pix_copy_paste = COALESCE($8, pix_copy_paste),
           paid_at = COALESCE($9, paid_at),
+          billing_type = COALESCE($10, billing_type),
           updated_at = NOW()
          WHERE id = $1 RETURNING *`,
         [
           existing.id, data.status, data.amount, data.due_date,
           data.invoice_url, data.bank_slip_url, data.pix_qrcode,
-          data.pix_copy_paste, data.paid_at,
+          data.pix_copy_paste, data.paid_at, data.billing_type,
         ]
       );
       return rows[0];
@@ -75,17 +84,38 @@ class InvoiceRepository {
 
     const { rows } = await this.pool.query(
       `INSERT INTO invoices (
-        user_id, subscription_id, asaas_payment_id, description, amount, due_date,
-        status, billing_type, invoice_url, bank_slip_url, pix_qrcode, pix_copy_paste, paid_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        user_id, subscription_id, payment_provider, external_payment_id, asaas_payment_id,
+        description, amount, due_date, status, billing_type,
+        invoice_url, bank_slip_url, pix_qrcode, pix_copy_paste, paid_at, is_initial_charge
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [
-        data.user_id, data.subscription_id || null, data.asaas_payment_id,
-        data.description, data.amount, data.due_date, data.status || 'pending',
-        data.billing_type, data.invoice_url, data.bank_slip_url,
-        data.pix_qrcode, data.pix_copy_paste, data.paid_at || null,
+        data.user_id,
+        data.subscription_id || null,
+        provider,
+        externalId,
+        provider === 'asaas' ? externalId : null,
+        data.description,
+        data.amount,
+        data.due_date,
+        data.status || 'pending',
+        data.billing_type,
+        data.invoice_url,
+        data.bank_slip_url,
+        data.pix_qrcode,
+        data.pix_copy_paste,
+        data.paid_at || null,
+        data.is_initial_charge || false,
       ]
     );
     return rows[0];
+  }
+
+  async upsertFromAsaas(data) {
+    return this.upsertFromPayment({
+      ...data,
+      payment_provider: 'asaas',
+      external_payment_id: data.asaas_payment_id || data.external_payment_id,
+    });
   }
 
   async getNextDueForUser(userId) {

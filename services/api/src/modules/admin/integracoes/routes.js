@@ -111,6 +111,26 @@ router.post('/:key/test', async (req, res) => {
       });
     }
 
+    if (key === 'mercadopago') {
+      const mercadopago = require('../../../integrations/mercadopago');
+      const result = await mercadopago.testConnection();
+      return res.json({
+        success: true,
+        message: `Conexão Mercado Pago OK (${result.nickname}).`,
+        data: result,
+      });
+    }
+
+    if (key === 'payment_gateways') {
+      const { getPaymentGatewayService } = require('../../../payments/payment-gateway-service');
+      const status = await getPaymentGatewayService().getStatus();
+      return res.json({
+        success: true,
+        message: 'Configuração de gateways carregada.',
+        data: status,
+      });
+    }
+
     if (key === 'firebase') {
       const firebase = require('../../../services/firebase');
       const result = await firebase.testConnection();

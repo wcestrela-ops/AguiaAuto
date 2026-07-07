@@ -5,6 +5,8 @@ import { api } from '../../api/client';
 const ICONS = {
   gpswox: '📍',
   asaas: '💰',
+  mercadopago: '🛒',
+  payment_gateways: '🔀',
   firebase: '🔔',
   gateway: '🔒',
   gateway_client: '🔗',
@@ -44,6 +46,12 @@ export default function IntegrationsPage() {
               </span>
               {item.key === 'firebase' && (
                 <span className="badge info">Push Notifications</span>
+              )}
+              {item.key === 'payment_gateways' && (
+                <span className="badge info">Failover Asaas + MP</span>
+              )}
+              {item.key === 'mercadopago' && (
+                <span className="badge info">Pagamento inicial PIX</span>
               )}
             </div>
           </Link>

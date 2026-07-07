@@ -333,6 +333,10 @@ class ApiClient {
     return this.request('/v1/admin/plans', {}, { useAdmin: true });
   }
 
+  getPaymentGateways() {
+    return this.request('/v1/admin/financeiro/gateways', {}, { useAdmin: true });
+  }
+
   getFirebasePublicConfig() {
     return this.request('/v1/config/firebase');
   }

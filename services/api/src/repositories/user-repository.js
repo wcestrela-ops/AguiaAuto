@@ -100,8 +100,8 @@ class UserRepository {
   async listAll() {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
-              asaas_customer_id, gpswox_user_id, provisioning_status,
-              provisioning_errors, created_at
+              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              provisioning_status, provisioning_errors, created_at
        FROM users
        ORDER BY name NULLS LAST, email`
     );
@@ -112,17 +112,19 @@ class UserRepository {
     const { rows } = await this.pool.query(
       `UPDATE users SET
         asaas_customer_id = COALESCE($2, asaas_customer_id),
-        gpswox_user_id = COALESCE($3, gpswox_user_id),
-        provisioning_status = COALESCE($4, provisioning_status),
-        provisioning_errors = COALESCE($5, provisioning_errors),
+        mercadopago_payer_id = COALESCE($3, mercadopago_payer_id),
+        gpswox_user_id = COALESCE($4, gpswox_user_id),
+        provisioning_status = COALESCE($5, provisioning_status),
+        provisioning_errors = COALESCE($6, provisioning_errors),
         updated_at = NOW()
        WHERE id = $1
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, gpswox_user_id, provisioning_status,
-                 provisioning_errors, created_at, updated_at`,
+                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 provisioning_status, provisioning_errors, created_at, updated_at`,
       [
         userId,
         data.asaas_customer_id,
+        data.mercadopago_payer_id,
         data.gpswox_user_id,
         data.provisioning_status,
         data.provisioning_errors ? JSON.stringify(data.provisioning_errors) : null,
@@ -134,8 +136,8 @@ class UserRepository {
   async findByIdWithProvisioning(id) {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active,
-              asaas_customer_id, gpswox_user_id, provisioning_status,
-              provisioning_errors, created_at, updated_at
+              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              provisioning_status, provisioning_errors, created_at, updated_at
        FROM users WHERE id = $1`,
       [id]
     );

@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const asaas = require('../../integrations/asaas');
+const mercadopago = require('../../integrations/mercadopago');
 const { getFinanceiroService } = require('../../services/financeiro-service');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 
@@ -13,11 +14,34 @@ router.post('/asaas', async (req, res) => {
     }
 
     const result = await getFinanceiroService().processWebhookEvent({
+      provider: 'asaas',
       event: parsed.event,
       payment: parsed.payment,
     });
 
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/mercadopago', async (req, res) => {
+  try {
+    const parsed = await mercadopago.handleWebhook(req.body);
+    if (!parsed.processed) {
+      return res.json({ success: true, data: parsed });
+    }
+
+    if (parsed.payment) {
+      const result = await getFinanceiroService().processWebhookEvent({
+        provider: 'mercadopago',
+        event: parsed.event,
+        payment: parsed.payment,
+      });
+      return res.json({ success: true, data: result });
+    }
+
+    res.json({ success: true, data: parsed });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

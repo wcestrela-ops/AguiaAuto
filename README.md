@@ -93,28 +93,42 @@ PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admi
 
 Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
 
-### Financeiro Asaas (Fase 3)
+### Financeiro — Asaas + Mercado Pago (Fase 3)
+
+**Dois gateways com failover automático:**
+
+| Gateway | Uso principal |
+|---------|---------------|
+| **Mercado Pago** | Adesão inicial (primeira cobrança PIX) |
+| **Asaas** | Mensalidades recorrentes (PIX) |
+
+Se o gateway principal falhar, o backup é usado automaticamente. Configure em `/admin/integracoes/payment_gateways`.
 
 **Cadastro automático:** ao registrar com `plan_id`, o sistema:
-1. Cria cliente no **Asaas** e assinatura mensal com primeira cobrança
-2. Cria usuário no **GPSWOX** (invisível ao cliente)
-3. Registra faturas localmente e envia link de pagamento via WhatsApp
+1. Cria cobrança **inicial** via Mercado Pago (PIX) → fallback Asaas
+2. Cria **assinatura recorrente** via Asaas (PIX) → fallback Mercado Pago
+3. Cria usuário no **GPSWOX**
+4. Envia link/código PIX via WhatsApp
 
-**Admin** pode criar cobranças avulsas em `/admin/financeiro` e reprovisionar clientes com falha.
+**Admin** (`/admin/financeiro`):
+- Criar cobranças avulsas ou de adesão
+- Ver gateway usado em cada fatura
+- Reprovisionar clientes com falha
 
-**Cliente** acessa `/app/financeiro` para ver faturas, situação e links de pagamento.
+**Cliente** (`/app/financeiro`):
+- Faturas com código **PIX copia e cola**
+- Gateway utilizado (Asaas ou Mercado Pago)
 
-| Rota | Descrição |
-|------|-----------|
-| `GET /v1/plans` | Planos disponíveis (cadastro) |
-| `POST /v1/auth/register` | Cadastro + `plan_id` → provisionamento automático |
-| `GET /v1/financeiro/resumo` | Situação financeira do cliente |
-| `GET /v1/financeiro/faturas` | Lista de faturas |
-| `POST /v1/financeiro/segunda-via` | Atualizar link de pagamento |
-| `POST /v1/admin/financeiro/cobrancas` | Admin cria cobrança manual |
-| `POST /webhooks/asaas` | Webhook de pagamentos Asaas |
+| Integração | Painel admin |
+|------------|--------------|
+| Asaas | `/admin/integracoes/asaas` |
+| Mercado Pago | `/admin/integracoes/mercadopago` |
+| Roteamento failover | `/admin/integracoes/payment_gateways` |
 
-Configure Asaas no painel admin (`/admin/integracoes/asaas`) e aponte o webhook para `https://seu-dominio/webhooks/asaas`.
+| Webhook | URL |
+|---------|-----|
+| Asaas | `POST /webhooks/asaas` |
+| Mercado Pago | `POST /webhooks/mercadopago` |
 
 ### FCM Token (Push Notifications)
 

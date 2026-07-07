@@ -1,9 +1,9 @@
-const asaas = require('../integrations/asaas');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getSubscriptionRepository } = require('../repositories/subscription-repository');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
 const { getProvisioningService } = require('./provisioning-service');
+const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
 const whatsapp = require('./whatsapp');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
@@ -16,6 +16,8 @@ function formatInvoice(invoice) {
     due_date: invoice.due_date,
     status: invoice.status,
     billing_type: invoice.billing_type,
+    payment_provider: invoice.payment_provider,
+    is_initial_charge: invoice.is_initial_charge,
     invoice_url: invoice.invoice_url,
     bank_slip_url: invoice.bank_slip_url,
     pix_qrcode: invoice.pix_qrcode,
@@ -43,10 +45,12 @@ function buildFinancialSummary(userId) {
       status,
       proximo_vencimento: nextDue?.due_date || null,
       proximo_valor: nextDue ? Number(nextDue.amount) : null,
+      proximo_gateway: nextDue?.payment_provider || null,
       plano: subscription ? {
         id: subscription.plan_id,
         nome: subscription.plan_name,
         valor_mensal: Number(subscription.price_monthly),
+        gateway: subscription.payment_provider,
       } : null,
       faturas_pendentes: overdueCount + (nextDue ? 1 : 0),
     };
@@ -59,6 +63,7 @@ class FinanceiroService {
     this.subscriptions = getSubscriptionRepository();
     this.invoices = getInvoiceRepository();
     this.plans = getPlanRepository();
+    this.payments = getPaymentGatewayService();
   }
 
   async getResumo(userId) {
@@ -84,6 +89,7 @@ class FinanceiroService {
         valor: Number(subscription.price_monthly),
         status: subscription.status,
         billing_type: subscription.billing_type,
+        payment_provider: subscription.payment_provider,
         inicio: subscription.starts_at,
       },
     };
@@ -93,61 +99,63 @@ class FinanceiroService {
     const invoice = await this.invoices.findByIdForUser(invoiceId, userId);
     if (!invoice) throw new Error('Fatura não encontrada.');
 
-    if (!invoice.asaas_payment_id) {
-      throw new Error('Fatura sem vínculo Asaas.');
-    }
+    const externalId = invoice.external_payment_id || invoice.asaas_payment_id;
+    if (!externalId) throw new Error('Fatura sem vínculo de pagamento.');
 
-    const payment = await asaas.getPayment(invoice.asaas_payment_id);
-    const updated = await this.invoices.upsertFromAsaas({
+    const payment = await this.payments.refreshPayment(invoice.payment_provider, externalId);
+    const updated = await this.invoices.upsertFromPayment({
       user_id: userId,
       subscription_id: invoice.subscription_id,
-      ...payment,
       description: invoice.description,
+      is_initial_charge: invoice.is_initial_charge,
+      ...payment,
     });
 
     return formatInvoice(updated);
   }
 
-  async createCharge({ user_id, value, due_date, billing_type = 'UNDEFINED', description, plan_id }) {
+  async createCharge({ user_id, value, due_date, billing_type = 'PIX', description, plan_id, charge_type = 'monthly' }) {
     const user = await this.users.findByIdWithProvisioning(user_id);
     if (!user) throw new Error('Usuário não encontrado.');
 
-    let customerId = user.asaas_customer_id;
-    if (!customerId) {
-      const provision = await getProvisioningService().provisionNewClient(user_id, { plan_id, billing_type });
-      const refreshed = await this.users.findByIdWithProvisioning(user_id);
-      customerId = refreshed?.asaas_customer_id;
-      if (!customerId) {
-        throw new Error(provision.errors?.[0]?.error || 'Não foi possível criar cliente no Asaas.');
-      }
-    }
+    await this.payments.ensureCustomers(user, this.users);
+    const refreshed = await this.users.findByIdWithProvisioning(user_id);
 
-    const payment = await asaas.createPayment({
-      customerId,
-      value,
-      dueDate: due_date,
-      billingType: billing_type,
-      description,
-    });
+    const payment = charge_type === 'initial'
+      ? await this.payments.createInitialCharge({
+        user: refreshed,
+        plan: plan_id ? await this.plans.findById(plan_id) : { price_monthly: value, name: 'Avulso' },
+        userId: user_id,
+      })
+      : await this.payments.createMonthlyCharge({
+        user: refreshed,
+        amount: value,
+        dueDate: due_date,
+        description: description || 'Mensalidade Águia',
+        userId: user_id,
+      });
 
     const subscription = plan_id
       ? await this.subscriptions.findActiveByUser(user_id)
       : null;
 
-    const invoice = await this.invoices.upsertFromAsaas({
+    const invoice = await this.invoices.upsertFromPayment({
       user_id,
       subscription_id: subscription?.id || null,
-      description: description || 'Cobrança avulsa',
+      description: description || 'Cobrança',
+      is_initial_charge: charge_type === 'initial',
+      billing_type: billing_type || payment.billing_type,
       ...payment,
     });
 
-    if (user.phone && invoice.invoice_url) {
+    const link = invoice.invoice_url || (invoice.pix_copy_paste ? 'Código PIX no app' : null);
+    if (refreshed.phone && link) {
       try {
-        await whatsapp.sendBillingReminder(normalizePhone(user.phone), {
+        await whatsapp.sendBillingReminder(normalizePhone(refreshed.phone), {
           valor: Number(invoice.amount).toFixed(2),
           vencimento: invoice.due_date,
-          link: invoice.invoice_url,
-        }, { user: user.email });
+          link,
+        }, { user: refreshed.email });
       } catch (err) {
         logger.warn('Falha ao enviar cobrança via WhatsApp.', { userId: user_id, err: err.message });
       }
@@ -166,19 +174,25 @@ class FinanceiroService {
     }));
   }
 
-  async processWebhookEvent({ event, payment }) {
-    if (!payment?.asaas_payment_id) {
+  async processWebhookEvent({ provider, event, payment }) {
+    if (!payment?.external_payment_id && !payment?.asaas_payment_id) {
       return { processed: false, reason: 'Pagamento sem ID.' };
     }
 
+    const paymentProvider = provider || payment.provider || 'asaas';
+    const externalId = payment.external_payment_id || payment.asaas_payment_id;
+
     let targetUser = null;
-    if (payment.customer_id) {
+    if (payment.customer_id || payment.external_customer_id) {
+      const customerId = payment.customer_id || payment.external_customer_id;
       const allUsers = await this.users.listAll();
-      targetUser = allUsers.find(u => u.asaas_customer_id === payment.customer_id);
+      targetUser = allUsers.find(u =>
+        u.asaas_customer_id === customerId || u.mercadopago_payer_id === customerId || u.email === customerId
+      );
     }
 
     if (!targetUser) {
-      const existing = await this.invoices.findByAsaasPaymentId(payment.asaas_payment_id);
+      const existing = await this.invoices.findByExternalPayment(paymentProvider, externalId);
       if (existing) {
         targetUser = await this.users.findByIdWithProvisioning(existing.user_id);
       }
@@ -189,21 +203,27 @@ class FinanceiroService {
     }
 
     const subscription = await this.subscriptions.findActiveByUser(targetUser.id);
-    const invoice = await this.invoices.upsertFromAsaas({
+    const invoice = await this.invoices.upsertFromPayment({
       user_id: targetUser.id,
       subscription_id: subscription?.id || null,
+      payment_provider: paymentProvider,
       ...payment,
     });
 
-    if (event === 'PAYMENT_OVERDUE') {
-      logger.info('Pagamento em atraso.', { userId: targetUser.id, paymentId: payment.asaas_payment_id });
+    if (event === 'PAYMENT_OVERDUE' || payment.status === 'overdue') {
+      logger.info('Pagamento em atraso.', { userId: targetUser.id, paymentId: externalId });
     }
 
-    if (['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'].includes(event)) {
-      logger.info('Pagamento confirmado.', { userId: targetUser.id, paymentId: payment.asaas_payment_id });
+    if (['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED', 'payment.updated', 'payment.created'].includes(event)
+      || payment.status === 'paid') {
+      logger.info('Pagamento confirmado.', { userId: targetUser.id, paymentId: externalId, provider: paymentProvider });
     }
 
-    return { processed: true, invoice_id: invoice.id, event };
+    return { processed: true, invoice_id: invoice.id, event, provider: paymentProvider };
+  }
+
+  async getGatewayStatus() {
+    return this.payments.getStatus();
   }
 
   async listPlans() {

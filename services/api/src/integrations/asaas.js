@@ -60,7 +60,9 @@ function mapPaymentStatus(asaasStatus) {
 
 function formatPayment(payment) {
   return {
+    provider: 'asaas',
     asaas_payment_id: payment.id,
+    external_payment_id: String(payment.id),
     amount: payment.value,
     due_date: payment.dueDate,
     status: mapPaymentStatus(payment.status),

@@ -1,11 +1,11 @@
 const crypto = require('crypto');
 const { getStore } = require('@aguia/integrations');
-const asaas = require('../integrations/asaas');
 const gpswox = require('../integrations/gpswox-gateway');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
 const { getSubscriptionRepository } = require('../repositories/subscription-repository');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
+const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
 const whatsapp = require('./whatsapp');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
@@ -23,12 +23,6 @@ function extractId(response, keys = ['id']) {
   return null;
 }
 
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 function generateGpswoxPassword() {
   return crypto.randomBytes(12).toString('base64url');
 }
@@ -39,53 +33,36 @@ class ProvisioningService {
     this.plans = getPlanRepository();
     this.subscriptions = getSubscriptionRepository();
     this.invoices = getInvoiceRepository();
+    this.payments = getPaymentGatewayService();
   }
 
-  async provisionNewClient(userId, { plan_id, billing_type = 'UNDEFINED' } = {}) {
-    const user = await this.users.findByIdWithProvisioning(userId);
+  async provisionNewClient(userId, { plan_id, billing_type = 'PIX' } = {}) {
+    let user = await this.users.findByIdWithProvisioning(userId);
     if (!user) throw new Error('Usuário não encontrado.');
 
     const errors = [];
-    let asaasOk = Boolean(user.asaas_customer_id);
+    let paymentOk = false;
     let gpswoxOk = Boolean(user.gpswox_user_id);
     let subscriptionOk = false;
 
-    try {
-      if (!user.asaas_customer_id) {
-        const customer = await asaas.createCustomer({
-          name: user.name,
-          email: user.email,
-          cpfCnpj: user.cpf_cnpj,
-          phone: user.phone,
-        });
-        const customerId = extractId(customer);
-        if (!customerId) throw new Error('Asaas não retornou ID do cliente.');
-        await this.users.updateProvisioning(userId, { asaas_customer_id: customerId });
-        user.asaas_customer_id = customerId;
-        asaasOk = true;
-      }
-    } catch (err) {
-      errors.push({ step: 'asaas_customer', error: err.message });
-      logger.warn('Falha ao criar cliente Asaas.', { userId, err: err.message });
-    }
+    const customerResult = await this.payments.ensureCustomers(user, this.users);
+    user = customerResult.user;
+    errors.push(...customerResult.errors.map(e => ({ step: `${e.provider}_customer`, error: e.error })));
 
     try {
       if (!user.gpswox_user_id) {
         const store = getStore();
         const gpswoxSettings = await store.getSettings('gpswox');
         const password = generateGpswoxPassword();
-        const payload = {
+        const result = await gpswox.createCliente({
           email: user.email,
           password,
           name: user.name || user.email,
           phone: user.phone || undefined,
           group_id: gpswoxSettings.default_group_id || undefined,
-        };
-        const result = await gpswox.createCliente(payload);
+        });
         const gpswoxUserId = extractId(result, ['id', 'user_id']);
-        if (!gpswoxUserId) {
-          throw new Error('GPSWOX não retornou ID do usuário.');
-        }
+        if (!gpswoxUserId) throw new Error('GPSWOX não retornou ID do usuário.');
         await this.users.updateProvisioning(userId, { gpswox_user_id: gpswoxUserId });
         user.gpswox_user_id = gpswoxUserId;
         gpswoxOk = true;
@@ -95,53 +72,83 @@ class ProvisioningService {
       logger.warn('Falha ao criar usuário GPSWOX.', { userId, err: err.message });
     }
 
-    if (plan_id && user.asaas_customer_id) {
+    if (plan_id) {
       try {
         const existing = await this.subscriptions.findActiveByUser(userId);
+        const plan = await this.plans.findById(plan_id);
+        if (!plan) throw new Error('Plano não encontrado.');
+
         if (!existing) {
-          const plan = await this.plans.findById(plan_id);
-          if (!plan) throw new Error('Plano não encontrado.');
+          let subscription = null;
 
-          const nextDueDate = addDays(new Date(), 3);
-          const asaasSub = await asaas.createSubscription({
-            customerId: user.asaas_customer_id,
-            value: plan.price_monthly,
-            nextDueDate,
-            billingType: billing_type,
-            description: `Plano ${plan.name} — Águia`,
-          });
+          try {
+            const initial = await this.payments.createInitialCharge({ user, plan, userId });
+            const initialInvoice = await this.invoices.upsertFromPayment({
+              user_id: userId,
+              description: `Adesão — Plano ${plan.name}`,
+              is_initial_charge: true,
+              ...initial,
+            });
+            paymentOk = true;
 
-          const asaasSubscriptionId = extractId(asaasSub);
-          const subscription = await this.subscriptions.create({
-            user_id: userId,
-            plan_id: plan.id,
-            asaas_subscription_id: asaasSubscriptionId,
-            billing_type,
-          });
+            if (user.phone && (initialInvoice.pix_copy_paste || initialInvoice.invoice_url)) {
+              await whatsapp.sendBillingReminder(normalizePhone(user.phone), {
+                valor: Number(initialInvoice.amount).toFixed(2),
+                vencimento: initialInvoice.due_date,
+                link: initialInvoice.invoice_url || 'Use o código PIX no app',
+              }, { user: user.email });
+            }
+          } catch (err) {
+            errors.push({ step: 'initial_charge', error: err.message });
+            logger.warn('Falha na cobrança inicial.', { userId, err: err.message });
+          }
 
-          if (asaasSubscriptionId) {
-            const payments = await asaas.getSubscriptionPayments(asaasSubscriptionId);
-            for (const payment of payments) {
-              await this.invoices.upsertFromAsaas({
+          try {
+            const recurring = await this.payments.createRecurringSubscription({ user, plan, userId });
+            const provider = recurring.provider;
+
+            subscription = await this.subscriptions.create({
+              user_id: userId,
+              plan_id: plan.id,
+              payment_provider: provider,
+              billing_type: billing_type || 'PIX',
+              asaas_subscription_id: provider === 'asaas' ? recurring.external_subscription_id : null,
+              mercadopago_subscription_id: provider === 'mercadopago' ? recurring.external_subscription_id : null,
+              external_subscription_id: recurring.external_subscription_id,
+            });
+
+            for (const payment of recurring.payments || []) {
+              await this.invoices.upsertFromPayment({
                 user_id: userId,
                 subscription_id: subscription.id,
                 ...payment,
               });
             }
-          }
 
-          subscriptionOk = true;
+            if (provider === 'mercadopago' && recurring.init_point && user.phone) {
+              await whatsapp.sendBillingReminder(normalizePhone(user.phone), {
+                valor: Number(plan.price_monthly).toFixed(2),
+                vencimento: 'Assinatura recorrente',
+                link: recurring.init_point,
+              }, { user: user.email });
+            }
+
+            subscriptionOk = true;
+          } catch (err) {
+            errors.push({ step: 'recurring_subscription', error: err.message });
+            logger.warn('Falha na assinatura recorrente.', { userId, err: err.message });
+          }
         } else {
           subscriptionOk = true;
+          paymentOk = true;
         }
       } catch (err) {
-        errors.push({ step: 'asaas_subscription', error: err.message });
-        logger.warn('Falha ao criar assinatura Asaas.', { userId, err: err.message });
+        errors.push({ step: 'plan_provision', error: err.message });
       }
     }
 
     const status = errors.length === 0 ? 'completed'
-      : (asaasOk || gpswoxOk || subscriptionOk) ? 'partial' : 'failed';
+      : (gpswoxOk || paymentOk || subscriptionOk) ? 'partial' : 'failed';
 
     await this.users.updateProvisioning(userId, {
       provisioning_status: status,
@@ -158,21 +165,20 @@ class ProvisioningService {
 
     return {
       status,
-      asaas: asaasOk,
+      asaas: Boolean(user.asaas_customer_id),
+      mercadopago: Boolean(user.mercadopago_payer_id),
       gpswox: gpswoxOk,
+      initial_payment: paymentOk,
       subscription: subscriptionOk,
       errors,
     };
   }
 
   async retryProvisioning(userId) {
-    const user = await this.users.findByIdWithProvisioning(userId);
-    if (!user) throw new Error('Usuário não encontrado.');
-
     const subscription = await this.subscriptions.findActiveByUser(userId);
     return this.provisionNewClient(userId, {
       plan_id: subscription?.plan_id,
-      billing_type: subscription?.billing_type || 'UNDEFINED',
+      billing_type: subscription?.billing_type || 'PIX',
     });
   }
 }

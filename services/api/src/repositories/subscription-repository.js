@@ -24,15 +24,20 @@ class SubscriptionRepository {
 
   async create(data) {
     const { rows } = await this.pool.query(
-      `INSERT INTO subscriptions (user_id, plan_id, vehicle_id, status, asaas_subscription_id, billing_type)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO subscriptions (
+        user_id, plan_id, vehicle_id, status, asaas_subscription_id,
+        mercadopago_subscription_id, external_subscription_id, payment_provider, billing_type
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         data.user_id,
         data.plan_id,
         data.vehicle_id || null,
         data.status || 'active',
         data.asaas_subscription_id || null,
-        data.billing_type || 'UNDEFINED',
+        data.mercadopago_subscription_id || null,
+        data.external_subscription_id || data.asaas_subscription_id || data.mercadopago_subscription_id || null,
+        data.payment_provider || 'asaas',
+        data.billing_type || 'PIX',
       ]
     );
     return rows[0];
