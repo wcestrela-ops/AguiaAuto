@@ -1,13 +1,12 @@
 const { getStore } = require('@aguia/integrations');
-const { ALERT_TYPES, ALERT_CHANNELS } = require('@aguia/shared');
+const { VEHICLE_ALERT_CHANNELS, filterVehicleAlertChannels } = require('../lib/notification-policy');
+const { ALERT_TYPES } = require('@aguia/shared');
 const { getAlertRepository } = require('../repositories/alert-repository');
-const { getAlertPreferenceRepository, DEFAULT_CHANNELS } = require('../repositories/alert-preference-repository');
+const { getAlertPreferenceRepository } = require('../repositories/alert-preference-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getUserRepository } = require('../repositories/user-repository');
 const { normalizeGpswoxPayload, ALERT_TYPE_LABELS } = require('../lib/gpswox-events');
 const firebase = require('./firebase');
-const whatsapp = require('./whatsapp');
-const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
 
 function formatAlert(row) {
@@ -42,8 +41,9 @@ class AlertService {
     const result = {
       enabled: config.enabled !== false,
       webhook_secret: config.webhook_secret || '',
-      default_channels: String(config.default_channels || 'push,whatsapp')
-        .split(',').map(s => s.trim()).filter(Boolean),
+      default_channels: VEHICLE_ALERT_CHANNELS,
+      whatsapp_vehicle_alerts: false,
+      whatsapp_allowed_for: ['cadastro', 'cobranca', 'recuperacao_senha', 'promocao_admin'],
       dedup_minutes: parseInt(config.dedup_minutes || '5', 10),
     };
     if (masked && result.webhook_secret) {
@@ -82,8 +82,9 @@ class AlertService {
       return { processed: false, reason: 'Usuário inativo ou não encontrado.' };
     }
 
-    let channels = await this.prefs.resolveChannels(user.id, vehicle.id, normalized.alert_type);
-    if (!channels?.length) channels = config.default_channels.length ? config.default_channels : DEFAULT_CHANNELS;
+    let channels = filterVehicleAlertChannels(
+      await this.prefs.resolveChannels(user.id, vehicle.id, normalized.alert_type)
+    );
 
     const pref = await this.prefs.getForAlert(user.id, vehicle.id, normalized.alert_type);
     if (pref && !pref.enabled) {
@@ -131,9 +132,9 @@ class AlertService {
 
   async _dispatch({ user, channels, title, message, alertType, vehicleId, eventId }) {
     const sent = [];
-    const text = `🚨 ${title}\n${message}`;
+    const safeChannels = filterVehicleAlertChannels(channels);
 
-    if (channels.includes('push')) {
+    if (safeChannels.includes('push')) {
       try {
         const result = await firebase.sendPushToUser(user.id, {
           title: `Águia — ${title}`,
@@ -146,15 +147,7 @@ class AlertService {
       }
     }
 
-    if (channels.includes('whatsapp') && user.phone) {
-      try {
-        await whatsapp.sendAlert(normalizePhone(user.phone), text, { user: user.email, alert_type: alertType });
-        sent.push('whatsapp');
-      } catch (err) {
-        logger.warn('Falha WhatsApp alerta.', { userId: user.id, err: err.message });
-      }
-    }
-
+    // WhatsApp bloqueado para alertas de veículo (anti-ban Meta)
     return sent;
   }
 
@@ -203,7 +196,7 @@ class AlertService {
     const user = await this.users.findByIdWithProvisioning(userId);
     if (!user) throw new Error('Usuário não encontrado.');
 
-    const channels = DEFAULT_CHANNELS;
+    const channels = VEHICLE_ALERT_CHANNELS;
     const title = 'Alerta de teste';
     const message = 'Este é um alerta de teste da Águia Gestão Veicular.';
 
@@ -237,7 +230,12 @@ class AlertService {
   getTypes() {
     return {
       tipos: ALERT_TYPES.map(t => ({ key: t, label: ALERT_TYPE_LABELS[t] || t })),
-      canais: ALERT_CHANNELS,
+      canais: VEHICLE_ALERT_CHANNELS,
+      whatsapp_policy: {
+        vehicle_alerts: false,
+        allowed_for: ['Cadastro', 'Cobranças', 'Recuperação de senha', 'Promoções (admin)'],
+        reason: 'Evita banimento por excesso de mensagens operacionais (ignição, rota, etc.).',
+      },
     };
   }
 }

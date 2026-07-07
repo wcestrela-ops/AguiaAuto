@@ -66,8 +66,9 @@ const INTEGRATIONS = {
     fields: [
       { key: 'enabled', label: 'Motor ativo', type: 'boolean', default: true },
       { key: 'webhook_secret', label: 'Segredo do webhook GPSWOX', type: 'password', secret: true, env: 'ALERT_WEBHOOK_SECRET' },
-      { key: 'default_channels', label: 'Canais padrão (push,whatsapp)', type: 'text', default: 'push,whatsapp' },
+      { key: 'default_channels', label: 'Canais de alerta de veículo', type: 'text', default: 'push' },
       { key: 'dedup_minutes', label: 'Deduplicação (minutos)', type: 'number', default: 5 },
+      { key: 'whatsapp_note', label: 'Nota', type: 'text', default: 'WhatsApp não é usado para alertas de veículo (anti-ban). Apenas cadastro, cobrança e promoções admin.' },
     ],
   },
   firebase: {

@@ -134,11 +134,15 @@ Se o gateway principal falhar, o backup é usado automaticamente. Configure em `
 
 ### Motor de Alertas (Fase 4)
 
-GPSWOX envia eventos para `POST /webhooks/gpswox`. O motor identifica o veículo, normaliza o tipo de alerta e dispara **push** + **WhatsApp**.
+GPSWOX envia eventos para `POST /webhooks/gpswox`. O motor identifica o veículo e dispara notificações.
 
-Configure em `/admin/integracoes/alertas` (segredo, canais padrão, deduplicação).
+**Política anti-ban WhatsApp:** alertas de veículo (ignição, rota, velocidade, cerca, etc.) vão **apenas por push**. WhatsApp é usado somente para:
+- Cadastro / boas-vindas
+- Cobranças e segunda via
+- Recuperação de senha
+- Promoções enviadas manualmente pelo admin (`POST /v1/admin/comunicacao/promocao`)
 
-Cliente gerencia preferências em `/app/alertas`. Admin vê histórico em `/admin/alertas`.
+Configure em `/admin/integracoes/alertas`. Cliente vê histórico em `/app/alertas` (push).
 
 Exemplo de payload GPSWOX:
 ```json
@@ -376,10 +380,10 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - PWA: PIX copia e cola no painel do cliente
 
 ### Fase 4 — Motor de Alertas ✅ (atual)
-- Webhook GPSWOX → push Firebase + WhatsApp
-- Preferências por tipo de alerta (cliente)
-- Deduplicação, histórico e painel admin
-- PWA: `/app/alertas` com configuração de canais
+- Webhook GPSWOX → **push** para alertas de veículo
+- WhatsApp bloqueado em alertas operacionais (anti-ban)
+- WhatsApp só: cadastro, cobrança, senha, promoções admin
+- Preferências e histórico no PWA
 
 ### Fase 5 — Instalador + Extras
 - Área do instalador

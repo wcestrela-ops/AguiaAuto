@@ -56,16 +56,6 @@ export default function ClientAlertsPage() {
     }
   }
 
-  function toggleChannel(prefIndex, channel) {
-    setPreferences((prev) => prev.map((p, i) => {
-      if (i !== prefIndex) return p;
-      const channels = p.channels.includes(channel)
-        ? p.channels.filter((c) => c !== channel)
-        : [...p.channels, channel];
-      return { ...p, channels };
-    }));
-  }
-
   function toggleEnabled(prefIndex) {
     setPreferences((prev) => prev.map((p, i) => (
       i === prefIndex ? { ...p, enabled: !p.enabled } : p
@@ -93,7 +83,7 @@ export default function ClientAlertsPage() {
       <header className="page-header row">
         <div>
           <h1>Alertas</h1>
-          <p>Notificações do rastreador via push e WhatsApp.</p>
+          <p>Notificações do rastreador via push no app.</p>
         </div>
         <div className="form-actions">
           {unread > 0 && (
@@ -113,16 +103,17 @@ export default function ClientAlertsPage() {
       {showPrefs && (
         <div className="form-card" style={{ maxWidth: '100%' }}>
           <h3>Preferências de alerta</h3>
-          <p className="muted">Escolha quais alertas receber e por quais canais.</p>
+          <div className="info-box">
+            Alertas de veículo (ignição, rota, velocidade, etc.) chegam apenas por <strong>push</strong>.
+            WhatsApp é reservado para cadastro, cobranças e promoções — evita bloqueio por excesso de mensagens.
+          </div>
           <div className="table-card">
             <table>
               <thead>
                 <tr>
                   <th>Tipo</th>
                   <th>Ativo</th>
-                  {(types.canais || []).map((c) => (
-                    <th key={c}>{CHANNEL_LABELS[c] || c}</th>
-                  ))}
+                  <th>Push</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,16 +127,9 @@ export default function ClientAlertsPage() {
                         onChange={() => toggleEnabled(index)}
                       />
                     </td>
-                    {(types.canais || []).map((channel) => (
-                      <td key={channel}>
-                        <input
-                          type="checkbox"
-                          checked={pref.channels?.includes(channel)}
-                          onChange={() => toggleChannel(index, channel)}
-                          disabled={!pref.enabled}
-                        />
-                      </td>
-                    ))}
+                    <td>
+                      <input type="checkbox" checked disabled title="Push sempre ativo para alertas de veículo" />
+                    </td>
                   </tr>
                 ))}
               </tbody>

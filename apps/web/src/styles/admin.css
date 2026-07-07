@@ -172,9 +172,14 @@ input, select, textarea {
   padding: 0.625rem 0.875rem;
   color: var(--text);
   font-size: 0.9375rem;
+  font-family: inherit;
 }
 
-input:focus, select:focus {
+textarea {
+  resize: vertical;
+}
+
+input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
 }

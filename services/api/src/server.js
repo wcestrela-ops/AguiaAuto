@@ -34,6 +34,7 @@ const adminUsuariosRoutes = require('./modules/admin/usuarios/routes');
 const adminFinanceiroRoutes = require('./modules/admin/financeiro/routes');
 const adminPlansRoutes = require('./modules/admin/plans/routes');
 const adminAlertasRoutes = require('./modules/admin/alertas/routes');
+const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -93,6 +94,7 @@ app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
 app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
 app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
+app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });

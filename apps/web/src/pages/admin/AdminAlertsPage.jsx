@@ -14,6 +14,9 @@ export default function AdminAlertsPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [testUserId, setTestUserId] = useState('');
+  const [promoMessage, setPromoMessage] = useState('');
+  const [promoUserIds, setPromoUserIds] = useState([]);
+  const [promoAll, setPromoAll] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -50,6 +53,23 @@ export default function AdminAlertsPage() {
     }
   }
 
+  async function sendPromotion() {
+    if (!promoMessage.trim()) return;
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.sendPromotion({
+        message: promoMessage.trim(),
+        user_ids: promoAll ? undefined : promoUserIds.map(Number),
+        all_clients: promoAll,
+      });
+      setMessage(`Promoção enviada para ${res.data?.sent ?? 0} cliente(s).`);
+      setPromoMessage('');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (loading) return <p className="muted">Carregando...</p>;
 
   return (
@@ -57,7 +77,7 @@ export default function AdminAlertsPage() {
       <header className="page-header row">
         <div>
           <h1>Alertas</h1>
-          <p>Motor GPSWOX → Push + WhatsApp</p>
+          <p>Motor GPSWOX → Push (veículo) · WhatsApp só transacional</p>
         </div>
         <Link to="/admin/integracoes/alertas" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
           Configurar motor
@@ -70,16 +90,53 @@ export default function AdminAlertsPage() {
       {config && (
         <div className="info-box">
           <strong>Motor:</strong> {config.enabled ? 'Ativo' : 'Desativado'} ·
-          Canais padrão: {config.default_channels?.join(', ')} ·
-          Deduplicação: {config.dedup_minutes} min
+          Alertas de veículo: <strong>apenas push</strong> (ignição, rota e velocidade não vão ao WhatsApp)
+          <br />
+          <strong>WhatsApp permitido:</strong> cadastro, cobranças, recuperação de senha e promoções manuais abaixo.
           <br />
           <strong>Webhook GPSWOX:</strong> POST /webhooks/gpswox
-          {config.webhook_secret ? ' (com segredo configurado)' : ' (sem segredo — aberto)'}
+          {config.webhook_secret ? ' (com segredo)' : ''}
         </div>
       )}
 
       <div className="form-card">
-        <h3>Enviar alerta de teste</h3>
+        <h3>Promoção via WhatsApp</h3>
+        <p className="muted">Envio manual pelo admin — não use para alertas de veículo.</p>
+        <label>
+          Mensagem
+          <textarea
+            rows={4}
+            value={promoMessage}
+            onChange={(e) => setPromoMessage(e.target.value)}
+            placeholder="Texto da promoção..."
+          />
+        </label>
+        <label className="checkbox-row">
+          <input type="checkbox" checked={promoAll} onChange={(e) => setPromoAll(e.target.checked)} />
+          Enviar para todos os clientes com telefone
+        </label>
+        {!promoAll && (
+          <label>
+            Clientes (segure Ctrl para múltiplos)
+            <select
+              multiple
+              value={promoUserIds}
+              onChange={(e) => setPromoUserIds([...e.target.selectedOptions].map((o) => o.value))}
+              style={{ minHeight: '120px' }}
+            >
+              {users.filter((u) => u.phone).map((u) => (
+                <option key={u.id} value={u.id}>{u.name || u.email}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button type="button" onClick={sendPromotion} disabled={!promoMessage.trim()}>
+          Enviar promoção
+        </button>
+      </div>
+
+      <div className="form-card">
+        <h3>Teste de push (alerta de veículo)</h3>
         <label>
           Cliente
           <select value={testUserId} onChange={(e) => setTestUserId(e.target.value)}>

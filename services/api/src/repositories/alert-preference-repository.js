@@ -1,7 +1,8 @@
-const { ALERT_TYPES, ALERT_CHANNELS } = require('@aguia/shared');
+const { ALERT_TYPES } = require('@aguia/shared');
 const { getPool } = require('../db/pool');
+const { VEHICLE_ALERT_CHANNELS, filterVehicleAlertChannels } = require('../lib/notification-policy');
 
-const DEFAULT_CHANNELS = ['push', 'whatsapp'];
+const DEFAULT_CHANNELS = VEHICLE_ALERT_CHANNELS;
 
 class AlertPreferenceRepository {
   constructor() {
@@ -40,7 +41,7 @@ class AlertPreferenceRepository {
 
   async resolveChannels(userId, vehicleId, alertType) {
     const pref = await this.getForAlert(userId, vehicleId, alertType);
-    if (pref) return pref.channels;
+    if (pref) return filterVehicleAlertChannels(pref.channels);
     return DEFAULT_CHANNELS;
   }
 
@@ -48,8 +49,7 @@ class AlertPreferenceRepository {
     const saved = [];
     for (const pref of preferences) {
       if (!ALERT_TYPES.includes(pref.alert_type)) continue;
-      const channels = (pref.channels || DEFAULT_CHANNELS)
-        .filter(c => ALERT_CHANNELS.includes(c));
+      const channels = filterVehicleAlertChannels(pref.channels || DEFAULT_CHANNELS);
 
       const existing = vehicleId == null
         ? await this.pool.query(
@@ -92,7 +92,7 @@ class AlertPreferenceRepository {
       const pref = specific || global;
       return {
         alert_type: type,
-        channels: pref?.channels || DEFAULT_CHANNELS,
+        channels: filterVehicleAlertChannels(pref?.channels || DEFAULT_CHANNELS),
         enabled: pref ? pref.enabled : true,
         vehicle_id: pref?.vehicle_id || null,
       };

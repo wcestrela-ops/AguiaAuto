@@ -376,6 +376,13 @@ class ApiClient {
     return this.request(`/v1/admin/alertas/teste/${userId}`, { method: 'POST' }, { useAdmin: true });
   }
 
+  sendPromotion({ message, user_ids, all_clients }) {
+    return this.request('/v1/admin/comunicacao/promocao', {
+      method: 'POST',
+      body: JSON.stringify({ message, user_ids, all_clients }),
+    }, { useAdmin: true });
+  }
+
   getFirebasePublicConfig() {
     return this.request('/v1/config/firebase');
   }
