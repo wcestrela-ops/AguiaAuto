@@ -170,15 +170,31 @@ Cliente PWA: Perfil → Ativar notificações.
 
 | Rota | Descrição |
 |------|-----------|
-| `POST /v1/auth/recuperar-senha/solicitar` | Envia código de 6 dígitos via WhatsApp |
+| `POST /v1/auth/recuperar-senha/solicitar` | `{ email, channel? }` — envia código de 6 dígitos |
 | `POST /v1/auth/recuperar-senha/confirmar` | Redefine senha com código |
 
-Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirmar`
+**Canais (`channel`):** `both` (padrão), `email` ou `whatsapp`. O **mesmo código** vai para todos os canais escolhidos.
 
-- Código válido por 10 minutos
-- Máximo 3 solicitações a cada 15 minutos
-- Push notification enviado como canal secundário (se FCM registrado)
-- WhatsApp configurado pelo painel admin
+- Sem WhatsApp cadastrado → apenas e-mail
+- Com WhatsApp → padrão envia e-mail **e** WhatsApp
+- Push como fallback se e-mail/WhatsApp falharem
+
+Fluxo: `/recuperar-senha` → escolher canal → `/recuperar-senha/confirmar`
+
+- Código válido por 10 minutos · máx. 3 solicitações / 15 min
+- SMTP em **Integrações → E-mail** · WhatsApp no painel admin
+
+### Cadastro e credenciais
+
+- Cliente cria a senha no cadastro; recebe **e-mail com login e senha**
+- Com telefone, também recebe WhatsApp de boas-vindas
+- Instaladores criados pelo admin recebem credenciais por e-mail e WhatsApp
+
+```env
+SMTP_HOST=smtp.seudominio.com
+SMTP_PORT=587
+SMTP_FROM=noreply@seudominio.com
+```
 
 ### Endpoints disponíveis
 
