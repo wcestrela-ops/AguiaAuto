@@ -134,6 +134,26 @@ class ApiClient {
     return this.request('/v1/dashboard', {}, { useClient: true });
   }
 
+  getVehicles() {
+    return this.request('/v1/veiculos', {}, { useClient: true });
+  }
+
+  getVehicle(id) {
+    return this.request(`/v1/veiculos/${id}`, {}, { useClient: true });
+  }
+
+  getVehicleLocation(id) {
+    return this.request(`/v1/veiculos/${id}/localizacao`, {}, { useClient: true });
+  }
+
+  blockVehicle(id) {
+    return this.request(`/v1/veiculos/${id}/bloqueio`, { method: 'POST' }, { useClient: true });
+  }
+
+  unblockVehicle(id) {
+    return this.request(`/v1/veiculos/${id}/desbloqueio`, { method: 'POST' }, { useClient: true });
+  }
+
   getPerfil() {
     return this.request('/v1/perfil', {}, { useClient: true });
   }
@@ -244,6 +264,28 @@ class ApiClient {
 
   deleteWhatsApp(id) {
     return this.request(`/v1/admin/whatsapp/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  getAdminVehicles() {
+    return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
+  }
+
+  createAdminVehicle(data) {
+    return this.request('/v1/admin/veiculos', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateAdminVehicle(id, data) {
+    return this.request(`/v1/admin/veiculos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getAdminUsers() {
+    return this.request('/v1/admin/usuarios', {}, { useAdmin: true });
   }
 
   getFirebasePublicConfig() {

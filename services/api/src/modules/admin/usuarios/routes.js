@@ -1,11 +1,11 @@
 const { Router } = require('express');
-const { getDashboard } = require('../../services/dashboard-service');
+const { getUserRepository } = require('../../../repositories/user-repository');
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const data = await getDashboard(req.user.id);
+    const data = await getUserRepository().listAll();
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

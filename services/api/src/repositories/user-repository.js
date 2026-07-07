@@ -96,6 +96,15 @@ class UserRepository {
       [userId]
     );
   }
+
+  async listAll() {
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, phone, role, active, created_at
+       FROM users
+       ORDER BY name NULLS LAST, email`
+    );
+    return rows;
+  }
 }
 
 let instance = null;

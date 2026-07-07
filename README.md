@@ -56,6 +56,7 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | Integrações (Firebase, GPSWOX, Asaas) | `/admin/integracoes` |
 | Firebase Push | `/admin/integracoes/firebase` |
 | WhatsApp Multi-Provedor | `/admin/whatsapp` |
+| Veículos (vincular GPSWOX) | `/admin/veiculos` |
 
 **Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
 
@@ -70,6 +71,24 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | `GET /v1/auth/me` | Dados do usuário logado |
 
 PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admin`
+
+### Meu Veículo (Fase 1)
+
+1. Admin cadastra veículo em `/admin/veiculos` vinculando cliente + `gpswox_device_id`
+2. Cliente vê veículos em `/app/veiculos` com mapa Leaflet em tempo real
+3. Dashboard (`/app`) mostra resumo com localização quando disponível
+
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/veiculos` | Lista veículos do usuário logado |
+| `GET /v1/veiculos/:id` | Detalhe do veículo (ownership verificado) |
+| `GET /v1/veiculos/:id/localizacao` | Localização via GPSWOX Gateway |
+| `POST /v1/veiculos/:id/bloqueio` | Bloquear rastreador |
+| `POST /v1/veiculos/:id/desbloqueio` | Desbloquear rastreador |
+| `GET /v1/admin/veiculos` | Listar todos (admin) |
+| `POST /v1/admin/veiculos` | Criar veículo para cliente |
+| `PUT /v1/admin/veiculos/:id` | Atualizar veículo |
+| `GET /v1/admin/usuarios` | Listar clientes (admin) |
 
 Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
 
@@ -109,9 +128,12 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | **Auth Cliente** | `POST /v1/auth/register` | ✅ |
 | **Auth Cliente** | `POST /v1/auth/refresh` | ✅ |
 | **Auth Cliente** | `GET /v1/auth/me` | ✅ |
-| Dashboard | `GET /v1/dashboard` | 🚧 |
+| Dashboard | `GET /v1/dashboard` | ✅ |
+| Meu Veículo | `GET /v1/veiculos` | ✅ |
+| Meu Veículo | `GET /v1/veiculos/:id` | ✅ |
 | Meu Veículo | `GET /v1/veiculos/:id/localizacao` | ✅ |
 | Bloqueio | `POST /v1/veiculos/:id/bloqueio` | ✅ |
+| Desbloqueio | `POST /v1/veiculos/:id/desbloqueio` | ✅ |
 | Financeiro | `GET /v1/financeiro/*` | 🚧 |
 | Alertas | `GET /v1/alertas/tipos` | ✅ |
 | Emergência | `GET /v1/emergencia/contatos` | ✅ |
@@ -121,6 +143,8 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | **Admin — Integrações** | `GET /v1/admin/integracoes` | ✅ |
 | **Admin — Salvar API** | `PUT /v1/admin/integracoes/:key` | ✅ |
 | **Admin — Testar API** | `POST /v1/admin/integracoes/:key/test` | ✅ |
+| **Admin — Veículos** | `GET/POST/PUT /v1/admin/veiculos` | ✅ |
+| **Admin — Usuários** | `GET /v1/admin/usuarios` | ✅ |
 
 ## Painel Admin — Configuração de APIs
 
@@ -259,17 +283,19 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 
 ## Roadmap de implementação
 
-### Fase 1 — Fundação ✅ (atual)
+### Fase 1 — Meu Veículo ✅ (atual)
+- Tabelas `vehicles`, `plans`, `subscriptions`
+- API com ownership (cliente só vê seus veículos)
+- Dashboard real com resumo de localização
+- Admin: cadastro e vínculo GPSWOX
+- PWA: lista + mapa Leaflet + bloqueio/desbloqueio
+
+### Fase 2 — Fundação (concluída)
 - Monorepo modular
 - Gateway GPSWOX (API oficial + Playwright fallback)
 - API com módulos estruturados
 - Docker Compose com PostgreSQL
-
-### Fase 2 — PWA
-- React + Vite + PWA
-- Dashboard e Meu Veículo
-- Autenticação JWT
-- Mapa em tempo real
+- PWA + Auth JWT + Admin + WhatsApp + FCM + Recuperação de senha
 
 ### Fase 3 — Financeiro
 - Integração Asaas completa

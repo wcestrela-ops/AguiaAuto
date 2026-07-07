@@ -1,35 +1,58 @@
 const { Router } = require('express');
-const gpswox = require('../../integrations/gpswox-gateway');
+const { getVehicleService } = require('../../services/vehicle-service');
 
 const router = Router();
 
-router.get('/:id/localizacao', async (req, res) => {
+function getService() {
+  return getVehicleService();
+}
+
+router.get('/', async (req, res) => {
   try {
-    const data = await gpswox.getLocation({
-      device_id: req.params.id,
-      veiculo: req.query.nome,
-    });
+    const data = await getService().listForUser(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const data = await getService().getForUser(req.user.id, req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/:id/localizacao', async (req, res) => {
+  try {
+    const data = await getService().getLocation(req.user.id, req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 router.post('/:id/bloqueio', async (req, res) => {
   try {
-    const data = await gpswox.blockDevice(req.params.id);
+    const data = await getService().block(req.user.id, req.params.id);
     res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 router.post('/:id/desbloqueio', async (req, res) => {
   try {
-    const data = await gpswox.unblockDevice(req.params.id);
+    const data = await getService().unblock(req.user.id, req.params.id);
     res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 

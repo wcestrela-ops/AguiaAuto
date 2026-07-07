@@ -10,6 +10,7 @@ const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
 const { migrateFcmTokens } = require('./db/migrate-fcm');
 const { migratePasswordReset } = require('./db/migrate-password-reset');
+const { migrateVehicles } = require('./db/migrate-vehicles');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -25,6 +26,8 @@ const webhooksRoutes = require('./modules/webhooks/routes');
 const onboardingRoutes = require('./modules/onboarding/routes');
 const adminIntegracoesRoutes = require('./modules/admin/integracoes/routes');
 const adminWhatsappRoutes = require('./modules/admin/whatsapp/routes');
+const adminVeiculosRoutes = require('./modules/admin/veiculos/routes');
+const adminUsuariosRoutes = require('./modules/admin/usuarios/routes');
 const configRoutes = require('./modules/config/routes');
 
 const app = express();
@@ -75,6 +78,8 @@ app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instalador
 // Painel admin — ADMIN_SECRET
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
+app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -94,6 +99,9 @@ async function bootstrap() {
 
     await migratePasswordReset();
     logger.info('Recuperação de senha inicializada.');
+
+    await migrateVehicles();
+    logger.info('Veículos e planos inicializados.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
