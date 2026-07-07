@@ -1,8 +1,10 @@
 const crypto = require('crypto');
 const { getReferralRepository } = require('../repositories/referral-repository');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
-const { getUserRepository } = require('../repositories/user-repository');
+const { getContractRepository } = require('../repositories/contract-repository');
+const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const asaas = require('../integrations/asaas');
+const firebase = require('./firebase');
 const logger = require('../logger');
 
 const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -10,6 +12,12 @@ const REFERRAL_DISCOUNT_PERCENT = 50;
 
 function getAppWebUrl() {
   return (process.env.APP_WEB_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+}
+
+function currentYearMonth(date = new Date()) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
 function generateReferralCode() {
@@ -23,6 +31,11 @@ function generateReferralCode() {
 
 function formatReferral(row) {
   if (!row) return null;
+  const statusLabels = {
+    awaiting_completion: 'Aguardando instalação e contrato',
+    qualified: 'Confirmada — aplicando desconto',
+    applied: 'Desconto aplicado',
+  };
   return {
     id: row.id,
     referred_name: row.referred_name || null,
@@ -31,6 +44,8 @@ function formatReferral(row) {
     discount_percent: row.discount_percent,
     discount_applied: row.discount_applied,
     discount_status: row.discount_status,
+    discount_status_label: statusLabels[row.discount_status] || row.discount_status,
+    qualified_at: row.qualified_at,
     created_at: row.created_at,
   };
 }
@@ -39,7 +54,8 @@ class ReferralService {
   constructor() {
     this.referrals = getReferralRepository();
     this.invoices = getInvoiceRepository();
-    this.users = getUserRepository();
+    this.contracts = getContractRepository();
+    this.vehicles = getVehicleRepository();
   }
 
   async ensureReferralCode(userId) {
@@ -71,9 +87,10 @@ class ReferralService {
       codigo: code,
       link,
       desconto_percentual: REFERRAL_DISCOUNT_PERCENT,
-      regra: `Cada indicação que se cadastrar com seu código garante ${REFERRAL_DISCOUNT_PERCENT}% de desconto na sua próxima mensalidade pendente.`,
+      regra: `Cada indicação que concluir instalação e aceitar o contrato no mesmo mês garante ${REFERRAL_DISCOUNT_PERCENT}% de desconto na mensalidade. Duas indicações no mês = mensalidade isenta (100%).`,
       estatisticas: {
         total_indicacoes: stats.total,
+        confirmadas: stats.confirmadas,
         descontos_aplicados: stats.com_desconto,
       },
       indicacoes: rows.map(formatReferral),
@@ -116,56 +133,119 @@ class ReferralService {
       return existing;
     }
 
-    const referral = await this.referrals.create({
+    return this.referrals.create({
       referrer_user_id: referrer.id,
       referred_user_id: referredUserId,
       referral_code: referrer.referral_code,
       discount_percent: REFERRAL_DISCOUNT_PERCENT,
     });
-
-    try {
-      await this.applyDiscountForReferral(referrer.id, referral.id);
-    } catch (err) {
-      logger.warn('Desconto de indicação pendente.', {
-        referralId: referral.id,
-        referrerId: referrer.id,
-        err: err.message,
-      });
-    }
-
-    return referral;
   }
 
-  async applyDiscountForReferral(referrerUserId, referralId) {
-    const referral = await this.referrals.findById(referralId);
-    if (!referral || referral.referrer_user_id !== referrerUserId) {
-      throw new Error('Indicação não encontrada.');
-    }
-    if (referral.discount_applied) {
-      return { applied: true, already_applied: true, invoice_id: referral.discount_invoice_id };
+  async isReferredUserQualified(referredUserId) {
+    const [hasService, hasDelivery, activeVehicles] = await Promise.all([
+      this.contracts.hasServiceAcceptance(referredUserId),
+      this.contracts.hasDeliveryAcceptance(referredUserId),
+      this.vehicles.countActiveByUser(referredUserId),
+    ]);
+    return hasService && hasDelivery && activeVehicles > 0;
+  }
+
+  async checkAndRewardForReferredUser(referredUserId) {
+    const referral = await this.referrals.findByReferredUser(referredUserId);
+    if (!referral) return null;
+
+    if (referral.discount_status !== 'awaiting_completion') {
+      if (referral.discount_status === 'qualified') {
+        const yearMonth = referral.qualified_at
+          ? currentYearMonth(new Date(referral.qualified_at))
+          : currentYearMonth();
+        return this.syncReferrerDiscountForMonth(referral.referrer_user_id, yearMonth);
+      }
+      return null;
     }
 
-    const invoice = await this.invoices.findNextPendingMonthly(referrerUserId);
+    const qualified = await this.isReferredUserQualified(referredUserId);
+    if (!qualified) return { qualified: false };
 
+    const updated = await this.referrals.markQualified(referral.id);
+    if (!updated) return null;
+
+    const yearMonth = currentYearMonth();
+    const result = await this.syncReferrerDiscountForMonth(referral.referrer_user_id, yearMonth);
+
+    this._notifyReferrerReward(referral.referrer_user_id, result).catch((err) => {
+      logger.warn('Falha ao notificar indicador.', { err: err.message });
+    });
+
+    return { qualified: true, ...result };
+  }
+
+  async syncReferrerDiscountForMonth(referrerUserId, yearMonth) {
+    const qualifiedCount = await this.referrals.countQualifiedInMonth(referrerUserId, yearMonth);
+    if (!qualifiedCount) {
+      return { synced: false, reason: 'Nenhuma indicação confirmada neste mês.' };
+    }
+
+    const totalPercent = Math.min(100, qualifiedCount * REFERRAL_DISCOUNT_PERCENT);
+    let invoice = await this.invoices.findPendingMonthlyForMonth(referrerUserId, yearMonth);
     if (!invoice) {
-      return { applied: false, reason: 'Sem mensalidade pendente no momento.' };
+      invoice = await this.invoices.findNextPendingMonthly(referrerUserId);
+    }
+    if (!invoice) {
+      return { synced: false, reason: 'Mensalidade pendente ainda não gerada.', total_percent: totalPercent };
     }
 
-    const originalAmount = Number(invoice.amount);
-    const discountPercent = REFERRAL_DISCOUNT_PERCENT;
-    const discountedAmount = Math.round(originalAmount * (1 - discountPercent / 100) * 100) / 100;
-
-    if (discountedAmount >= originalAmount) {
-      return { applied: false, reason: 'Desconto já aplicado ou valor inválido.' };
-    }
+    const baseAmount = Number(invoice.original_amount || invoice.amount);
+    const discountedAmount = Math.round(baseAmount * (1 - totalPercent / 100) * 100) / 100;
+    const qualifiedRows = await this.referrals.listQualifiedInMonth(referrerUserId, yearMonth);
+    const description = totalPercent >= 100
+      ? `Mensalidade isenta — ${qualifiedCount} indicações confirmadas`
+      : `Mensalidade — ${totalPercent}% desconto (${qualifiedCount} indicação${qualifiedCount > 1 ? 'ões' : ''})`;
 
     let updatedPayment = null;
     const externalId = invoice.external_payment_id || invoice.asaas_payment_id;
+
+    if (totalPercent >= 100) {
+      if (externalId && invoice.payment_provider === 'asaas') {
+        try {
+          await asaas.deletePayment(externalId);
+        } catch (err) {
+          logger.warn('Falha ao cancelar cobrança Asaas (100% indicação).', {
+            invoiceId: invoice.id,
+            err: err.message,
+          });
+        }
+      }
+
+      const updatedInvoice = await this.invoices.applyReferralDiscount(invoice.id, {
+        amount: 0,
+        original_amount: baseAmount,
+        discount_percent: totalPercent,
+        referral_id: qualifiedRows[qualifiedRows.length - 1]?.id || null,
+        status: 'waived',
+        description,
+      });
+
+      await this.referrals.markAppliedForInvoice(
+        qualifiedRows.map((r) => r.id),
+        updatedInvoice.id
+      );
+
+      return {
+        synced: true,
+        invoice_id: updatedInvoice.id,
+        total_percent: totalPercent,
+        valor_original: baseAmount,
+        valor_final: 0,
+        isento: true,
+      };
+    }
+
     if (externalId && invoice.payment_provider === 'asaas' && invoice.status === 'pending') {
       try {
         updatedPayment = await asaas.updatePayment(externalId, {
           value: discountedAmount,
-          description: `${invoice.description || 'Mensalidade'} — ${discountPercent}% desconto indicação`,
+          description,
         });
       } catch (err) {
         logger.warn('Falha ao atualizar cobrança Asaas com desconto.', {
@@ -177,37 +257,69 @@ class ReferralService {
 
     const updatedInvoice = await this.invoices.applyReferralDiscount(invoice.id, {
       amount: discountedAmount,
-      original_amount: originalAmount,
-      discount_percent: discountPercent,
-      referral_id: referralId,
+      original_amount: baseAmount,
+      discount_percent: totalPercent,
+      referral_id: qualifiedRows[qualifiedRows.length - 1]?.id || null,
       payment: updatedPayment,
+      description,
     });
 
-    await this.referrals.markDiscountApplied(referralId, updatedInvoice.id);
+    await this.referrals.markAppliedForInvoice(
+      qualifiedRows.map((r) => r.id),
+      updatedInvoice.id
+    );
 
     return {
-      applied: true,
+      synced: true,
       invoice_id: updatedInvoice.id,
-      valor_original: originalAmount,
-      valor_com_desconto: discountedAmount,
-      desconto_percentual: discountPercent,
+      total_percent: totalPercent,
+      valor_original: baseAmount,
+      valor_final: discountedAmount,
+      isento: false,
     };
   }
 
-  async retryPendingDiscounts(userId) {
-    const pending = await this.referrals.listPendingDiscounts(userId);
+  async syncAllPendingRewards() {
+    const referrerIds = await this.referrals.listReferrersNeedingRewardSync();
+    const yearMonth = currentYearMonth();
     const results = [];
 
-    for (const referral of pending) {
+    for (const referrerId of referrerIds) {
       try {
-        const result = await this.applyDiscountForReferral(userId, referral.id);
-        results.push({ referral_id: referral.id, ...result });
+        const result = await this.syncReferrerDiscountForMonth(referrerId, yearMonth);
+        results.push({ referrer_id: referrerId, ...result });
       } catch (err) {
-        results.push({ referral_id: referral.id, applied: false, error: err.message });
+        results.push({ referrer_id: referrerId, synced: false, error: err.message });
       }
     }
 
-    return results;
+    const awaiting = await this.referrals.listAwaitingCompletion();
+    for (const referral of awaiting) {
+      try {
+        await this.checkAndRewardForReferredUser(referral.referred_user_id);
+      } catch (err) {
+        logger.warn('Falha ao verificar qualificação de indicação.', {
+          referralId: referral.id,
+          err: err.message,
+        });
+      }
+    }
+
+    return { processed: results.length + awaiting.length, results };
+  }
+
+  async _notifyReferrerReward(referrerUserId, result) {
+    if (!result?.synced) return;
+
+    const body = result.isento
+      ? 'Suas indicações confirmadas isentaram a mensalidade deste mês!'
+      : `Desconto de ${result.total_percent}% aplicado na sua mensalidade.`;
+
+    await firebase.sendPushToUser(referrerUserId, {
+      title: 'Indique e Ganhe — desconto aplicado',
+      body,
+      data: { type: 'referral_reward', invoice_id: String(result.invoice_id || '') },
+    });
   }
 }
 
@@ -218,9 +330,23 @@ function getReferralService() {
   return instance;
 }
 
+function startReferralRewardPoller(intervalMs = 60000) {
+  const run = async () => {
+    try {
+      await getReferralService().syncAllPendingRewards();
+    } catch (err) {
+      logger.warn('Poller de indicações falhou.', { err: err.message });
+    }
+  };
+
+  run();
+  return setInterval(run, intervalMs);
+}
+
 module.exports = {
   ReferralService,
   getReferralService,
+  startReferralRewardPoller,
   REFERRAL_DISCOUNT_PERCENT,
   getAppWebUrl,
 };

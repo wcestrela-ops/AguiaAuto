@@ -20,6 +20,7 @@ const { migrateContratos } = require('./db/migrate-contratos');
 const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { startAnchorPoller } = require('./services/anchor-service');
+const { startReferralRewardPoller } = require('./services/referral-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -167,7 +168,8 @@ async function bootstrap() {
 
     if (process.env.DATABASE_URL) {
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
-      logger.info('Poller de âncora veicular iniciado.');
+      startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
+      logger.info('Pollers de âncora e indicações iniciados.');
     }
   });
 }

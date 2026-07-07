@@ -134,10 +134,23 @@ class InvoiceRepository {
        WHERE user_id = $1
          AND status = 'pending'
          AND is_initial_charge = false
-         AND (referral_id IS NULL OR discount_percent IS NULL)
        ORDER BY due_date ASC NULLS LAST, created_at ASC
        LIMIT 1`,
       [userId]
+    );
+    return rows[0] || null;
+  }
+
+  async findPendingMonthlyForMonth(userId, yearMonth) {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM invoices
+       WHERE user_id = $1
+         AND status = 'pending'
+         AND is_initial_charge = false
+         AND to_char(due_date, 'YYYY-MM') = $2
+       ORDER BY due_date ASC NULLS LAST, created_at ASC
+       LIMIT 1`,
+      [userId, yearMonth]
     );
     return rows[0] || null;
   }
@@ -148,6 +161,8 @@ class InvoiceRepository {
     discount_percent,
     referral_id,
     payment,
+    status,
+    description,
   }) {
     const { rows } = await this.pool.query(
       `UPDATE invoices SET
@@ -155,11 +170,13 @@ class InvoiceRepository {
         discount_percent = COALESCE($3, discount_percent),
         referral_id = COALESCE($4, referral_id),
         amount = COALESCE($5, amount),
-        description = COALESCE($6, description),
-        invoice_url = COALESCE($7, invoice_url),
-        bank_slip_url = COALESCE($8, bank_slip_url),
-        pix_qrcode = COALESCE($9, pix_qrcode),
-        pix_copy_paste = COALESCE($10, pix_copy_paste),
+        status = COALESCE($6, status),
+        description = COALESCE($7, description),
+        invoice_url = COALESCE($8, invoice_url),
+        bank_slip_url = COALESCE($9, bank_slip_url),
+        pix_qrcode = COALESCE($10, pix_qrcode),
+        pix_copy_paste = COALESCE($11, pix_copy_paste),
+        paid_at = COALESCE($12, paid_at),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
@@ -168,11 +185,13 @@ class InvoiceRepository {
         discount_percent,
         referral_id,
         amount,
-        payment?.description || null,
+        status || null,
+        description || payment?.description || null,
         payment?.invoice_url || null,
         payment?.bank_slip_url || null,
         payment?.pix_qrcode || null,
         payment?.pix_copy_paste || null,
+        status === 'waived' || status === 'paid' ? new Date().toISOString() : null,
       ]
     );
     return rows[0];

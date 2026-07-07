@@ -7,6 +7,7 @@ const STATUS_LABELS = {
   paid: 'Pago',
   overdue: 'Atrasado',
   refunded: 'Estornado',
+  waived: 'Isenta (indicação)',
 };
 
 const STATUS_BADGE = {
@@ -14,6 +15,7 @@ const STATUS_BADGE = {
   paid: 'success',
   overdue: 'error',
   refunded: 'info',
+  waived: 'success',
 };
 
 function formatMoney(value) {
@@ -196,15 +198,15 @@ export default function ClientFinanceiroPage() {
                     <small className="muted">{PROVIDER_LABELS[fatura.payment_provider] || fatura.payment_provider}</small>
                   </td>
                   <td className="actions">
-                    {fatura.status !== 'paid' && fatura.pix_copy_paste && (
+                    {fatura.status !== 'paid' && fatura.status !== 'waived' && fatura.pix_copy_paste && (
                       <PixBlock fatura={fatura} onCopy={() => setMessage('Código PIX copiado!')} />
                     )}
-                    {fatura.status !== 'paid' && fatura.invoice_url && (
+                    {fatura.status !== 'paid' && fatura.status !== 'waived' && fatura.invoice_url && (
                         <a href={fatura.invoice_url} target="_blank" rel="noreferrer" className="btn-sm btn-secondary">
                           Pagar
                         </a>
                       )}
-                      {fatura.status !== 'paid' && (
+                      {fatura.status !== 'paid' && fatura.status !== 'waived' && (
                         <button
                           type="button"
                           className="btn-sm"

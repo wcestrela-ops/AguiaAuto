@@ -214,14 +214,7 @@ class AuthService {
       await this.users.updateProvisioning(user.id, { provisioning_status: 'pending' });
     }
 
-    if (referral?.referrer_user_id) {
-      const { getReferralService } = require('./referral-service');
-      getReferralService().retryPendingDiscounts(referral.referrer_user_id).catch((err) => {
-        logger.warn('Retry desconto indicação após provisionamento.', { err: err.message });
-      });
-    }
-
-    return { ...tokens, provisioning, referral: referral ? { processed: true } : null };
+    return { ...tokens, provisioning, referral: referral ? { registered: true } : null };
   }
 
   async login({ email, password }) {

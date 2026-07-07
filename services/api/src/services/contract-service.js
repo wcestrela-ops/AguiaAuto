@@ -4,6 +4,7 @@ const { getInstallationRepository } = require('../repositories/installation-repo
 const { getInstallationPhotoRepository } = require('../repositories/installation-photo-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { resolveUploadPath } = require('../lib/upload');
+const logger = require('../logger');
 
 function formatPhoto(photo, baseUrl = '') {
   return {
@@ -114,6 +115,11 @@ class ContractService {
       user_agent: reqMeta.userAgent,
     });
 
+    const { getReferralService } = require('./referral-service');
+    getReferralService().checkAndRewardForReferredUser(userId).catch((err) => {
+      logger.warn('Falha ao processar indicação após contrato.', { userId, err: err.message });
+    });
+
     return { acceptance };
   }
 
@@ -143,6 +149,11 @@ class ContractService {
       installation_log_id: installationLogId,
       ip_address: reqMeta.ip,
       user_agent: reqMeta.userAgent,
+    });
+
+    const { getReferralService } = require('./referral-service');
+    getReferralService().checkAndRewardForReferredUser(userId).catch((err) => {
+      logger.warn('Falha ao processar indicação após termo de entrega.', { userId, err: err.message });
     });
 
     return { acceptance };

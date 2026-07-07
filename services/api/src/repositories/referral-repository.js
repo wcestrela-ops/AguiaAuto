@@ -43,8 +43,8 @@ class ReferralRepository {
   async create(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO referrals (
-        referrer_user_id, referred_user_id, referral_code, discount_percent
-      ) VALUES ($1,$2,$3,$4) RETURNING *`,
+        referrer_user_id, referred_user_id, referral_code, discount_percent, discount_status
+      ) VALUES ($1,$2,$3,$4,'awaiting_completion') RETURNING *`,
       [
         data.referrer_user_id,
         data.referred_user_id,
@@ -85,6 +85,7 @@ class ReferralRepository {
     const { rows } = await this.pool.query(
       `SELECT
          COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE discount_status IN ('qualified', 'applied'))::int AS confirmadas,
          COUNT(*) FILTER (WHERE discount_applied = true)::int AS com_desconto
        FROM referrals WHERE referrer_user_id = $1`,
       [referrerUserId]
@@ -92,32 +93,67 @@ class ReferralRepository {
     return rows[0];
   }
 
-  async markDiscountApplied(id, invoiceId) {
+  async markQualified(id) {
     const { rows } = await this.pool.query(
       `UPDATE referrals SET
-        discount_applied = true,
-        discount_invoice_id = $2,
-        discount_status = 'applied'
-       WHERE id = $1 RETURNING *`,
-      [id, invoiceId]
-    );
-    return rows[0] || null;
-  }
-
-  async markDiscountFailed(id, reason) {
-    const { rows } = await this.pool.query(
-      `UPDATE referrals SET discount_status = 'failed' WHERE id = $1 RETURNING *`,
+        discount_status = 'qualified',
+        qualified_at = COALESCE(qualified_at, NOW())
+       WHERE id = $1 AND discount_status = 'awaiting_completion'
+       RETURNING *`,
       [id]
     );
     return rows[0] || null;
   }
 
-  async listPendingDiscounts(referrerUserId) {
+  async countQualifiedInMonth(referrerUserId, yearMonth) {
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM referrals
+       WHERE referrer_user_id = $1
+         AND qualified_at IS NOT NULL
+         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2`,
+      [referrerUserId, yearMonth]
+    );
+    return rows[0].count;
+  }
+
+  async listQualifiedInMonth(referrerUserId, yearMonth) {
     const { rows } = await this.pool.query(
       `SELECT * FROM referrals
-       WHERE referrer_user_id = $1 AND discount_status = 'pending'
-       ORDER BY created_at ASC`,
-      [referrerUserId]
+       WHERE referrer_user_id = $1
+         AND qualified_at IS NOT NULL
+         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2
+       ORDER BY qualified_at ASC`,
+      [referrerUserId, yearMonth]
+    );
+    return rows;
+  }
+
+  async markAppliedForInvoice(ids, invoiceId) {
+    if (!ids.length) return [];
+    const { rows } = await this.pool.query(
+      `UPDATE referrals SET
+        discount_applied = true,
+        discount_invoice_id = $2,
+        discount_status = 'applied'
+       WHERE id = ANY($1::int[])
+       RETURNING *`,
+      [ids, invoiceId]
+    );
+    return rows;
+  }
+
+  async listReferrersNeedingRewardSync() {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT referrer_user_id FROM referrals
+       WHERE discount_status = 'qualified'
+       ORDER BY referrer_user_id`
+    );
+    return rows.map((r) => r.referrer_user_id);
+  }
+
+  async listAwaitingCompletion() {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM referrals WHERE discount_status = 'awaiting_completion'`
     );
     return rows;
   }

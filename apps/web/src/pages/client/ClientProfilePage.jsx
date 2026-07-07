@@ -102,8 +102,9 @@ export default function ClientProfilePage() {
       <div className="form-card">
         <h3>🎁 Indique e Ganhe</h3>
         <p className="muted" style={{ marginBottom: '1rem' }}>
-          Compartilhe seu link. Quando alguém se cadastrar com seu código, você ganha
-          {' '}<strong>{referral?.desconto_percentual || 50}% de desconto</strong> na próxima mensalidade pendente.
+          Compartilhe seu link. Quando o indicado <strong>concluir a instalação e aceitar o contrato</strong>,
+          você ganha <strong>{referral?.desconto_percentual || 50}% de desconto</strong> na mensalidade do mês.
+          Duas confirmações no mesmo mês = <strong>mensalidade isenta</strong>.
         </p>
 
         {referralLoading ? (
@@ -124,7 +125,10 @@ export default function ClientProfilePage() {
 
             <div className="card-meta" style={{ marginTop: '0.75rem' }}>
               <span className="badge info">
-                {referral.estatisticas?.total_indicacoes || 0} indicações
+                {referral.estatisticas?.total_indicacoes || 0} cadastros
+              </span>
+              <span className="badge warning" style={{ marginLeft: '0.5rem' }}>
+                {referral.estatisticas?.confirmadas || 0} confirmadas
               </span>
               <span className="badge success" style={{ marginLeft: '0.5rem' }}>
                 {referral.estatisticas?.descontos_aplicados || 0} descontos aplicados
@@ -139,7 +143,7 @@ export default function ClientProfilePage() {
                     <small>
                       {new Date(item.created_at).toLocaleDateString('pt-BR')}
                       {' · '}
-                      {item.discount_applied ? 'Desconto aplicado' : 'Aguardando mensalidade'}
+                      {item.discount_status_label || item.discount_status}
                     </small>
                   </li>
                 ))}

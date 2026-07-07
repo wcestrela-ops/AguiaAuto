@@ -160,6 +160,10 @@ async function updatePayment(paymentId, { value, description }) {
   return formatPayment(payment);
 }
 
+async function deletePayment(paymentId) {
+  return request(`/payments/${paymentId}`, { method: 'DELETE' });
+}
+
 async function handleWebhook(payload) {
   const event = payload?.event;
   const payment = payload?.payment;
@@ -184,6 +188,7 @@ module.exports = {
   getSubscriptionPayments,
   getPayment,
   updatePayment,
+  deletePayment,
   handleWebhook,
   formatPayment,
   mapPaymentStatus,

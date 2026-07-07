@@ -117,7 +117,7 @@ export default function ClientRegisterPage() {
             maxLength={12}
             readOnly={Boolean(refFromUrl && referralInfo?.valido)}
           />
-          <small className="hint">Quem te indicou ganha 50% de desconto na mensalidade do mês.</small>
+          <small className="hint">Quem te indicou ganha 50% de desconto na mensalidade do mês quando você concluir a instalação e aceitar o contrato. Duas indicações no mês = mensalidade isenta.</small>
         </label>
 
         {plans.length > 0 && (

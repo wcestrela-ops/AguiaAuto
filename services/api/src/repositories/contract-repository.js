@@ -44,6 +44,15 @@ class ContractRepository {
     return rows.length > 0;
   }
 
+  async hasDeliveryAcceptance(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM contract_acceptances
+       WHERE user_id = $1 AND acceptance_type = 'installation_delivery' LIMIT 1`,
+      [userId]
+    );
+    return rows.length > 0;
+  }
+
   async createAcceptance(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO contract_acceptances

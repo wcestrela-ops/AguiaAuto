@@ -22,12 +22,19 @@ async function migrateIndicacoes() {
       discount_percent    INTEGER NOT NULL DEFAULT 50,
       discount_applied    BOOLEAN NOT NULL DEFAULT false,
       discount_invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
-      discount_status     VARCHAR(20) NOT NULL DEFAULT 'pending',
+      discount_status     VARCHAR(30) NOT NULL DEFAULT 'awaiting_completion',
+      qualified_at        TIMESTAMPTZ,
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals (referrer_user_id);
     CREATE INDEX IF NOT EXISTS idx_referrals_status ON referrals (discount_status);
+
+    ALTER TABLE referrals ADD COLUMN IF NOT EXISTS qualified_at TIMESTAMPTZ;
+
+    UPDATE referrals
+    SET discount_status = 'awaiting_completion'
+    WHERE discount_status = 'pending' AND qualified_at IS NULL AND discount_applied = false;
   `);
 }
 
