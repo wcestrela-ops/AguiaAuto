@@ -30,6 +30,16 @@ export default function ClientHomePage() {
               <h3>Veículos</h3>
               <p>{dashboard.veiculos_ativos ?? 0} ativos · {dashboard.veiculos_total ?? 0} total</p>
             </Link>
+            <Link to="/app/financeiro" className="card card-link">
+              <span className="card-icon">💳</span>
+              <h3>Financeiro</h3>
+              <p>
+                {dashboard.situacao_financeira?.status === 'atrasado' ? 'Em atraso' : 'Em dia'}
+                {dashboard.situacao_financeira?.proximo_vencimento
+                  ? ` · vence ${new Date(dashboard.situacao_financeira.proximo_vencimento).toLocaleDateString('pt-BR')}`
+                  : ''}
+              </p>
+            </Link>
             <div className="card">
               <span className="card-icon">🔔</span>
               <h3>Alertas</h3>

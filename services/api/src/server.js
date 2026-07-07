@@ -11,6 +11,7 @@ const { migrateUsers } = require('./db/migrate-users');
 const { migrateFcmTokens } = require('./db/migrate-fcm');
 const { migratePasswordReset } = require('./db/migrate-password-reset');
 const { migrateVehicles } = require('./db/migrate-vehicles');
+const { migrateFinanceiro } = require('./db/migrate-financeiro');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -28,6 +29,9 @@ const adminIntegracoesRoutes = require('./modules/admin/integracoes/routes');
 const adminWhatsappRoutes = require('./modules/admin/whatsapp/routes');
 const adminVeiculosRoutes = require('./modules/admin/veiculos/routes');
 const adminUsuariosRoutes = require('./modules/admin/usuarios/routes');
+const adminFinanceiroRoutes = require('./modules/admin/financeiro/routes');
+const adminPlansRoutes = require('./modules/admin/plans/routes');
+const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
 const app = express();
@@ -49,6 +53,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Planos públicos (cadastro)
+app.use('/v1/plans', plansRoutes);
 
 // Auth público
 app.use('/v1/auth', authRoutes);
@@ -80,6 +87,8 @@ app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
 app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
 app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
+app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
+app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -102,6 +111,9 @@ async function bootstrap() {
 
     await migrateVehicles();
     logger.info('Veículos e planos inicializados.');
+
+    await migrateFinanceiro();
+    logger.info('Financeiro (Asaas + faturas) inicializado.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

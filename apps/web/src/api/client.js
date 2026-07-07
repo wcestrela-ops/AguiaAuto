@@ -134,6 +134,29 @@ class ApiClient {
     return this.request('/v1/dashboard', {}, { useClient: true });
   }
 
+  getPlans() {
+    return this.request('/v1/plans');
+  }
+
+  getFinanceiroResumo() {
+    return this.request('/v1/financeiro/resumo', {}, { useClient: true });
+  }
+
+  getFinanceiroFaturas() {
+    return this.request('/v1/financeiro/faturas', {}, { useClient: true });
+  }
+
+  getFinanceiroMensalidades() {
+    return this.request('/v1/financeiro/mensalidades', {}, { useClient: true });
+  }
+
+  segundaViaFatura(invoiceId) {
+    return this.request('/v1/financeiro/segunda-via', {
+      method: 'POST',
+      body: JSON.stringify({ invoice_id: invoiceId }),
+    }, { useClient: true });
+  }
+
   getVehicles() {
     return this.request('/v1/veiculos', {}, { useClient: true });
   }
@@ -286,6 +309,28 @@ class ApiClient {
 
   getAdminUsers() {
     return this.request('/v1/admin/usuarios', {}, { useAdmin: true });
+  }
+
+  getAdminCharges() {
+    return this.request('/v1/admin/financeiro/cobrancas', {}, { useAdmin: true });
+  }
+
+  createAdminCharge(data) {
+    return this.request('/v1/admin/financeiro/cobrancas', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  reprovisionUser(userId) {
+    return this.request(`/v1/admin/financeiro/reprovisionar/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }, { useAdmin: true });
+  }
+
+  getAdminPlans() {
+    return this.request('/v1/admin/plans', {}, { useAdmin: true });
   }
 
   getFirebasePublicConfig() {

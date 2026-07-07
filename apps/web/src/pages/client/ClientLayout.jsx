@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 const NAV = [
   { to: '/app', label: 'Início', end: true },
   { to: '/app/veiculos', label: 'Meus Veículos' },
+  { to: '/app/financeiro', label: 'Financeiro' },
   { to: '/app/perfil', label: 'Meu Perfil' },
 ];
 

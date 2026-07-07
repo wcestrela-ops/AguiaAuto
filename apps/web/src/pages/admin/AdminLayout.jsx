@@ -6,6 +6,7 @@ const NAV = [
   { to: '/admin/integracoes', label: 'Integrações' },
   { to: '/admin/whatsapp', label: 'WhatsApp' },
   { to: '/admin/veiculos', label: 'Veículos' },
+  { to: '/admin/financeiro', label: 'Financeiro' },
 ];
 
 export default function AdminLayout() {

@@ -1,12 +1,22 @@
 const { Router } = require('express');
 const asaas = require('../../integrations/asaas');
+const { getFinanceiroService } = require('../../services/financeiro-service');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 
 const router = Router();
 
 router.post('/asaas', async (req, res) => {
   try {
-    const result = await asaas.handleWebhook(req.body);
+    const parsed = await asaas.handleWebhook(req.body);
+    if (!parsed.processed) {
+      return res.json({ success: true, data: parsed });
+    }
+
+    const result = await getFinanceiroService().processWebhookEvent({
+      event: parsed.event,
+      payment: parsed.payment,
+    });
+
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

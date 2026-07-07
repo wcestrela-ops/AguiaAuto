@@ -7,6 +7,7 @@ const INTEGRATIONS = {
       { key: 'user', label: 'Usuário admin', type: 'text', required: true, env: 'GPSWOX_USER' },
       { key: 'pass', label: 'Senha admin', type: 'password', secret: true, required: true, env: 'GPSWOX_PASS' },
       { key: 'api_hash', label: 'API Hash oficial', type: 'password', secret: true, env: 'GPSWOX_API_HASH' },
+      { key: 'default_group_id', label: 'Group ID padrão (novos clientes)', type: 'number', env: 'GPSWOX_DEFAULT_GROUP_ID' },
       { key: 'headless', label: 'Modo headless (Playwright)', type: 'boolean', default: true, env: 'HEADLESS' },
       { key: 'nav_timeout', label: 'Timeout de navegação (ms)', type: 'number', default: 30000, env: 'NAV_TIMEOUT' },
     ],

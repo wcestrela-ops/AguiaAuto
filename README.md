@@ -57,6 +57,7 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | Firebase Push | `/admin/integracoes/firebase` |
 | WhatsApp Multi-Provedor | `/admin/whatsapp` |
 | Veículos (vincular GPSWOX) | `/admin/veiculos` |
+| Financeiro (cobranças + provisionamento) | `/admin/financeiro` |
 
 **Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
 
@@ -91,6 +92,29 @@ PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admi
 | `GET /v1/admin/usuarios` | Listar clientes (admin) |
 
 Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
+
+### Financeiro Asaas (Fase 3)
+
+**Cadastro automático:** ao registrar com `plan_id`, o sistema:
+1. Cria cliente no **Asaas** e assinatura mensal com primeira cobrança
+2. Cria usuário no **GPSWOX** (invisível ao cliente)
+3. Registra faturas localmente e envia link de pagamento via WhatsApp
+
+**Admin** pode criar cobranças avulsas em `/admin/financeiro` e reprovisionar clientes com falha.
+
+**Cliente** acessa `/app/financeiro` para ver faturas, situação e links de pagamento.
+
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/plans` | Planos disponíveis (cadastro) |
+| `POST /v1/auth/register` | Cadastro + `plan_id` → provisionamento automático |
+| `GET /v1/financeiro/resumo` | Situação financeira do cliente |
+| `GET /v1/financeiro/faturas` | Lista de faturas |
+| `POST /v1/financeiro/segunda-via` | Atualizar link de pagamento |
+| `POST /v1/admin/financeiro/cobrancas` | Admin cria cobrança manual |
+| `POST /webhooks/asaas` | Webhook de pagamentos Asaas |
+
+Configure Asaas no painel admin (`/admin/integracoes/asaas`) e aponte o webhook para `https://seu-dominio/webhooks/asaas`.
 
 ### FCM Token (Push Notifications)
 
@@ -134,7 +158,10 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | Meu Veículo | `GET /v1/veiculos/:id/localizacao` | ✅ |
 | Bloqueio | `POST /v1/veiculos/:id/bloqueio` | ✅ |
 | Desbloqueio | `POST /v1/veiculos/:id/desbloqueio` | ✅ |
-| Financeiro | `GET /v1/financeiro/*` | 🚧 |
+| Financeiro | `GET /v1/financeiro/resumo` | ✅ |
+| Financeiro | `GET /v1/financeiro/faturas` | ✅ |
+| Financeiro | `POST /v1/financeiro/segunda-via` | ✅ |
+| Planos | `GET /v1/plans` | ✅ |
 | Alertas | `GET /v1/alertas/tipos` | ✅ |
 | Emergência | `GET /v1/emergencia/contatos` | ✅ |
 | Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
@@ -145,6 +172,9 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | **Admin — Testar API** | `POST /v1/admin/integracoes/:key/test` | ✅ |
 | **Admin — Veículos** | `GET/POST/PUT /v1/admin/veiculos` | ✅ |
 | **Admin — Usuários** | `GET /v1/admin/usuarios` | ✅ |
+| **Admin — Financeiro** | `GET/POST /v1/admin/financeiro/cobrancas` | ✅ |
+| **Admin — Provisionar** | `POST /v1/admin/financeiro/reprovisionar/:userId` | ✅ |
+| **Admin — Planos** | `GET/POST/PUT /v1/admin/plans` | ✅ |
 
 ## Painel Admin — Configuração de APIs
 
@@ -297,12 +327,13 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - Docker Compose com PostgreSQL
 - PWA + Auth JWT + Admin + WhatsApp + FCM + Recuperação de senha
 
-### Fase 3 — Financeiro
-- Integração Asaas completa
-- Webhooks de pagamento
-- Cadastro automatizado end-to-end
+### Fase 3 — Financeiro ✅ (atual)
+- Integração Asaas (clientes, assinaturas, cobranças, webhooks)
+- Provisionamento automático GPSWOX + Asaas no cadastro com plano
+- Admin: criar cobranças manualmente + reprovisionar
+- PWA cliente: `/app/financeiro` com faturas e links de pagamento
 
-### Fase 4 — Comunicação
+### Fase 4 — Comunicação e alertas
 - Firebase Cloud Messaging (push)
 - Evolution API (WhatsApp)
 - Sistema de alertas configurável

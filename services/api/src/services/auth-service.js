@@ -164,7 +164,7 @@ class AuthService {
     };
   }
 
-  async register({ email, password, name, phone, cpf_cnpj }) {
+  async register({ email, password, name, phone, cpf_cnpj, plan_id, billing_type }) {
     if (!email || !password) {
       throw new Error('Email e senha são obrigatórios.');
     }
@@ -178,7 +178,25 @@ class AuthService {
     }
 
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
-    return this._issueTokens(user);
+    const tokens = await this._issueTokens(user);
+
+    let provisioning = null;
+    if (plan_id) {
+      const { getProvisioningService } = require('./provisioning-service');
+      try {
+        provisioning = await getProvisioningService().provisionNewClient(user.id, {
+          plan_id,
+          billing_type: billing_type || 'UNDEFINED',
+        });
+      } catch (err) {
+        logger.warn('Provisionamento automático falhou no cadastro.', { userId: user.id, err: err.message });
+        provisioning = { status: 'failed', errors: [{ step: 'provision', error: err.message }] };
+      }
+    } else {
+      await this.users.updateProvisioning(user.id, { provisioning_status: 'pending' });
+    }
+
+    return { ...tokens, provisioning };
   }
 
   async login({ email, password }) {
