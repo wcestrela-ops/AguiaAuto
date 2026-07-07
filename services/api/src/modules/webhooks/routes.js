@@ -62,7 +62,11 @@ router.post('/gpswox', async (req, res) => {
     }
 
     const result = await getAlertService().processGpswoxWebhook(req.body);
-    res.json({ success: true, data: result });
+
+    const { getAnchorService } = require('../../services/anchor-service');
+    const anchorResult = await getAnchorService().evaluateFromWebhook(req.body);
+
+    res.json({ success: true, data: { ...result, ancora: anchorResult } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

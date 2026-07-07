@@ -28,6 +28,8 @@ export default function ClientVehicleDetailPage() {
   const [commandLoading, setCommandLoading] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const [anchorLoading, setAnchorLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -42,6 +44,15 @@ export default function ClientVehicleDetailPage() {
       setError(err.message);
     } finally {
       setRefreshing(false);
+    }
+  }, [id]);
+
+  const loadAnchor = useCallback(async () => {
+    try {
+      const res = await api.getVehicleAnchor(id);
+      setAnchor(res.data?.ancora || null);
+    } catch {
+      setAnchor(null);
     }
   }, [id]);
 
@@ -68,6 +79,7 @@ export default function ClientVehicleDetailPage() {
         setVehicle(vehicleRes.data);
         if (vehicleRes.data.status === 'active' || vehicleRes.data.status === 'blocked') {
           await loadLocation();
+          await loadAnchor();
         }
       } catch (err) {
         setError(err.message);
@@ -76,7 +88,7 @@ export default function ClientVehicleDetailPage() {
       }
     }
     load();
-  }, [id, loadLocation]);
+  }, [id, loadLocation, loadAnchor]);
 
   async function runCommand(action) {
     setMessage('');
@@ -96,6 +108,27 @@ export default function ClientVehicleDetailPage() {
       setError(err.message);
     } finally {
       setCommandLoading('');
+    }
+  }
+
+  async function handleAnchorToggle() {
+    setMessage('');
+    setError('');
+    setAnchorLoading(true);
+    try {
+      if (anchor?.active && anchor?.status === 'monitoring') {
+        const res = await api.deactivateVehicleAnchor(id);
+        setAnchor(res.data?.ancora || null);
+        setMessage(res.message || 'Âncora desativada.');
+      } else {
+        const res = await api.activateVehicleAnchor(id, 10);
+        setAnchor(res.data?.ancora || null);
+        setMessage(res.message || 'Âncora ativada.');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAnchorLoading(false);
     }
   }
 
@@ -121,6 +154,7 @@ export default function ClientVehicleDetailPage() {
   const canTrack = vehicle.status === 'active' || vehicle.status === 'blocked';
   const hasCoords = location?.latitude != null && location?.longitude != null;
   const hasDevice = Boolean(vehicle.gpswox_device_id);
+  const anchorActive = anchor?.active && anchor?.status === 'monitoring';
 
   return (
     <div>
@@ -134,6 +168,11 @@ export default function ClientVehicleDetailPage() {
           {location?.ignicao != null && (
             <span className="badge info" style={{ marginLeft: '0.5rem' }}>
               Ignição: {String(location.ignicao)}
+            </span>
+          )}
+          {anchorActive && (
+            <span className="badge warning" style={{ marginLeft: '0.5rem' }}>
+              Âncora ativa ({anchor.radius_meters || 10}m)
             </span>
           )}
         </p>
@@ -192,6 +231,7 @@ export default function ClientVehicleDetailPage() {
                     latitude={location?.latitude}
                     longitude={location?.longitude}
                     label={vehicle.label}
+                    anchor={anchorActive ? anchor : null}
                   />
                   {location && (
                     <div className="location-meta">
@@ -265,6 +305,18 @@ export default function ClientVehicleDetailPage() {
             )}
             <button
               type="button"
+              className={`btn-secondary${anchorActive ? ' active' : ''}`}
+              disabled={Boolean(commandLoading) || anchorLoading || vehicle.status === 'blocked'}
+              onClick={handleAnchorToggle}
+            >
+              {anchorLoading
+                ? 'Processando...'
+                : anchorActive
+                  ? 'Desativar âncora'
+                  : 'Âncora'}
+            </button>
+            <button
+              type="button"
               className="btn-secondary"
               disabled={Boolean(commandLoading)}
               onClick={() => runCommand('ligar')}
@@ -288,6 +340,12 @@ export default function ClientVehicleDetailPage() {
               {commandLoading === 'localizar' ? 'Enviando...' : 'Localizar agora'}
             </button>
           </div>
+          {anchorActive && (
+            <p className="muted anchor-hint">
+              O veículo está em alerta. Se ligar e sair mais de {anchor.radius_meters || 10} metros
+              deste ponto sem desativar a âncora, o bloqueio automático será enviado.
+            </p>
+          )}
         </section>
       )}
 

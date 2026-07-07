@@ -222,6 +222,21 @@ class ApiClient {
     }, { useClient: true });
   }
 
+  getVehicleAnchor(id) {
+    return this.request(`/v1/veiculos/${id}/ancora`, {}, { useClient: true });
+  }
+
+  activateVehicleAnchor(id, radiusMeters = 10) {
+    return this.request(`/v1/veiculos/${id}/ancora`, {
+      method: 'POST',
+      body: JSON.stringify({ radius_meters: radiusMeters }),
+    }, { useClient: true });
+  }
+
+  deactivateVehicleAnchor(id) {
+    return this.request(`/v1/veiculos/${id}/ancora`, { method: 'DELETE' }, { useClient: true });
+  }
+
   getPerfil() {
     return this.request('/v1/perfil', {}, { useClient: true });
   }

@@ -17,6 +17,8 @@ const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
 const { migrateAlerts } = require('./db/migrate-alerts');
 const { migrateInstalador } = require('./db/migrate-instalador');
 const { migrateContratos } = require('./db/migrate-contratos');
+const { migrateAncora } = require('./db/migrate-ancora');
+const { startAnchorPoller } = require('./services/anchor-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -141,6 +143,9 @@ async function bootstrap() {
     await migrateContratos();
     logger.info('Contratos e termos de entrega inicializados.');
 
+    await migrateAncora();
+    logger.info('Âncora veicular (monitoramento + bloqueio) inicializada.');
+
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
     logger.info('Módulo WhatsApp multi-provedor inicializado.');
@@ -151,6 +156,11 @@ async function bootstrap() {
   app.listen(PORT, () => {
     logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
     logger.info('Auth cliente: POST /v1/auth/login | POST /v1/auth/register');
+
+    if (process.env.DATABASE_URL) {
+      startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
+      logger.info('Poller de âncora veicular iniciado.');
+    }
   });
 }
 

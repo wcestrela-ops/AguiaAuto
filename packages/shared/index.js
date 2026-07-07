@@ -15,6 +15,7 @@ const ALERT_TYPES = [
   'movimento',
   'desligamento',
   'manutencao',
+  'ancora',
 ];
 
 module.exports = {

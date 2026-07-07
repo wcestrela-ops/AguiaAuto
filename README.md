@@ -376,7 +376,8 @@ Para adicionar uma nova API no futuro, basta registrar o schema em `packages/int
 | `POST /bloqueio` | Bloquear veículo |
 | `POST /desbloqueio` | Desbloquear veículo |
 | `POST /comandos` | Enviar comando |
-| `POST /historico` | 🚧 Em desenvolvimento |
+| `POST /historico` | Histórico de posições (`device_id`, `from`, `to`) |
+| `POST /compartilhar` | Link de compartilhamento GPSWOX |
 | `POST /cerca` | 🚧 Em desenvolvimento |
 
 ## Desenvolvimento local
@@ -395,7 +396,7 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - API com ownership (cliente só vê seus veículos)
 - Dashboard real com resumo de localização
 - Admin: cadastro e vínculo GPSWOX
-- PWA: lista + mapa Leaflet + bloqueio/desbloqueio
+- PWA: mapa Leaflet, compartilhar GPSWOX, comandos e histórico de rotas
 
 ### Fase 2 — Fundação (concluída)
 - Monorepo modular

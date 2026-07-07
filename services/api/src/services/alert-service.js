@@ -192,6 +192,77 @@ class AlertService {
     return saved;
   }
 
+  async raiseVehicleAlert({
+    userId,
+    vehicleId,
+    alertType,
+    title,
+    message,
+    source = 'system',
+    sourceEventId,
+    deviceId,
+    payload,
+  }) {
+    const user = await this.users.findByIdWithProvisioning(userId);
+    if (!user || !user.active) {
+      return { sent: false, reason: 'Usuário inativo ou não encontrado.' };
+    }
+
+    const duplicate = sourceEventId
+      ? await this.alerts.findRecentDuplicate({
+        source,
+        sourceEventId,
+        minutes: 2,
+      })
+      : null;
+    if (duplicate) {
+      return { sent: false, duplicate: true, alert_id: duplicate.id };
+    }
+
+    let channels = filterVehicleAlertChannels(
+      await this.prefs.resolveChannels(userId, vehicleId, alertType)
+    );
+
+    const pref = await this.prefs.getForAlert(userId, vehicleId, alertType);
+    if (pref && !pref.enabled) {
+      return { sent: false, skipped: true, reason: 'Alerta desabilitado pelo usuário.' };
+    }
+
+    const event = await this.alerts.create({
+      user_id: userId,
+      vehicle_id: vehicleId || null,
+      alert_type: alertType,
+      title,
+      message,
+      source,
+      source_event_id: sourceEventId || null,
+      device_id: deviceId || null,
+      payload: payload || null,
+      delivery_status: 'sending',
+    });
+
+    const channelsSent = await this._dispatch({
+      user,
+      channels,
+      title,
+      message,
+      alertType,
+      vehicleId,
+      eventId: event.id,
+    });
+
+    await this.alerts.updateDelivery(event.id, {
+      channels_sent: channelsSent,
+      delivery_status: channelsSent.length ? 'delivered' : 'failed',
+    });
+
+    return {
+      sent: channelsSent.length > 0,
+      alert_id: event.id,
+      channels_sent: channelsSent,
+    };
+  }
+
   async sendTestAlert(userId) {
     const user = await this.users.findByIdWithProvisioning(userId);
     if (!user) throw new Error('Usuário não encontrado.');

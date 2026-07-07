@@ -4,10 +4,11 @@ import 'leaflet/dist/leaflet.css';
 
 const DEFAULT_CENTER = [-3.7319, -38.5267]; // Fortaleza
 
-export default function VehicleMap({ latitude, longitude, label }) {
+export default function VehicleMap({ latitude, longitude, label, anchor }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const circleRef = useRef(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -26,6 +27,7 @@ export default function VehicleMap({ latitude, longitude, label }) {
       mapRef.current?.remove();
       mapRef.current = null;
       markerRef.current = null;
+      circleRef.current = null;
     };
   }, []);
 
@@ -41,6 +43,10 @@ export default function VehicleMap({ latitude, longitude, label }) {
       if (markerRef.current) {
         markerRef.current.remove();
         markerRef.current = null;
+      }
+      if (circleRef.current) {
+        circleRef.current.remove();
+        circleRef.current = null;
       }
       return;
     }
@@ -62,6 +68,37 @@ export default function VehicleMap({ latitude, longitude, label }) {
     if (label) markerRef.current.bindPopup(label).openPopup();
     mapRef.current.setView(position, 15);
   }, [latitude, longitude, label]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const anchorLat = parseFloat(anchor?.latitude);
+    const anchorLng = parseFloat(anchor?.longitude);
+    const radius = parseInt(anchor?.radius_meters, 10) || 10;
+    const hasAnchor = anchor?.active && Number.isFinite(anchorLat) && Number.isFinite(anchorLng);
+
+    if (!hasAnchor) {
+      if (circleRef.current) {
+        circleRef.current.remove();
+        circleRef.current = null;
+      }
+      return;
+    }
+
+    const center = [anchorLat, anchorLng];
+    if (!circleRef.current) {
+      circleRef.current = L.circle(center, {
+        radius,
+        color: '#d97706',
+        fillColor: '#f59e0b',
+        fillOpacity: 0.2,
+        weight: 2,
+      }).addTo(mapRef.current);
+    } else {
+      circleRef.current.setLatLng(center);
+      circleRef.current.setRadius(radius);
+    }
+  }, [anchor]);
 
   return <div ref={containerRef} className="vehicle-map" />;
 }

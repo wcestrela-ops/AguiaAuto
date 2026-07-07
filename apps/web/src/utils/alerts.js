@@ -6,6 +6,7 @@ export const ALERT_TYPE_LABELS = {
   movimento: 'Movimento',
   desligamento: 'Desligamento',
   manutencao: 'Manutenção',
+  ancora: 'Âncora',
 };
 
 export const CHANNEL_LABELS = {

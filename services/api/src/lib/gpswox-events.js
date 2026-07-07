@@ -8,6 +8,7 @@ const ALERT_TYPE_LABELS = {
   movimento: 'Movimento',
   desligamento: 'Desligamento',
   manutencao: 'Manutenção',
+  ancora: 'Âncora',
 };
 
 const GPSWOX_EVENT_MAP = {
@@ -78,6 +79,7 @@ function buildDefaultMessage(type, { vehicleName, plate, speed, address }) {
   if (type === 'bateria') parts.push('bateria baixa');
   if (type === 'movimento') parts.push('movimento detectado');
   if (type === 'manutencao') parts.push('alerta de manutenção');
+  if (type === 'ancora') parts.push('saída da âncora detectada');
   if (address) parts.push(address);
 
   return parts.join(' — ');
