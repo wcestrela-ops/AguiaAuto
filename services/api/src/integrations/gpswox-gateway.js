@@ -34,4 +34,10 @@ module.exports = {
   blockDevice: (deviceId) => gatewayRequest('/bloqueio', { body: { device_id: deviceId } }),
   unblockDevice: (deviceId) => gatewayRequest('/desbloqueio', { body: { device_id: deviceId } }),
   sendCommand: (deviceId, comando) => gatewayRequest('/comandos', { body: { device_id: deviceId, comando } }),
+  getHistory: (deviceId, from, to) => gatewayRequest('/historico', {
+    body: { device_id: deviceId, from, to },
+  }),
+  createSharing: (deviceId, durationMinutes) => gatewayRequest('/compartilhar', {
+    body: { device_id: deviceId, duration_minutes: durationMinutes },
+  }),
 };

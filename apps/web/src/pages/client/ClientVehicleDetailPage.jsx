@@ -2,14 +2,32 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import VehicleMap from '../../components/VehicleMap';
+import VehicleRouteMap from '../../components/VehicleRouteMap';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
+
+const LOCATION_MODES = [
+  { id: 'mapa', label: 'Mapa ao vivo' },
+  { id: 'compartilhar', label: 'Compartilhar GPSWOX' },
+];
+
+const HISTORY_PRESETS = [
+  { id: '24h', label: 'Últimas 24h', hours: 24 },
+  { id: '7d', label: 'Últimos 7 dias', hours: 24 * 7 },
+];
 
 export default function ClientVehicleDetailPage() {
   const { id } = useParams();
   const [vehicle, setVehicle] = useState(null);
   const [location, setLocation] = useState(null);
+  const [locationMode, setLocationMode] = useState('mapa');
+  const [shareLink, setShareLink] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [historyPreset, setHistoryPreset] = useState('24h');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [commandLoading, setCommandLoading] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -26,6 +44,20 @@ export default function ClientVehicleDetailPage() {
       setRefreshing(false);
     }
   }, [id]);
+
+  const loadHistory = useCallback(async (hours) => {
+    setHistoryLoading(true);
+    setError('');
+    try {
+      const preset = HISTORY_PRESETS.find((p) => p.id === historyPreset);
+      const res = await api.getVehicleHistory(id, { hours: hours || preset?.hours || 24 });
+      setHistory(res.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [id, historyPreset]);
 
   useEffect(() => {
     async function load() {
@@ -46,30 +78,40 @@ export default function ClientVehicleDetailPage() {
     load();
   }, [id, loadLocation]);
 
-  async function handleBlock() {
+  async function runCommand(action) {
     setMessage('');
     setError('');
+    setCommandLoading(action);
     try {
-      await api.blockVehicle(id);
-      setMessage('Veículo bloqueado.');
-      const res = await api.getVehicle(id);
-      setVehicle(res.data);
+      const res = await api.sendVehicleCommand(id, action);
+      setMessage(res.message || 'Comando enviado.');
+      if (action === 'bloquear' || action === 'desbloquear') {
+        const vehicleRes = await api.getVehicle(id);
+        setVehicle(vehicleRes.data);
+      }
+      if (action === 'localizar' || action === 'desbloquear') {
+        await loadLocation();
+      }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setCommandLoading('');
     }
   }
 
-  async function handleUnblock() {
+  async function handleShare() {
     setMessage('');
     setError('');
+    setShareLoading(true);
     try {
-      await api.unblockVehicle(id);
-      setMessage('Veículo desbloqueado.');
-      const res = await api.getVehicle(id);
-      setVehicle(res.data);
-      await loadLocation();
+      const res = await api.shareVehicleLocation(id, 60);
+      const link = res.data?.compartilhamento?.url;
+      setShareLink(link || null);
+      setMessage(res.message || 'Link gerado.');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setShareLoading(false);
     }
   }
 
@@ -78,6 +120,7 @@ export default function ClientVehicleDetailPage() {
 
   const canTrack = vehicle.status === 'active' || vehicle.status === 'blocked';
   const hasCoords = location?.latitude != null && location?.longitude != null;
+  const hasDevice = Boolean(vehicle.gpswox_device_id);
 
   return (
     <div>
@@ -88,6 +131,11 @@ export default function ClientVehicleDetailPage() {
           <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
             {vehicleStatusLabel(vehicle.status)}
           </span>
+          {location?.ignicao != null && (
+            <span className="badge info" style={{ marginLeft: '0.5rem' }}>
+              Ignição: {String(location.ignicao)}
+            </span>
+          )}
         </p>
       </header>
 
@@ -103,28 +151,16 @@ export default function ClientVehicleDetailPage() {
             {vehicle.model && <div><dt>Modelo</dt><dd>{vehicle.model}</dd></div>}
             {vehicle.color && <div><dt>Cor</dt><dd>{vehicle.color}</dd></div>}
             {vehicle.year && <div><dt>Ano</dt><dd>{vehicle.year}</dd></div>}
+            {vehicle.gpswox_device_id && (
+              <div><dt>Device ID</dt><dd><code>{vehicle.gpswox_device_id}</code></dd></div>
+            )}
           </dl>
-
-          {vehicle.gpswox_device_id && (
-            <div className="form-actions">
-              {vehicle.status !== 'blocked' && (
-                <button type="button" className="btn-danger" onClick={handleBlock}>
-                  Bloquear
-                </button>
-              )}
-              {vehicle.status === 'blocked' && (
-                <button type="button" onClick={handleUnblock}>
-                  Desbloquear
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="map-card">
           <div className="map-card-header">
             <h3>Localização</h3>
-            {canTrack && (
+            {canTrack && locationMode === 'mapa' && (
               <button type="button" className="btn-secondary btn-sm" onClick={loadLocation} disabled={refreshing}>
                 {refreshing ? 'Atualizando...' : 'Atualizar'}
               </button>
@@ -137,22 +173,64 @@ export default function ClientVehicleDetailPage() {
 
           {canTrack && (
             <>
-              <VehicleMap
-                latitude={location?.latitude}
-                longitude={location?.longitude}
-                label={vehicle.label}
-              />
-              {location && (
-                <div className="location-meta">
-                  <p><strong>Endereço:</strong> {location.endereco || '—'}</p>
-                  <p><strong>Velocidade:</strong> {location.velocidade || '—'}</p>
-                  {location.maps_link && (
-                    <a href={location.maps_link} target="_blank" rel="noreferrer">
-                      Abrir no Google Maps
-                    </a>
+              <div className="location-mode-tabs">
+                {LOCATION_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={`btn-secondary btn-sm${locationMode === mode.id ? ' active' : ''}`}
+                    onClick={() => setLocationMode(mode.id)}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
+              {locationMode === 'mapa' ? (
+                <>
+                  <VehicleMap
+                    latitude={location?.latitude}
+                    longitude={location?.longitude}
+                    label={vehicle.label}
+                  />
+                  {location && (
+                    <div className="location-meta">
+                      <p><strong>Endereço:</strong> {location.endereco || '—'}</p>
+                      <p><strong>Velocidade:</strong> {location.velocidade || '—'}</p>
+                      {location.maps_link && (
+                        <a href={location.maps_link} target="_blank" rel="noreferrer">
+                          Abrir no Google Maps
+                        </a>
+                      )}
+                      {!hasCoords && !refreshing && (
+                        <p className="muted">Coordenadas indisponíveis no momento.</p>
+                      )}
+                    </div>
                   )}
-                  {!hasCoords && !refreshing && (
-                    <p className="muted">Coordenadas indisponíveis no momento.</p>
+                </>
+              ) : (
+                <div className="share-panel">
+                  <p className="muted">
+                    Gera um link temporário do GPSWOX para compartilhar a localização em tempo real
+                    (válido por 60 minutos).
+                  </p>
+                  <button type="button" onClick={handleShare} disabled={shareLoading || !hasDevice}>
+                    {shareLoading ? 'Gerando...' : 'Gerar link GPSWOX'}
+                  </button>
+                  {shareLink && (
+                    <div className="share-link-box">
+                      <input type="text" readOnly value={shareLink} />
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => navigator.clipboard.writeText(shareLink)}
+                      >
+                        Copiar
+                      </button>
+                      <a href={shareLink} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">
+                        Abrir link
+                      </a>
+                    </div>
                   )}
                 </div>
               )}
@@ -160,6 +238,117 @@ export default function ClientVehicleDetailPage() {
           )}
         </div>
       </div>
+
+      {canTrack && hasDevice && (
+        <section className="card vehicle-controls-card">
+          <h3>Comandos do rastreador</h3>
+          <p className="muted">Enviados via API GPSWOX (bloqueio, desbloqueio e motor).</p>
+          <div className="command-grid">
+            {vehicle.status !== 'blocked' && (
+              <button
+                type="button"
+                className="btn-danger"
+                disabled={Boolean(commandLoading)}
+                onClick={() => runCommand('bloquear')}
+              >
+                {commandLoading === 'bloquear' ? 'Enviando...' : 'Bloquear'}
+              </button>
+            )}
+            {vehicle.status === 'blocked' && (
+              <button
+                type="button"
+                disabled={Boolean(commandLoading)}
+                onClick={() => runCommand('desbloquear')}
+              >
+                {commandLoading === 'desbloquear' ? 'Enviando...' : 'Desbloquear'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={Boolean(commandLoading)}
+              onClick={() => runCommand('ligar')}
+            >
+              {commandLoading === 'ligar' ? 'Enviando...' : 'Ligar motor'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={Boolean(commandLoading)}
+              onClick={() => runCommand('desligar')}
+            >
+              {commandLoading === 'desligar' ? 'Enviando...' : 'Desligar motor'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={Boolean(commandLoading)}
+              onClick={() => runCommand('localizar')}
+            >
+              {commandLoading === 'localizar' ? 'Enviando...' : 'Localizar agora'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {canTrack && hasDevice && (
+        <section className="card vehicle-history-card">
+          <div className="section-header">
+            <h3>Histórico de rotas</h3>
+            <div className="history-presets">
+              {HISTORY_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`btn-secondary btn-sm${historyPreset === preset.id ? ' active' : ''}`}
+                  onClick={() => setHistoryPreset(preset.id)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                disabled={historyLoading}
+                onClick={() => loadHistory()}
+              >
+                {historyLoading ? 'Carregando...' : 'Carregar'}
+              </button>
+            </div>
+          </div>
+
+          {history?.points?.length > 0 ? (
+            <>
+              <p className="muted">{history.total} posições · {history.from} até {history.to}</p>
+              <VehicleRouteMap points={history.points} label={vehicle.label} />
+              <div className="table-card history-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Horário</th>
+                      <th>Velocidade</th>
+                      <th>Endereço</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.points.slice(-10).reverse().map((point, index) => (
+                      <tr key={`${point.time || index}-${point.latitude}`}>
+                        <td>{point.time ? new Date(point.time).toLocaleString('pt-BR') : '—'}</td>
+                        <td>{point.speed != null ? `${point.speed} km/h` : '—'}</td>
+                        <td>{point.address || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <p className="muted">
+              {historyLoading ? 'Buscando histórico no GPSWOX...' : 'Selecione um período e clique em Carregar.'}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

@@ -202,6 +202,26 @@ class ApiClient {
     return this.request(`/v1/veiculos/${id}/desbloqueio`, { method: 'POST' }, { useClient: true });
   }
 
+  sendVehicleCommand(id, action) {
+    return this.request(`/v1/veiculos/${id}/comandos/${action}`, { method: 'POST' }, { useClient: true });
+  }
+
+  getVehicleHistory(id, { from, to, hours } = {}) {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (hours) params.set('hours', String(hours));
+    const query = params.toString();
+    return this.request(`/v1/veiculos/${id}/historico${query ? `?${query}` : ''}`, {}, { useClient: true });
+  }
+
+  shareVehicleLocation(id, durationMinutes = 60) {
+    return this.request(`/v1/veiculos/${id}/compartilhar`, {
+      method: 'POST',
+      body: JSON.stringify({ duration_minutes: durationMinutes }),
+    }, { useClient: true });
+  }
+
   getPerfil() {
     return this.request('/v1/perfil', {}, { useClient: true });
   }

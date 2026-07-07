@@ -77,8 +77,9 @@ PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admi
 ### Meu Veículo (Fase 1)
 
 1. Admin cadastra veículo em `/admin/veiculos` vinculando cliente + `gpswox_device_id`
-2. Cliente vê veículos em `/app/veiculos` com mapa Leaflet em tempo real
-3. Dashboard (`/app`) mostra resumo com localização quando disponível
+2. Cliente vê veículos em `/app/veiculos` — **mapa ao vivo** ou **link GPSWOX** para compartilhar
+3. Comandos: bloquear, desbloquear, ligar/desligar motor, localizar agora
+4. Histórico de rotas no mapa (24h ou 7 dias) via API GPSWOX
 
 | Rota | Descrição |
 |------|-----------|
@@ -87,6 +88,9 @@ PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admi
 | `GET /v1/veiculos/:id/localizacao` | Localização via GPSWOX Gateway |
 | `POST /v1/veiculos/:id/bloqueio` | Bloquear rastreador |
 | `POST /v1/veiculos/:id/desbloqueio` | Desbloquear rastreador |
+| `POST /v1/veiculos/:id/comandos/:action` | Comandos: bloquear, desbloquear, ligar, desligar, localizar |
+| `GET /v1/veiculos/:id/historico` | Histórico de posições (`?hours=24`) |
+| `POST /v1/veiculos/:id/compartilhar` | Link temporário GPSWOX (60 min padrão) |
 | `GET /v1/admin/veiculos` | Listar todos (admin) |
 | `POST /v1/admin/veiculos` | Criar veículo para cliente |
 | `PUT /v1/admin/veiculos/:id` | Atualizar veículo |
@@ -212,6 +216,9 @@ SMTP_FROM=noreply@seudominio.com
 | Meu Veículo | `GET /v1/veiculos/:id/localizacao` | ✅ |
 | Bloqueio | `POST /v1/veiculos/:id/bloqueio` | ✅ |
 | Desbloqueio | `POST /v1/veiculos/:id/desbloqueio` | ✅ |
+| Comandos | `POST /v1/veiculos/:id/comandos/:action` | ✅ |
+| Histórico | `GET /v1/veiculos/:id/historico` | ✅ |
+| Compartilhar GPSWOX | `POST /v1/veiculos/:id/compartilhar` | ✅ |
 | Financeiro | `GET /v1/financeiro/resumo` | ✅ |
 | Financeiro | `GET /v1/financeiro/faturas` | ✅ |
 | Financeiro | `POST /v1/financeiro/segunda-via` | ✅ |

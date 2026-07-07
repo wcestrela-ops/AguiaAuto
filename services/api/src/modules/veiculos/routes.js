@@ -16,6 +16,10 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/comandos', (req, res) => {
+  res.json({ success: true, data: getService().listCommands() });
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const data = await getService().getForUser(req.user.id, req.params.id);
@@ -56,20 +60,50 @@ router.post('/:id/desbloqueio', async (req, res) => {
   }
 });
 
-router.get('/:id/historico', (req, res) => {
-  res.status(501).json({ success: false, error: 'Histórico em desenvolvimento.' });
+router.post('/:id/comandos/:action', async (req, res) => {
+  try {
+    const data = await getService().runCommand(req.user.id, req.params.id, req.params.action);
+    res.json({ success: true, data, message: `${data.label} enviado.` });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/:id/historico', async (req, res) => {
+  try {
+    const { from, to, hours } = req.query;
+    const data = await getService().getHistory(req.user.id, req.params.id, {
+      from,
+      to,
+      hours: hours ? parseInt(hours, 10) : undefined,
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/:id/compartilhar', async (req, res) => {
+  try {
+    const duration = req.body?.duration_minutes || 60;
+    const data = await getService().shareLocation(req.user.id, req.params.id, {
+      duration_minutes: duration,
+    });
+    res.json({ success: true, data, message: 'Link de compartilhamento GPSWOX gerado.' });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
 });
 
 router.get('/:id/replay', (req, res) => {
-  res.status(501).json({ success: false, error: 'Replay em desenvolvimento.' });
+  res.status(501).json({ success: false, error: 'Replay em desenvolvimento. Use /historico.' });
 });
 
 router.get('/:id/sensores', (req, res) => {
   res.status(501).json({ success: false, error: 'Sensores em desenvolvimento.' });
-});
-
-router.post('/:id/compartilhar', (req, res) => {
-  res.status(501).json({ success: false, error: 'Compartilhamento em desenvolvimento.' });
 });
 
 module.exports = router;

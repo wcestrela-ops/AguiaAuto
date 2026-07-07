@@ -12,6 +12,8 @@ const {
   sendCommand,
   createCliente,
   createVeiculo,
+  getHistory,
+  createSharing,
 } = require('./services/tracking');
 
 const app = express();
@@ -128,8 +130,35 @@ app.post('/desbloqueio', async (req, res) => {
   }
 });
 
-app.post('/historico', (req, res) => {
-  res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
+app.post('/historico', async (req, res) => {
+  const { device_id: deviceId, from, to } = req.body;
+  if (!deviceId || !from || !to) {
+    return res.status(400).json({
+      success: false,
+      error: 'device_id, from e to são obrigatórios.',
+    });
+  }
+
+  try {
+    const resultado = await getHistory(deviceId, from, to);
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/compartilhar', async (req, res) => {
+  const { device_id: deviceId, duration_minutes: durationMinutes } = req.body;
+  if (!deviceId) {
+    return res.status(400).json({ success: false, error: 'device_id é obrigatório.' });
+  }
+
+  try {
+    const resultado = await createSharing(deviceId, { durationMinutes: durationMinutes || 60 });
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 app.post('/alertas', (req, res) => {

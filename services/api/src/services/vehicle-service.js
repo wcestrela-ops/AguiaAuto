@@ -1,6 +1,19 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const gpswox = require('../integrations/gpswox-gateway');
+const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const logger = require('../logger');
+
+function formatDateTime(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function defaultHistoryRange(hours = 24) {
+  const to = new Date();
+  const from = new Date(to.getTime() - hours * 60 * 60 * 1000);
+  return { from: formatDateTime(from), to: formatDateTime(to) };
+}
 
 function formatVehicle(v) {
   return {
@@ -70,6 +83,66 @@ class VehicleService {
     const data = await gpswox.unblockDevice(vehicle.gpswox_device_id);
     await this.repo.update(vehicleId, { status: VEHICLE_STATUS.ACTIVE });
     return { success: true, data };
+  }
+
+  async runCommand(userId, vehicleId, action) {
+    const normalized = normalizeVehicleAction(action);
+    if (!normalized) {
+      throw new Error(`Comando inválido. Use: ${Object.keys(VEHICLE_COMMANDS).join(', ')}`);
+    }
+
+    const vehicle = await this._requireDevice(vehicleId, userId);
+    const command = VEHICLE_COMMANDS[normalized];
+
+    if (normalized === 'bloquear') {
+      return this.block(userId, vehicleId);
+    }
+    if (normalized === 'desbloquear') {
+      return this.unblock(userId, vehicleId);
+    }
+
+    const data = await gpswox.sendCommand(vehicle.gpswox_device_id, command.gpswox);
+    return {
+      success: true,
+      action: normalized,
+      label: command.label,
+      data,
+    };
+  }
+
+  async getHistory(userId, vehicleId, { from, to, hours } = {}) {
+    const vehicle = await this._requireDevice(vehicleId, userId);
+    const range = from && to ? { from, to } : defaultHistoryRange(hours || 24);
+
+    const response = await gpswox.getHistory(
+      vehicle.gpswox_device_id,
+      range.from,
+      range.to
+    );
+
+    return {
+      veiculo: formatVehicle(vehicle),
+      ...range,
+      ...(response.data || response),
+    };
+  }
+
+  async shareLocation(userId, vehicleId, { duration_minutes = 60 } = {}) {
+    const vehicle = await this._requireDevice(vehicleId, userId);
+    const response = await gpswox.createSharing(vehicle.gpswox_device_id, duration_minutes);
+    const share = response.data || response;
+
+    return {
+      veiculo: formatVehicle(vehicle),
+      compartilhamento: share,
+    };
+  }
+
+  listCommands() {
+    return Object.entries(VEHICLE_COMMANDS).map(([action, meta]) => ({
+      action,
+      label: meta.label,
+    }));
   }
 
   async create(data) {

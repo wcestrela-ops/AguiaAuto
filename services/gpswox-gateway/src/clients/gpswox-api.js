@@ -15,6 +15,12 @@ class GpswoxApiClient {
     const url = new URL(`${this.baseUrl}/api/${path}`);
     url.searchParams.set('user_api_hash', this.apiHash);
 
+    if (options.query) {
+      for (const [key, value] of Object.entries(options.query)) {
+        if (value != null) url.searchParams.set(key, String(value));
+      }
+    }
+
     const response = await fetch(url, {
       method: options.method || 'GET',
       headers: {
@@ -28,7 +34,7 @@ class GpswoxApiClient {
 
     if (!response.ok) {
       logger.error('Erro na API GPSWOX.', { path, status: response.status, data });
-      throw new Error(data?.message || `Erro GPSWOX (${response.status})`);
+      throw new Error(data?.message || data?.error || `Erro GPSWOX (${response.status})`);
     }
 
     return data;
@@ -89,6 +95,24 @@ class GpswoxApiClient {
 
   async createDevice(payload) {
     return this.request('add_device', { method: 'POST', body: payload });
+  }
+
+  async getHistory(deviceId, from, to) {
+    return this.request('get_history', {
+      query: { device_id: deviceId, from, to },
+    });
+  }
+
+  async createSharing({ deviceId, durationMinutes = 60, deleteAfterExpiration = true }) {
+    return this.request('sharing', {
+      method: 'POST',
+      body: {
+        devices: [Number(deviceId)],
+        expiration_by: 'duration',
+        expiration_duration: durationMinutes,
+        delete_after_expiration: deleteAfterExpiration,
+      },
+    });
   }
 }
 
