@@ -50,6 +50,20 @@ class ApiClient {
     return Boolean(this.accessToken || localStorage.getItem('access_token'));
   }
 
+  getStoredUser() {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  isInstallerLoggedIn() {
+    if (!this.isClientLoggedIn()) return false;
+    const role = this.getStoredUser().role;
+    return role === 'installer' || role === 'admin';
+  }
+
   async request(path, options = {}, { useAdmin = false, useClient = false, retry = true } = {}) {
     const token = useAdmin ? this.adminToken : useClient ? this.accessToken : this.adminToken;
 
@@ -385,6 +399,41 @@ class ApiClient {
 
   getFirebasePublicConfig() {
     return this.request('/v1/config/firebase');
+  }
+
+  // ─── Instalador ──────────────────────────────────────────────────────────
+  getInstallerDashboard() {
+    return this.request('/v1/instalador/painel', {}, { useClient: true });
+  }
+
+  getInstallerPending() {
+    return this.request('/v1/instalador/agendamentos', {}, { useClient: true });
+  }
+
+  getInstallerHistory() {
+    return this.request('/v1/instalador/historico', {}, { useClient: true });
+  }
+
+  getInstallerJob(id) {
+    return this.request(`/v1/instalador/instalacoes/${id}`, {}, { useClient: true });
+  }
+
+  finalizeInstallation(id, data) {
+    return this.request(`/v1/instalador/instalacoes/${id}/finalizar`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useClient: true });
+  }
+
+  getAdminInstallers() {
+    return this.request('/v1/admin/instaladores', {}, { useAdmin: true });
+  }
+
+  createAdminInstaller(data) {
+    return this.request('/v1/admin/instaladores', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
   }
 }
 

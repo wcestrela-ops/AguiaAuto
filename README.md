@@ -216,7 +216,10 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | **Admin — Alertas** | `GET /v1/admin/alertas` | ✅ |
 | Emergência | `GET /v1/emergencia/contatos` | ✅ |
 | Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
-| Instalador | `GET /v1/instalador/*` | 🚧 |
+| Instalador | `GET /v1/instalador/painel` | ✅ |
+| Instalador | `GET /v1/instalador/agendamentos` | ✅ |
+| Instalador | `POST /v1/instalador/instalacoes/:id/finalizar` | ✅ |
+| **Admin — Instaladores** | `GET/POST /v1/admin/instaladores` | ✅ |
 
 ## Painel Admin — Configuração de APIs
 
@@ -385,10 +388,34 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - WhatsApp só: cadastro, cobrança, senha, promoções admin
 - Preferências e histórico no PWA
 
-### Fase 5 — Instalador + Extras
-- Área do instalador
+### Fase 5 — Instalador ✅ (atual)
+- PWA `/instalador` — painel, agendamentos, histórico e finalização
+- Vincula `gpswox_device_id`, ativa veículo e notifica cliente via push
+- Admin: `/admin/instaladores` — criar contas com role `installer`
+- Tabela `installation_logs` para auditoria
+
+### Fase 6 — Extras
 - Indique e Ganhe
 - Documentos e Manutenção
+
+## Área do Instalador
+
+Fluxo operacional para técnicos de campo:
+
+1. Admin cria conta em `/admin/instaladores` (role `installer`)
+2. Instalador faz login em `/login` → redirecionado para `/instalador`
+3. Veículos com status `pending_installation` aparecem em **Agendamentos**
+4. Ao finalizar, informa `gpswox_device_id` → veículo fica `active` e cliente recebe push
+
+Rotas JWT (`role: installer` ou `admin`):
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/v1/instalador/painel` | Resumo e últimas instalações |
+| GET | `/v1/instalador/agendamentos` | Veículos pendentes |
+| GET | `/v1/instalador/historico` | Histórico do instalador logado |
+| GET | `/v1/instalador/instalacoes/:id` | Detalhe do agendamento |
+| POST | `/v1/instalador/instalacoes/:id/finalizar` | Ativa rastreador |
 
 ## Filosofia
 

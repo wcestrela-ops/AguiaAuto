@@ -20,6 +20,12 @@ import ClientFinanceiroPage from './pages/client/ClientFinanceiroPage';
 import ClientAlertsPage from './pages/client/ClientAlertsPage';
 import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
 import ResetPasswordPage from './pages/client/ResetPasswordPage';
+import InstallerLayout from './pages/instalador/InstallerLayout';
+import InstallerHomePage from './pages/instalador/InstallerHomePage';
+import InstallerPendingPage from './pages/instalador/InstallerPendingPage';
+import InstallerHistoryPage from './pages/instalador/InstallerHistoryPage';
+import InstallerJobPage from './pages/instalador/InstallerJobPage';
+import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -29,6 +35,12 @@ function AdminRoute({ children }) {
 
 function ClientRoute({ children }) {
   if (!api.isClientLoggedIn()) return <Navigate to="/login" replace />;
+  if (api.getStoredUser().role === 'installer') return <Navigate to="/instalador" replace />;
+  return children;
+}
+
+function InstallerRoute({ children }) {
+  if (!api.isInstallerLoggedIn()) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -58,6 +70,21 @@ export default function App() {
         <Route path="perfil" element={<ClientProfilePage />} />
       </Route>
 
+      {/* Instalador */}
+      <Route
+        path="/instalador"
+        element={
+          <InstallerRoute>
+            <InstallerLayout />
+          </InstallerRoute>
+        }
+      >
+        <Route index element={<InstallerHomePage />} />
+        <Route path="agendamentos" element={<InstallerPendingPage />} />
+        <Route path="historico" element={<InstallerHistoryPage />} />
+        <Route path="instalacoes/:id" element={<InstallerJobPage />} />
+      </Route>
+
       {/* Admin */}
       <Route path="/admin/login" element={<LoginPage />} />
       <Route
@@ -75,6 +102,7 @@ export default function App() {
         <Route path="veiculos" element={<AdminVehiclesPage />} />
         <Route path="financeiro" element={<AdminFinanceiroPage />} />
         <Route path="alertas" element={<AdminAlertsPage />} />
+        <Route path="instaladores" element={<AdminInstaladoresPage />} />
       </Route>
     </Routes>
   );

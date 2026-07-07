@@ -91,6 +91,25 @@ class VehicleRepository {
     return rows;
   }
 
+  async listPendingInstallations() {
+    const { rows } = await this.pool.query(
+      `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       WHERE v.status = 'pending_installation'
+       ORDER BY v.created_at ASC`
+    );
+    return rows;
+  }
+
+  async countByStatus(status) {
+    const { rows } = await this.pool.query(
+      'SELECT COUNT(*)::int AS count FROM vehicles WHERE status = $1',
+      [status]
+    );
+    return rows[0].count;
+  }
+
   async findByDeviceId(deviceId) {
     if (!deviceId) return null;
     const { rows } = await this.pool.query(

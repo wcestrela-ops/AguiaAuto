@@ -14,6 +14,7 @@ const { migrateVehicles } = require('./db/migrate-vehicles');
 const { migrateFinanceiro } = require('./db/migrate-financeiro');
 const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
 const { migrateAlerts } = require('./db/migrate-alerts');
+const { migrateInstalador } = require('./db/migrate-instalador');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -35,6 +36,7 @@ const adminFinanceiroRoutes = require('./modules/admin/financeiro/routes');
 const adminPlansRoutes = require('./modules/admin/plans/routes');
 const adminAlertasRoutes = require('./modules/admin/alertas/routes');
 const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
+const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -95,6 +97,7 @@ app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
 app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
 app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
+app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -126,6 +129,9 @@ async function bootstrap() {
 
     await migrateAlerts();
     logger.info('Motor de alertas (GPSWOX → push/WhatsApp) inicializado.');
+
+    await migrateInstalador();
+    logger.info('Área do instalador (installation_logs) inicializada.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

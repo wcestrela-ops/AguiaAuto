@@ -15,8 +15,9 @@ export default function ClientLoginPage() {
     setLoading(true);
 
     try {
-      await api.login(email, password);
-      navigate('/app');
+      const res = await api.login(email, password);
+      const role = res.data?.user?.role || api.getStoredUser().role;
+      navigate(role === 'installer' ? '/instalador' : '/app');
     } catch (err) {
       setError(err.message);
     } finally {

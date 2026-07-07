@@ -8,6 +8,7 @@ const NAV = [
   { to: '/admin/veiculos', label: 'Veículos' },
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/alertas', label: 'Alertas' },
+  { to: '/admin/instaladores', label: 'Instaladores' },
 ];
 
 export default function AdminLayout() {
