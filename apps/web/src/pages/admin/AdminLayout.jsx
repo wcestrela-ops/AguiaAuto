@@ -9,6 +9,7 @@ const NAV = [
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/instaladores', label: 'Instaladores' },
+  { to: '/admin/contratos', label: 'Contratos' },
 ];
 
 export default function AdminLayout() {

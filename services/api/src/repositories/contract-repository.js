@@ -13,6 +13,38 @@ class ContractRepository {
     return rows[0] || null;
   }
 
+  async listTemplates() {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM contract_templates WHERE active = true ORDER BY slug'
+    );
+    return rows;
+  }
+
+  async updateTemplate(slug, { title, body_html }) {
+    const { rows } = await this.pool.query(
+      `UPDATE contract_templates SET
+        title = COALESCE($2, title),
+        body_html = COALESCE($3, body_html),
+        version = version + 1,
+        updated_at = NOW()
+       WHERE slug = $1 AND active = true
+       RETURNING *`,
+      [slug, title, body_html]
+    );
+    return rows[0] || null;
+  }
+
+  async findAcceptanceById(id) {
+    const { rows } = await this.pool.query(
+      `SELECT ca.*, ct.slug, ct.title AS template_title
+       FROM contract_acceptances ca
+       JOIN contract_templates ct ON ct.id = ca.template_id
+       WHERE ca.id = $1`,
+      [id]
+    );
+    return rows[0] || null;
+  }
+
   async findAcceptanceByUserAndType(userId, acceptanceType, { vehicleId, installationLogId } = {}) {
     let query = `
       SELECT ca.*, ct.slug, ct.title
@@ -57,8 +89,8 @@ class ContractRepository {
     const { rows } = await this.pool.query(
       `INSERT INTO contract_acceptances
         (user_id, vehicle_id, template_id, template_version, acceptance_type,
-         installation_log_id, ip_address, user_agent)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+         installation_log_id, ip_address, user_agent, snapshot_html)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         data.user_id,
         data.vehicle_id || null,
@@ -68,6 +100,7 @@ class ContractRepository {
         data.installation_log_id || null,
         data.ip_address || null,
         data.user_agent || null,
+        data.snapshot_html || null,
       ]
     );
     return rows[0];
@@ -75,7 +108,7 @@ class ContractRepository {
 
   async listPendingDeliveriesForUser(userId) {
     const { rows } = await this.pool.query(
-      `SELECT il.*, v.plate, v.brand, v.model, i.name AS installer_name,
+      `SELECT il.*, v.plate, v.brand, v.model, v.user_id, i.name AS installer_name,
               ca.id AS acceptance_id
        FROM installation_logs il
        JOIN vehicles v ON v.id = il.vehicle_id
@@ -94,7 +127,7 @@ class ContractRepository {
   async listAcceptedDeliveriesForUser(userId) {
     const { rows } = await this.pool.query(
       `SELECT il.*, v.plate, v.brand, v.model, i.name AS installer_name,
-              ca.accepted_at, ca.id AS acceptance_id
+              ca.accepted_at, ca.id AS acceptance_id, ca.snapshot_html
        FROM contract_acceptances ca
        JOIN installation_logs il ON il.id = ca.installation_log_id
        JOIN vehicles v ON v.id = il.vehicle_id
@@ -102,6 +135,22 @@ class ContractRepository {
        WHERE ca.user_id = $1 AND ca.acceptance_type = 'installation_delivery'
        ORDER BY ca.accepted_at DESC`,
       [userId]
+    );
+    return rows;
+  }
+
+  async listAllAcceptances({ limit = 200 } = {}) {
+    const { rows } = await this.pool.query(
+      `SELECT ca.*, u.email AS user_email, u.name AS user_name,
+              ct.slug AS template_slug, ct.title AS template_title,
+              v.plate AS vehicle_plate
+       FROM contract_acceptances ca
+       JOIN users u ON u.id = ca.user_id
+       JOIN contract_templates ct ON ct.id = ca.template_id
+       LEFT JOIN vehicles v ON v.id = ca.vehicle_id
+       ORDER BY ca.accepted_at DESC
+       LIMIT $1`,
+      [limit]
     );
     return rows;
   }

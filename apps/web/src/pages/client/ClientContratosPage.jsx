@@ -11,40 +11,23 @@ function formatDuration(minutes) {
   return rest ? `${hours}h ${rest}min` : `${hours}h`;
 }
 
-function DeliveryCard({ delivery, termoHtml, onAccept, acceptingId }) {
-  const [confirmed, setConfirmed] = useState(false);
-
+function InstallationPreview({ delivery }) {
   return (
-    <section className="card contract-delivery-card">
-      <header className="section-header">
-        <div>
-          <h3>{delivery.vehicle_label}</h3>
-          <p className="muted">Placa {delivery.plate} · Instalador: {delivery.installer_name || '—'}</p>
-        </div>
-        {delivery.pending_acceptance ? (
-          <span className="badge warning">Aguardando aceite</span>
-        ) : (
-          <span className="badge success">Aceito</span>
-        )}
-      </header>
-
-      <dl className="detail-list">
-        <div><dt>Duração</dt><dd>{formatDuration(delivery.duration_minutes)}</dd></div>
+    <div className="installation-preview-block">
+      <h4>{delivery.vehicle_label}</h4>
+      <dl className="detail-list compact">
+        <div><dt>Placa</dt><dd>{delivery.plate}</dd></div>
+        <div><dt>Instalador</dt><dd>{delivery.installer_name || '—'}</dd></div>
         <div><dt>Device ID</dt><dd>{delivery.gpswox_device_id}</dd></div>
+        <div><dt>Duração</dt><dd>{formatDuration(delivery.duration_minutes)}</dd></div>
         <div><dt>Data</dt><dd>{new Date(delivery.finished_at || delivery.created_at).toLocaleString('pt-BR')}</dd></div>
       </dl>
-
       {delivery.report && (
         <div className="report-box">
-          <h4>Relatório do instalador</h4>
+          <strong>Relatório:</strong>
           <p>{delivery.report}</p>
         </div>
       )}
-
-      {delivery.notes && (
-        <p className="muted"><strong>Observações:</strong> {delivery.notes}</p>
-      )}
-
       {delivery.photos?.length > 0 && (
         <div className="photo-grid">
           {delivery.photos.map((photo) => (
@@ -57,35 +40,24 @@ function DeliveryCard({ delivery, termoHtml, onAccept, acceptingId }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      {delivery.pending_acceptance ? (
-        <>
-          <div
-            className="contract-body"
-            dangerouslySetInnerHTML={{ __html: termoHtml }}
-          />
-          <label className="checkbox-row acceptance-check">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            Declaro que verifiquei o relatório e aceito que meu veículo deixou a instalação
-            com o rastreador em funcionamento normal.
-          </label>
-          <button
-            type="button"
-            disabled={!confirmed || acceptingId === delivery.id}
-            onClick={() => onAccept(delivery.id)}
-          >
-            {acceptingId === delivery.id ? 'Registrando...' : 'Aceitar termo de entrega'}
-          </button>
-        </>
-      ) : (
-        <p className="muted accepted-at">
-          Aceito em {new Date(delivery.accepted.accepted_at).toLocaleString('pt-BR')}
-        </p>
-      )}
+function AcceptedDeliveryCard({ delivery, onDownload }) {
+  return (
+    <section className="card contract-delivery-card">
+      <header className="section-header">
+        <div>
+          <h3>{delivery.vehicle_label}</h3>
+          <p className="muted">Aceito em {new Date(delivery.accepted.accepted_at).toLocaleString('pt-BR')}</p>
+        </div>
+        <span className="badge success">Aceito</span>
+      </header>
+      <InstallationPreview delivery={delivery} />
+      <button type="button" className="btn-secondary btn-sm" onClick={() => onDownload(delivery.id)}>
+        Baixar cópia da instalação
+      </button>
     </section>
   );
 }
@@ -98,7 +70,6 @@ export default function ClientContratosPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [serviceConfirmed, setServiceConfirmed] = useState(false);
-  const [acceptingId, setAcceptingId] = useState(null);
   const [acceptingService, setAcceptingService] = useState(false);
 
   async function load() {
@@ -119,13 +90,18 @@ export default function ClientContratosPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleAcceptService() {
+  async function handleAcceptUnified() {
     setMessage('');
     setError('');
     setAcceptingService(true);
     try {
       const res = await api.acceptServiceContract();
-      setMessage(res.message || 'Contrato aceito.');
+      const unified = res.data?.unified || res.data?.deliveries_accepted?.length > 0;
+      setMessage(
+        unified
+          ? 'Contrato e dados de instalação aceitos. Sua cópia está disponível para download.'
+          : (res.message || 'Contrato aceito.')
+      );
       api.setServiceContractAccepted(true);
       outlet.setServiceAccepted?.(true);
       await load();
@@ -137,33 +113,38 @@ export default function ClientContratosPage() {
     }
   }
 
-  async function handleAcceptDelivery(installationLogId) {
-    setMessage('');
-    setError('');
-    setAcceptingId(installationLogId);
+  async function handleDownloadService() {
     try {
-      const res = await api.acceptInstallationDelivery(installationLogId);
-      setMessage(res.message || 'Termo aceito.');
-      await load();
+      await api.downloadContractDocument('servico');
     } catch (err) {
       setError(err.message);
-    } finally {
-      setAcceptingId(null);
+    }
+  }
+
+  async function handleDownloadDelivery(installationLogId) {
+    try {
+      await api.downloadContractDocument('entrega', installationLogId);
+    } catch (err) {
+      setError(err.message);
     }
   }
 
   if (loading) return <p className="muted">Carregando contratos...</p>;
 
+  const pendingInstallations = data?.instalacoes_incluidas || data?.entregas_pendentes || [];
+  const hasUnified = pendingInstallations.length > 0;
+
   return (
     <div>
       <header className="page-header">
         <h1>Contratos</h1>
-        <p>Contrato de serviço e termos de entrega das instalações.</p>
+        <p>Contrato de serviço com dados de instalação. Baixe sua cópia a qualquer momento.</p>
       </header>
 
       {data?.contrato_servico && !data.contrato_servico.accepted && (
         <div className="alert warning contract-block-banner">
-          Para usar o aplicativo, leia e aceite o Contrato de Prestação de Serviços abaixo.
+          Para usar o aplicativo, leia e aceite o contrato abaixo
+          {hasUnified ? ' (inclui os dados de instalação do seu veículo).' : '.'}
         </div>
       )}
 
@@ -186,6 +167,21 @@ export default function ClientContratosPage() {
             dangerouslySetInnerHTML={{ __html: data.contrato_servico.body_html }}
           />
 
+          {hasUnified && !data.contrato_servico.accepted && (
+            <section className="installation-bundle">
+              <h3>Dados de instalação incluídos neste aceite</h3>
+              {pendingInstallations.map((delivery) => (
+                <InstallationPreview key={delivery.id} delivery={delivery} />
+              ))}
+              {data.termo_entrega?.body_html && (
+                <div
+                  className="contract-body"
+                  dangerouslySetInnerHTML={{ __html: data.termo_entrega.body_html }}
+                />
+              )}
+            </section>
+          )}
+
           {!data.contrato_servico.accepted ? (
             <>
               <label className="checkbox-row acceptance-check">
@@ -194,36 +190,32 @@ export default function ClientContratosPage() {
                   checked={serviceConfirmed}
                   onChange={(e) => setServiceConfirmed(e.target.checked)}
                 />
-                Li e aceito o Contrato de Prestação de Serviços.
+                {hasUnified
+                  ? 'Li e aceito o Contrato de Prestação de Serviços e os dados de instalação acima, declarando que o rastreador está em funcionamento normal.'
+                  : 'Li e aceito o Contrato de Prestação de Serviços.'}
               </label>
               <button
                 type="button"
                 disabled={!serviceConfirmed || acceptingService}
-                onClick={handleAcceptService}
+                onClick={handleAcceptUnified}
               >
-                {acceptingService ? 'Registrando...' : 'Aceitar contrato'}
+                {acceptingService
+                  ? 'Registrando...'
+                  : hasUnified
+                    ? 'Aceitar contrato e instalação'
+                    : 'Aceitar contrato'}
               </button>
             </>
           ) : (
-            <p className="muted accepted-at">
-              Aceito em {new Date(data.contrato_servico.accepted_at).toLocaleString('pt-BR')}
-            </p>
+            <div className="form-actions" style={{ marginTop: '1rem' }}>
+              <p className="muted accepted-at">
+                Aceito em {new Date(data.contrato_servico.accepted_at).toLocaleString('pt-BR')}
+              </p>
+              <button type="button" className="btn-secondary btn-sm" onClick={handleDownloadService}>
+                Baixar cópia do contrato
+              </button>
+            </div>
           )}
-        </section>
-      )}
-
-      {data?.entregas_pendentes?.length > 0 && (
-        <section className="dashboard-section">
-          <h2>Termos de entrega pendentes</h2>
-          {data.entregas_pendentes.map((delivery) => (
-            <DeliveryCard
-              key={delivery.id}
-              delivery={delivery}
-              termoHtml={data.termo_entrega?.body_html || ''}
-              onAccept={handleAcceptDelivery}
-              acceptingId={acceptingId}
-            />
-          ))}
         </section>
       )}
 
@@ -231,23 +223,27 @@ export default function ClientContratosPage() {
         <section className="dashboard-section">
           <h2>Instalações aceitas</h2>
           {data.entregas_aceitas.map((delivery) => (
-            <DeliveryCard
+            <AcceptedDeliveryCard
               key={delivery.id}
               delivery={delivery}
-              termoHtml={data.termo_entrega?.body_html || ''}
-              onAccept={handleAcceptDelivery}
-              acceptingId={acceptingId}
+              onDownload={handleDownloadDelivery}
             />
           ))}
         </section>
       )}
 
-      {data?.entregas_pendentes?.length === 0
-        && data?.entregas_aceitas?.length === 0
-        && data?.contrato_servico?.accepted && (
-        <div className="card">
-          <p className="muted">Nenhum termo de entrega pendente no momento.</p>
-        </div>
+      {data?.contrato_servico?.accepted
+        && pendingInstallations.length > 0 && (
+        <section className="card">
+          <h3>Nova instalação pendente de aceite</h3>
+          <p className="muted">Novos veículos instalados após seu cadastro.</p>
+          {pendingInstallations.map((delivery) => (
+            <InstallationPreview key={delivery.id} delivery={delivery} />
+          ))}
+          <button type="button" disabled={acceptingService} onClick={handleAcceptUnified}>
+            {acceptingService ? 'Registrando...' : 'Aceitar dados de instalação'}
+          </button>
+        </section>
       )}
     </div>
   );

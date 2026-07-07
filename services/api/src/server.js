@@ -17,6 +17,7 @@ const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
 const { migrateAlerts } = require('./db/migrate-alerts');
 const { migrateInstalador } = require('./db/migrate-instalador');
 const { migrateContratos } = require('./db/migrate-contratos');
+const { migrateContratosSnapshot } = require('./db/migrate-contratos-snapshot');
 const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { startAnchorPoller } = require('./services/anchor-service');
@@ -45,6 +46,7 @@ const adminPlansRoutes = require('./modules/admin/plans/routes');
 const adminAlertasRoutes = require('./modules/admin/alertas/routes');
 const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
+const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -96,7 +98,6 @@ app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
 app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
 app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
 app.use('/v1/contratos', jwtAuth, contratosRoutes);
-app.use('/v1/contratos', jwtAuth, contratosRoutes);
 
 // Área do instalador — JWT + role
 app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
@@ -111,6 +112,7 @@ app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
 app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
 app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
+app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -148,6 +150,9 @@ async function bootstrap() {
 
     await migrateContratos();
     logger.info('Contratos e termos de entrega inicializados.');
+
+    await migrateContratosSnapshot();
+    logger.info('Cópias assinadas de contratos (snapshot) inicializadas.');
 
     await migrateAncora();
     logger.info('Âncora veicular (monitoramento + bloqueio) inicializada.');

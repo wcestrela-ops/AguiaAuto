@@ -528,6 +528,62 @@ class ApiClient {
     }, { useClient: true });
   }
 
+  async downloadContractDocument(tipo = 'servico', installationLogId) {
+    const params = new URLSearchParams({ tipo });
+    if (installationLogId) params.set('installation_log_id', String(installationLogId));
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}/v1/contratos/documento?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const filename = tipo === 'entrega'
+      ? `termo-entrega-${installationLogId}.html`
+      : 'contrato-prestacao-servicos.html';
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  getAdminContractTemplates() {
+    return this.request('/v1/admin/contratos/templates', {}, { useAdmin: true });
+  }
+
+  updateAdminContractTemplate(slug, data) {
+    return this.request(`/v1/admin/contratos/templates/${slug}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getAdminContractAcceptances() {
+    return this.request('/v1/admin/contratos/aceites', {}, { useAdmin: true });
+  }
+
+  async downloadAdminContractDocument(acceptanceId) {
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}/v1/admin/contratos/aceites/${acceptanceId}/documento`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `contrato-aceite-${acceptanceId}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async getContractPhotoBlob(photoId) {
     const token = this.accessToken || localStorage.getItem('access_token');
     const response = await fetch(`${BASE}/v1/contratos/fotos/${photoId}`, {

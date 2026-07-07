@@ -27,6 +27,7 @@ import InstallerPendingPage from './pages/instalador/InstallerPendingPage';
 import InstallerHistoryPage from './pages/instalador/InstallerHistoryPage';
 import InstallerJobPage from './pages/instalador/InstallerJobPage';
 import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
+import AdminContratosPage from './pages/admin/AdminContratosPage';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="financeiro" element={<AdminFinanceiroPage />} />
         <Route path="alertas" element={<AdminAlertsPage />} />
         <Route path="instaladores" element={<AdminInstaladoresPage />} />
+        <Route path="contratos" element={<AdminContratosPage />} />
       </Route>
     </Routes>
   );

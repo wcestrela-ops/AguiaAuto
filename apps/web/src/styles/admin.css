@@ -482,6 +482,34 @@ td.actions { white-space: nowrap; }
   margin-bottom: 1.5rem;
 }
 
+.installation-bundle {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.installation-preview-block {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.installation-preview-block h4 {
+  margin: 0 0 0.75rem;
+}
+
+.detail-list.compact {
+  gap: 0.35rem;
+}
+
+.contract-preview {
+  max-height: 240px;
+  overflow: auto;
+}
+
 .report-box {
   margin: 1rem 0;
   padding: 1rem;

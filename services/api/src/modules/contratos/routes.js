@@ -91,4 +91,20 @@ router.get('/fotos/:id', async (req, res) => {
   }
 });
 
+router.get('/documento', async (req, res) => {
+  try {
+    const { tipo, installation_log_id } = req.query;
+    const doc = await getContractService().getDownloadDocument(req.user.id, {
+      type: tipo || 'servico',
+      installationLogId: installation_log_id ? Number(installation_log_id) : undefined,
+    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.filename}"`);
+    res.send(doc.html);
+  } catch (err) {
+    const status = err.message.includes('não assinado') || err.message.includes('indisponível') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
