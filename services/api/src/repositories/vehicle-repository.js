@@ -90,6 +90,19 @@ class VehicleRepository {
     );
     return rows;
   }
+
+  async findByDeviceId(deviceId) {
+    if (!deviceId) return null;
+    const { rows } = await this.pool.query(
+      `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       WHERE v.gpswox_device_id = $1 OR v.gpswox_name = $1
+       LIMIT 1`,
+      [String(deviceId)]
+    );
+    return rows[0] || null;
+  }
 }
 
 let instance = null;

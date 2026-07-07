@@ -8,6 +8,7 @@ import IntegrationEditPage from './pages/admin/IntegrationEditPage';
 import WhatsAppPage from './pages/admin/WhatsAppPage';
 import AdminVehiclesPage from './pages/admin/AdminVehiclesPage';
 import AdminFinanceiroPage from './pages/admin/AdminFinanceiroPage';
+import AdminAlertsPage from './pages/admin/AdminAlertsPage';
 import ClientLoginPage from './pages/client/ClientLoginPage';
 import ClientRegisterPage from './pages/client/ClientRegisterPage';
 import ClientLayout from './pages/client/ClientLayout';
@@ -16,6 +17,7 @@ import ClientProfilePage from './pages/client/ClientProfilePage';
 import ClientVehiclesPage from './pages/client/ClientVehiclesPage';
 import ClientVehicleDetailPage from './pages/client/ClientVehicleDetailPage';
 import ClientFinanceiroPage from './pages/client/ClientFinanceiroPage';
+import ClientAlertsPage from './pages/client/ClientAlertsPage';
 import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
 import ResetPasswordPage from './pages/client/ResetPasswordPage';
 
@@ -52,6 +54,7 @@ export default function App() {
         <Route path="veiculos" element={<ClientVehiclesPage />} />
         <Route path="veiculos/:id" element={<ClientVehicleDetailPage />} />
         <Route path="financeiro" element={<ClientFinanceiroPage />} />
+        <Route path="alertas" element={<ClientAlertsPage />} />
         <Route path="perfil" element={<ClientProfilePage />} />
       </Route>
 
@@ -71,6 +74,7 @@ export default function App() {
         <Route path="whatsapp" element={<WhatsAppPage />} />
         <Route path="veiculos" element={<AdminVehiclesPage />} />
         <Route path="financeiro" element={<AdminFinanceiroPage />} />
+        <Route path="alertas" element={<AdminAlertsPage />} />
       </Route>
     </Routes>
   );

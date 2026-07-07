@@ -1,12 +1,15 @@
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getVehicleService } = require('./vehicle-service');
 const { buildFinancialSummary } = require('./financeiro-service');
+const { getAlertService } = require('./alert-service');
 
 async function getDashboard(userId) {
   const repo = getVehicleRepository();
   const vehicles = await getVehicleService().listForUser(userId);
   const veiculosAtivos = await repo.countActiveByUser(userId);
   const situacaoFinanceira = await buildFinancialSummary(userId)();
+  const alertasRecentes = await getAlertService().listForUser(userId, { limit: 5 });
+  const alertasNaoLidos = await getAlertService().getUnreadCount(userId);
 
   const veiculosComLocalizacao = [];
   for (const v of vehicles.filter(x => x.status === 'active' && (x.gpswox_device_id || x.gpswox_name))) {
@@ -37,8 +40,9 @@ async function getDashboard(userId) {
     veiculos_total: vehicles.length,
     veiculos: vehicles,
     veiculos_resumo: veiculosComLocalizacao,
-    alertas_recentes: [],
-    notificacoes_recentes: [],
+    alertas_recentes: alertasRecentes,
+    alertas_nao_lidos: alertasNaoLidos,
+    notificacoes_recentes: alertasRecentes.slice(0, 3),
     situacao_financeira: situacaoFinanceira,
     atalhos: ['meu-veiculo', 'financeiro', 'alertas', 'emergencia'],
   };

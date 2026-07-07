@@ -60,6 +60,16 @@ const INTEGRATIONS = {
       { key: 'prefer_pix', label: 'Priorizar PIX nas cobranças', type: 'boolean', default: true },
     ],
   },
+  alertas: {
+    label: 'Motor de Alertas',
+    description: 'GPSWOX → Push + WhatsApp (webhook e deduplicação)',
+    fields: [
+      { key: 'enabled', label: 'Motor ativo', type: 'boolean', default: true },
+      { key: 'webhook_secret', label: 'Segredo do webhook GPSWOX', type: 'password', secret: true, env: 'ALERT_WEBHOOK_SECRET' },
+      { key: 'default_channels', label: 'Canais padrão (push,whatsapp)', type: 'text', default: 'push,whatsapp' },
+      { key: 'dedup_minutes', label: 'Deduplicação (minutos)', type: 'number', default: 5 },
+    ],
+  },
   firebase: {
     label: 'Firebase',
     description: 'Notificações push (PWA e apps) — configure pelo painel admin',

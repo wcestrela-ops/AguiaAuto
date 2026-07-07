@@ -58,6 +58,7 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | WhatsApp Multi-Provedor | `/admin/whatsapp` |
 | Veículos (vincular GPSWOX) | `/admin/veiculos` |
 | Financeiro (cobranças + provisionamento) | `/admin/financeiro` |
+| Alertas (motor + histórico) | `/admin/alertas` |
 
 **Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
 
@@ -129,6 +130,25 @@ Se o gateway principal falhar, o backup é usado automaticamente. Configure em `
 |---------|-----|
 | Asaas | `POST /webhooks/asaas` |
 | Mercado Pago | `POST /webhooks/mercadopago` |
+| GPSWOX (alertas) | `POST /webhooks/gpswox` |
+
+### Motor de Alertas (Fase 4)
+
+GPSWOX envia eventos para `POST /webhooks/gpswox`. O motor identifica o veículo, normaliza o tipo de alerta e dispara **push** + **WhatsApp**.
+
+Configure em `/admin/integracoes/alertas` (segredo, canais padrão, deduplicação).
+
+Cliente gerencia preferências em `/app/alertas`. Admin vê histórico em `/admin/alertas`.
+
+Exemplo de payload GPSWOX:
+```json
+{
+  "device_id": "12345",
+  "type": "overspeed",
+  "message": "Excesso de velocidade",
+  "speed": "95 km/h"
+}
+```
 
 ### FCM Token (Push Notifications)
 
@@ -176,11 +196,11 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | Financeiro | `GET /v1/financeiro/faturas` | ✅ |
 | Financeiro | `POST /v1/financeiro/segunda-via` | ✅ |
 | Planos | `GET /v1/plans` | ✅ |
-| Alertas | `GET /v1/alertas/tipos` | ✅ |
-| Emergência | `GET /v1/emergencia/contatos` | ✅ |
-| Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
-| Instalador | `GET /v1/instalador/*` | 🚧 |
-| Webhooks | `POST /webhooks/asaas` | 🚧 |
+| Alertas | `GET /v1/alertas` | ✅ |
+| Alertas | `PUT /v1/alertas/preferencias` | ✅ |
+| Webhooks | `POST /webhooks/asaas` | ✅ |
+| Webhooks | `POST /webhooks/mercadopago` | ✅ |
+| Webhooks | `POST /webhooks/gpswox` | ✅ |
 | **Admin — Integrações** | `GET /v1/admin/integracoes` | ✅ |
 | **Admin — Salvar API** | `PUT /v1/admin/integracoes/:key` | ✅ |
 | **Admin — Testar API** | `POST /v1/admin/integracoes/:key/test` | ✅ |
@@ -189,6 +209,10 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | **Admin — Financeiro** | `GET/POST /v1/admin/financeiro/cobrancas` | ✅ |
 | **Admin — Provisionar** | `POST /v1/admin/financeiro/reprovisionar/:userId` | ✅ |
 | **Admin — Planos** | `GET/POST/PUT /v1/admin/plans` | ✅ |
+| **Admin — Alertas** | `GET /v1/admin/alertas` | ✅ |
+| Emergência | `GET /v1/emergencia/contatos` | ✅ |
+| Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
+| Instalador | `GET /v1/instalador/*` | 🚧 |
 
 ## Painel Admin — Configuração de APIs
 
@@ -203,7 +227,10 @@ As credenciais ficam no PostgreSQL (`integration_configs`). API e Gateway leem d
 | `gpswox` | Motor de rastreamento |
 | `gateway` | Segredo interno do gateway |
 | `gateway_client` | Conexão API → Gateway |
-| `asaas` | Financeiro |
+| `asaas` | Financeiro recorrente |
+| `mercadopago` | Pagamento inicial PIX |
+| `payment_gateways` | Failover entre gateways |
+| `alertas` | Motor GPSWOX → push/WhatsApp |
 | `firebase` | Push notifications |
 
 > **WhatsApp** usa módulo dedicado em `/v1/admin/whatsapp` (Evolution, WAHA, Meta Cloud).
@@ -342,15 +369,17 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - PWA + Auth JWT + Admin + WhatsApp + FCM + Recuperação de senha
 
 ### Fase 3 — Financeiro ✅ (atual)
-- Integração Asaas (clientes, assinaturas, cobranças, webhooks)
-- Provisionamento automático GPSWOX + Asaas no cadastro com plano
-- Admin: criar cobranças manualmente + reprovisionar
-- PWA cliente: `/app/financeiro` com faturas e links de pagamento
+- Integração Asaas + Mercado Pago com failover automático
+- PIX em ambos os gateways para mensalidades e adesão
+- Mercado Pago: cobrança inicial; Asaas: recorrência
+- Admin: gateways configuráveis + cobranças manuais
+- PWA: PIX copia e cola no painel do cliente
 
-### Fase 4 — Comunicação e alertas
-- Firebase Cloud Messaging (push)
-- Evolution API (WhatsApp)
-- Sistema de alertas configurável
+### Fase 4 — Motor de Alertas ✅ (atual)
+- Webhook GPSWOX → push Firebase + WhatsApp
+- Preferências por tipo de alerta (cliente)
+- Deduplicação, histórico e painel admin
+- PWA: `/app/alertas` com configuração de canais
 
 ### Fase 5 — Instalador + Extras
 - Área do instalador

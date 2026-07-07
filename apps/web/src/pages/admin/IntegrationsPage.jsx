@@ -7,6 +7,7 @@ const ICONS = {
   asaas: '💰',
   mercadopago: '🛒',
   payment_gateways: '🔀',
+  alertas: '🚨',
   firebase: '🔔',
   gateway: '🔒',
   gateway_client: '🔗',

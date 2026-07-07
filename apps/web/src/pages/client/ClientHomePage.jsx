@@ -40,11 +40,14 @@ export default function ClientHomePage() {
                   : ''}
               </p>
             </Link>
-            <div className="card">
+            <Link to="/app/alertas" className="card card-link">
               <span className="card-icon">🔔</span>
               <h3>Alertas</h3>
-              <p>{dashboard.alertas_recentes?.length ?? 0} recentes</p>
-            </div>
+              <p>
+                {dashboard.alertas_nao_lidos ?? 0} não lidos
+                {dashboard.alertas_recentes?.length ? ` · ${dashboard.alertas_recentes.length} recentes` : ''}
+              </p>
+            </Link>
             <Link to="/app/perfil" className="card card-link">
               <span className="card-icon">👤</span>
               <h3>Meu Perfil</h3>

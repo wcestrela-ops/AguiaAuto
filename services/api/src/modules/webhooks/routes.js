@@ -47,8 +47,25 @@ router.post('/mercadopago', async (req, res) => {
   }
 });
 
-router.post('/gpswox', (req, res) => {
-  res.status(501).json({ success: false, error: 'Webhook GPSWOX em desenvolvimento.' });
+router.post('/gpswox', async (req, res) => {
+  try {
+    const { getAlertService } = require('../../services/alert-service');
+    const config = await getAlertService().getEngineConfig();
+
+    if (config.webhook_secret) {
+      const auth = req.headers['authorization'] || '';
+      const headerSecret = req.headers['x-webhook-secret'] || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : headerSecret;
+      if (token !== config.webhook_secret) {
+        return res.status(401).json({ success: false, error: 'Webhook não autorizado.' });
+      }
+    }
+
+    const result = await getAlertService().processGpswoxWebhook(req.body);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 router.get('/whatsapp/meta', verifyMetaWebhook);

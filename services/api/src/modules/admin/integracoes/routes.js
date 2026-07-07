@@ -131,6 +131,16 @@ router.post('/:key/test', async (req, res) => {
       });
     }
 
+    if (key === 'alertas') {
+      const { getAlertService } = require('../../../services/alert-service');
+      const config = await getAlertService().getEngineConfig();
+      return res.json({
+        success: true,
+        message: config.enabled ? 'Motor de alertas ativo.' : 'Motor de alertas desativado.',
+        data: config,
+      });
+    }
+
     if (key === 'firebase') {
       const firebase = require('../../../services/firebase');
       const result = await firebase.testConnection();
