@@ -1,0 +1,185 @@
+require('dotenv').config();
+
+const express = require('express');
+const logger = require('./logger');
+const cors = require('./middleware/cors');
+const adminAuth = require('./middleware/admin-auth');
+const { jwtAuth, requireRole } = require('./middleware/jwt-auth');
+const { requireServiceContract } = require('./middleware/require-service-contract');
+const { getStore } = require('@aguia/integrations');
+const { getRepository } = require('@aguia/whatsapp');
+const { migrateUsers } = require('./db/migrate-users');
+const { migrateFcmTokens } = require('./db/migrate-fcm');
+const { migratePasswordReset } = require('./db/migrate-password-reset');
+const { migrateVehicles } = require('./db/migrate-vehicles');
+const { migrateFinanceiro } = require('./db/migrate-financeiro');
+const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
+const { migrateAlerts } = require('./db/migrate-alerts');
+const { migrateInstalador } = require('./db/migrate-instalador');
+const { migrateContratos } = require('./db/migrate-contratos');
+const { migrateContratosSnapshot } = require('./db/migrate-contratos-snapshot');
+const { migrateAncora } = require('./db/migrate-ancora');
+const { migrateIndicacoes } = require('./db/migrate-indicacoes');
+const { startAnchorPoller } = require('./services/anchor-service');
+const { startReferralRewardPoller } = require('./services/referral-service');
+
+const authRoutes = require('./modules/auth/routes');
+const dashboardRoutes = require('./modules/dashboard/routes');
+const veiculosRoutes = require('./modules/veiculos/routes');
+const financeiroRoutes = require('./modules/financeiro/routes');
+const alertasRoutes = require('./modules/alertas/routes');
+const emergenciaRoutes = require('./modules/emergencia/routes');
+const perfilRoutes = require('./modules/perfil/routes');
+const notificacoesRoutes = require('./modules/notificacoes/routes');
+const indicacoesRoutes = require('./modules/indicacoes/routes');
+const indicacoesPublicRoutes = require('./modules/indicacoes/public-routes');
+const contratosRoutes = require('./modules/contratos/routes');
+const instaladorRoutes = require('./modules/instalador/routes');
+const webhooksRoutes = require('./modules/webhooks/routes');
+const onboardingRoutes = require('./modules/onboarding/routes');
+const adminIntegracoesRoutes = require('./modules/admin/integracoes/routes');
+const adminWhatsappRoutes = require('./modules/admin/whatsapp/routes');
+const adminVeiculosRoutes = require('./modules/admin/veiculos/routes');
+const adminUsuariosRoutes = require('./modules/admin/usuarios/routes');
+const adminFinanceiroRoutes = require('./modules/admin/financeiro/routes');
+const adminPlansRoutes = require('./modules/admin/plans/routes');
+const adminAlertasRoutes = require('./modules/admin/alertas/routes');
+const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
+const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
+const adminContratosRoutes = require('./modules/admin/contratos/routes');
+const plansRoutes = require('./modules/plans/routes');
+const configRoutes = require('./modules/config/routes');
+
+const app = express();
+const PORT = process.env.API_PORT || process.env.PORT || 3000;
+
+app.use(cors);
+app.use(express.json());
+
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'aguia-api',
+    version: '0.1.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Planos públicos (cadastro)
+app.use('/v1/plans', plansRoutes);
+
+// Indicações — validação pública do código (cadastro)
+app.use('/v1/indicacoes', indicacoesPublicRoutes);
+
+// Auth público
+app.use('/v1/auth', authRoutes);
+
+// Config pública (Firebase web config)
+app.use('/v1/config', configRoutes);
+
+// Webhooks públicos
+app.use('/webhooks', webhooksRoutes);
+
+// Onboarding (parcialmente público durante cadastro)
+app.use('/v1/onboarding', onboardingRoutes);
+
+// Rotas do cliente — requer JWT (+ contrato de serviço aceito, exceto /contratos)
+app.use('/v1/dashboard', jwtAuth, requireServiceContract, dashboardRoutes);
+app.use('/v1/veiculos', jwtAuth, requireServiceContract, veiculosRoutes);
+app.use('/v1/financeiro', jwtAuth, requireServiceContract, financeiroRoutes);
+app.use('/v1/alertas', jwtAuth, requireServiceContract, alertasRoutes);
+app.use('/v1/emergencia', jwtAuth, requireServiceContract, emergenciaRoutes);
+app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
+app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
+app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
+app.use('/v1/contratos', jwtAuth, contratosRoutes);
+
+// Área do instalador — JWT + role
+app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
+
+// Painel admin — ADMIN_SECRET
+app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
+app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
+app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
+app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
+app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
+app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
+app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
+app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
+app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Rota não encontrada.' });
+});
+
+async function bootstrap() {
+  if (process.env.DATABASE_URL) {
+    const store = getStore();
+    await store.migrate();
+    logger.info('Banco de integrações inicializado.');
+
+    await migrateUsers();
+    logger.info('Autenticação JWT (clientes) inicializada.');
+
+    await migrateFcmTokens();
+    logger.info('FCM tokens (push notifications) inicializado.');
+
+    await migratePasswordReset();
+    logger.info('Recuperação de senha inicializada.');
+
+    await migrateVehicles();
+    logger.info('Veículos e planos inicializados.');
+
+    await migrateFinanceiro();
+    logger.info('Financeiro (Asaas + faturas) inicializado.');
+
+    await migratePaymentGateways();
+    logger.info('Gateways de pagamento (Asaas + Mercado Pago) inicializados.');
+
+    await migrateAlerts();
+    logger.info('Motor de alertas (GPSWOX → push/WhatsApp) inicializado.');
+
+    await migrateInstalador();
+    logger.info('Área do instalador (installation_logs) inicializada.');
+
+    await migrateContratos();
+    logger.info('Contratos e termos de entrega inicializados.');
+
+    await migrateContratosSnapshot();
+    logger.info('Cópias assinadas de contratos (snapshot) inicializadas.');
+
+    await migrateAncora();
+    logger.info('Âncora veicular (monitoramento + bloqueio) inicializada.');
+
+    await migrateIndicacoes();
+    logger.info('Indique e Ganhe (indicações + desconto) inicializado.');
+
+    const whatsappRepo = getRepository();
+    await whatsappRepo.migrate();
+    logger.info('Módulo WhatsApp multi-provedor inicializado.');
+  } else {
+    logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
+  }
+
+  app.listen(PORT, () => {
+    logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
+    logger.info('Auth cliente: POST /v1/auth/login | POST /v1/auth/register');
+
+    if (process.env.DATABASE_URL) {
+      startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
+      startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
+      logger.info('Pollers de âncora e indicações iniciados.');
+    }
+  });
+}
+
+bootstrap().catch(err => {
+  logger.error('Falha ao iniciar API.', { err: err.message });
+  process.exit(1);
+});
