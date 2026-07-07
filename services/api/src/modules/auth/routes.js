@@ -44,8 +44,8 @@ router.post('/logout', async (req, res) => {
 
 router.post('/recuperar-senha/solicitar', async (req, res) => {
   try {
-    const { email } = req.body;
-    const result = await getAuthService().requestPasswordReset(email);
+    const { email, channel } = req.body;
+    const result = await getAuthService().requestPasswordReset(email, { channel });
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

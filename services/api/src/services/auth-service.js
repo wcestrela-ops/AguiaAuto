@@ -2,9 +2,11 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPasswordResetRepository } = require('../repositories/password-reset-repository');
-const whatsapp = require('./whatsapp');
-const firebase = require('./firebase');
-const { normalizePhone } = require('../lib/phone');
+const authNotifications = require('./auth-notifications');
+const {
+  normalizePasswordResetChannel,
+  buildPasswordResetMessage,
+} = require('../lib/notification-policy');
 const logger = require('../logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
@@ -14,7 +16,7 @@ const RESET_CODE_EXPIRES_MIN = parseInt(process.env.RESET_CODE_EXPIRES_MIN || '1
 const RESET_MAX_REQUESTS = parseInt(process.env.RESET_MAX_REQUESTS || '3', 10);
 
 const GENERIC_RESET_MESSAGE =
-  'Se o e-mail estiver cadastrado, você receberá um código de recuperação no WhatsApp.';
+  'Se o e-mail estiver cadastrado, você receberá um código de recuperação.';
 
 function ensureJwtSecret() {
   if (!JWT_SECRET) {
@@ -81,18 +83,20 @@ class AuthService {
     return date;
   }
 
-  async requestPasswordReset(email) {
+  async requestPasswordReset(email, { channel = 'both' } = {}) {
     if (!email) {
       throw new Error('E-mail é obrigatório.');
     }
 
+    const selectedChannel = normalizePasswordResetChannel(channel);
     const user = await this.users.findByEmail(email);
 
     if (!user || !user.active) {
       return {
         success: true,
         message: GENERIC_RESET_MESSAGE,
-        channel: null,
+        channels: [],
+        channel: selectedChannel,
       };
     }
 
@@ -104,33 +108,22 @@ class AuthService {
     const code = this._generateResetCode();
     await this.passwordReset.create(user.id, code, this._resetExpiresAt());
 
-    let channel = null;
+    const { channels: delivered } = await authNotifications.deliverPasswordResetCode({
+      user,
+      code,
+      expiresMin: RESET_CODE_EXPIRES_MIN,
+      channel: selectedChannel,
+    });
 
-    if (user.phone) {
-      try {
-        await whatsapp.sendPasswordRecovery(normalizePhone(user.phone), code, { user: user.email });
-        channel = 'whatsapp';
-        logger.info('Código de recuperação enviado via WhatsApp.', { email: user.email });
-      } catch (err) {
-        logger.warn('Falha ao enviar código via WhatsApp.', { email: user.email, err: err.message });
-      }
-    }
-
-    try {
-      await firebase.sendPushToUser(user.id, {
-        title: 'Recuperação de senha — Águia',
-        body: `Seu código: ${code}. Válido por ${RESET_CODE_EXPIRES_MIN} minutos.`,
-        data: { type: 'password_reset' },
-      });
-      if (!channel) channel = 'push';
-    } catch {
-      // Push é opcional — usuário pode não ter dispositivo registrado
-    }
+    const message = delivered.length > 0
+      ? buildPasswordResetMessage(delivered)
+      : GENERIC_RESET_MESSAGE;
 
     return {
       success: true,
-      message: GENERIC_RESET_MESSAGE,
-      channel,
+      message,
+      channels: delivered,
+      channel: selectedChannel,
     };
   }
 
@@ -179,6 +172,10 @@ class AuthService {
 
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
     const tokens = await this._issueTokens(user);
+
+    authNotifications.sendRegistrationWelcome({ user, password }).catch((err) => {
+      logger.warn('Notificação de cadastro não enviada.', { userId: user.id, err: err.message });
+    });
 
     let provisioning = null;
     if (plan_id) {

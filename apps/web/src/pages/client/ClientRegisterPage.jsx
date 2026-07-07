@@ -94,6 +94,7 @@ export default function ClientRegisterPage() {
         )}
 
         <label>Senha<input type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength={6} required /></label>
+        <small className="hint">Você receberá um e-mail com seu login e senha após o cadastro.</small>
 
         {error && <div className="alert error">{error}</div>}
         {message && <div className="alert success">{message}</div>}

@@ -36,9 +36,9 @@ module.exports = {
       text: `💰 Lembrete de mensalidade\nValor: R$ ${valor}\nVencimento: ${vencimento}${link ? `\nPague aqui: ${link}` : ''}`,
     }, meta),
 
-  sendPasswordRecovery: (to, code, meta) =>
+  sendPasswordRecovery: (to, code, meta, expiresMin = 10) =>
     getService().sendText({
       to,
-      text: `Seu código de recuperação Águia: ${code}\nVálido por 10 minutos.`,
+      text: `Seu código de recuperação Águia: ${code}\nVálido por ${expiresMin} minutos.`,
     }, meta),
 };

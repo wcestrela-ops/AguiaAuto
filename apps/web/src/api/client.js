@@ -242,10 +242,10 @@ class ApiClient {
     return this.request('/v1/notificacoes/teste', { method: 'POST' }, { useClient: true });
   }
 
-  requestPasswordReset(email) {
+  requestPasswordReset(email, channel = 'both') {
     return this.request('/v1/auth/recuperar-senha/solicitar', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, channel }),
     });
   }
 

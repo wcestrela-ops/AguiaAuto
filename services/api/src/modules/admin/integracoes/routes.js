@@ -147,6 +147,16 @@ router.post('/:key/test', async (req, res) => {
       return res.json({ success: true, data: result });
     }
 
+    if (key === 'smtp') {
+      const emailService = require('../../../services/email');
+      const result = await emailService.testConnection();
+      return res.json({
+        success: true,
+        message: `Conexão SMTP OK (${result.host}).`,
+        data: result,
+      });
+    }
+
     res.status(400).json({ success: false, error: `Teste automático não disponível para "${key}".` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
         <div className="brand">
           <span className="brand-icon">🔐</span>
           <h1>Nova senha</h1>
-          <p>Digite o código recebido no WhatsApp e sua nova senha.</p>
+          <p>Digite o código recebido por e-mail ou WhatsApp e sua nova senha.</p>
         </div>
 
         <label>

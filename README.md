@@ -221,6 +221,7 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | Instalador | `POST /v1/instalador/instalacoes/:id/finalizar` | ✅ |
 | **Admin — Instaladores** | `GET/POST /v1/admin/instaladores` | ✅ |
 | Contratos | `GET /v1/contratos` | ✅ |
+| Contratos | `GET /v1/contratos/status` | ✅ |
 | Contratos | `POST /v1/contratos/servico/aceitar` | ✅ |
 | Contratos | `POST /v1/contratos/entrega/aceitar` | ✅ |
 | Contratos | `GET /v1/contratos/fotos/:id` | ✅ |
@@ -243,6 +244,7 @@ As credenciais ficam no PostgreSQL (`integration_configs`). API e Gateway leem d
 | `payment_gateways` | Failover entre gateways |
 | `alertas` | Motor GPSWOX → push/WhatsApp |
 | `firebase` | Push notifications |
+| `smtp` | E-mail transacional (cadastro, senha) |
 
 > **WhatsApp** usa módulo dedicado em `/v1/admin/whatsapp` (Evolution, WAHA, Meta Cloud).
 

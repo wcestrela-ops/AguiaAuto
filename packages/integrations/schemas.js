@@ -84,6 +84,19 @@ const INTEGRATIONS = {
       { key: 'private_key', label: 'Service Account Private Key', type: 'password', secret: true, required: true, env: 'FIREBASE_PRIVATE_KEY' },
     ],
   },
+  smtp: {
+    label: 'E-mail (SMTP)',
+    description: 'Cadastro, recuperação de senha e credenciais — configure no painel admin',
+    fields: [
+      { key: 'host', label: 'Servidor SMTP', type: 'text', required: true, env: 'SMTP_HOST' },
+      { key: 'port', label: 'Porta', type: 'number', default: 587, env: 'SMTP_PORT' },
+      { key: 'secure', label: 'TLS direto (porta 465)', type: 'boolean', default: false, env: 'SMTP_SECURE' },
+      { key: 'user', label: 'Usuário SMTP', type: 'text', env: 'SMTP_USER' },
+      { key: 'pass', label: 'Senha SMTP', type: 'password', secret: true, env: 'SMTP_PASS' },
+      { key: 'from', label: 'Remetente (From)', type: 'text', required: true, env: 'SMTP_FROM' },
+      { key: 'from_name', label: 'Nome do remetente', type: 'text', default: 'Águia Gestão Veicular', env: 'SMTP_FROM_NAME' },
+    ],
+  },
 };
 
 function getSchema(key) {

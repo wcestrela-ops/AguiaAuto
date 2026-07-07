@@ -196,13 +196,24 @@ class InstallerService {
     const existing = await this.users.findByEmail(email);
     if (existing) throw new Error('Email já cadastrado.');
 
-    return this.users.create({
+    const user = await this.users.create({
       email,
       password,
       name,
       phone,
       role: 'installer',
     });
+
+    const authNotifications = require('./auth-notifications');
+    authNotifications.sendAccountCredentials({
+      user,
+      password,
+      roleLabel: 'instalador',
+    }).catch((err) => {
+      logger.warn('Credenciais do instalador não enviadas.', { email, err: err.message });
+    });
+
+    return user;
   }
 
   async listInstallers() {
