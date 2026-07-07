@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 
 function formatMoney(value) {
@@ -7,10 +7,16 @@ function formatMoney(value) {
 }
 
 export default function ClientRegisterPage() {
+  const [searchParams] = useSearchParams();
+  const refFromUrl = (searchParams.get('ref') || '').trim().toUpperCase();
+
   const [form, setForm] = useState({
     name: '', email: '', phone: '', cpf_cnpj: '', password: '', plan_id: '', billing_type: 'UNDEFINED',
+    referral_code: refFromUrl,
   });
   const [plans, setPlans] = useState([]);
+  const [referralInfo, setReferralInfo] = useState(null);
+  const [referralError, setReferralError] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +34,21 @@ export default function ClientRegisterPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!refFromUrl) return;
+
+    api.validateReferralCode(refFromUrl)
+      .then((res) => {
+        if (res.data?.valido) {
+          setReferralInfo(res.data);
+          setReferralError('');
+        } else {
+          setReferralError(res.data?.motivo || 'Código de indicação inválido.');
+        }
+      })
+      .catch((err) => setReferralError(err.message));
+  }, [refFromUrl]);
+
   function update(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -42,6 +63,7 @@ export default function ClientRegisterPage() {
       const payload = {
         ...form,
         plan_id: form.plan_id ? Number(form.plan_id) : undefined,
+        referral_code: form.referral_code?.trim() || undefined,
       };
       const res = await api.register(payload);
 
@@ -73,10 +95,30 @@ export default function ClientRegisterPage() {
           <p>Águia Gestão Veicular</p>
         </div>
 
+        {referralInfo?.valido && (
+          <div className="alert success">
+            Você foi indicado por <strong>{referralInfo.indicador}</strong>.
+            Código <code>{referralInfo.codigo}</code> aplicado automaticamente.
+          </div>
+        )}
+        {referralError && <div className="alert warning">{referralError}</div>}
+
         <label>Nome<input value={form.name} onChange={(e) => update('name', e.target.value)} required /></label>
         <label>E-mail<input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} required /></label>
         <label>Telefone<input value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label>
         <label>CPF/CNPJ<input value={form.cpf_cnpj} onChange={(e) => update('cpf_cnpj', e.target.value)} required /></label>
+
+        <label>
+          Código de indicação (opcional)
+          <input
+            value={form.referral_code}
+            onChange={(e) => update('referral_code', e.target.value.toUpperCase())}
+            placeholder="Ex.: AG3K9X2M"
+            maxLength={12}
+            readOnly={Boolean(refFromUrl && referralInfo?.valido)}
+          />
+          <small className="hint">Quem te indicou ganha 50% de desconto na mensalidade do mês.</small>
+        </label>
 
         {plans.length > 0 && (
           <label>

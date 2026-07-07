@@ -148,6 +148,18 @@ async function getPayment(paymentId) {
   return formatPayment(payment);
 }
 
+async function updatePayment(paymentId, { value, description }) {
+  const body = {};
+  if (value != null) body.value = Number(value);
+  if (description) body.description = description;
+
+  const payment = await request(`/payments/${paymentId}`, {
+    method: 'PUT',
+    body,
+  });
+  return formatPayment(payment);
+}
+
 async function handleWebhook(payload) {
   const event = payload?.event;
   const payment = payload?.payment;
@@ -171,6 +183,7 @@ module.exports = {
   createSubscription,
   getSubscriptionPayments,
   getPayment,
+  updatePayment,
   handleWebhook,
   formatPayment,
   mapPaymentStatus,

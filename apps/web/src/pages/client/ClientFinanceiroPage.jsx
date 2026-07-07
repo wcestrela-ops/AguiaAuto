@@ -175,7 +175,18 @@ export default function ClientFinanceiroPage() {
                 {faturas.map((fatura) => (
                   <tr key={fatura.id}>
                     <td>{fatura.description || 'Mensalidade'}</td>
-                    <td>{formatMoney(fatura.amount)}</td>
+                    <td>
+                      {fatura.discount_percent ? (
+                        <>
+                          <span>{formatMoney(fatura.amount)}</span>
+                          <small className="muted" style={{ display: 'block' }}>
+                            {fatura.discount_percent}% off (era {formatMoney(fatura.original_amount)})
+                          </small>
+                        </>
+                      ) : (
+                        formatMoney(fatura.amount)
+                      )}
+                    </td>
                     <td>{formatDate(fatura.due_date)}</td>
                   <td>
                     <span className={`badge ${STATUS_BADGE[fatura.status] || 'info'}`}>

@@ -9,10 +9,14 @@ const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
 
 function formatInvoice(invoice) {
+  const amount = Number(invoice.amount);
+  const originalAmount = invoice.original_amount != null ? Number(invoice.original_amount) : null;
   return {
     id: invoice.id,
     description: invoice.description,
-    amount: Number(invoice.amount),
+    amount,
+    original_amount: originalAmount,
+    discount_percent: invoice.discount_percent || null,
     due_date: invoice.due_date,
     status: invoice.status,
     billing_type: invoice.billing_type,

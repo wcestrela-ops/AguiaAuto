@@ -18,6 +18,7 @@ const { migrateAlerts } = require('./db/migrate-alerts');
 const { migrateInstalador } = require('./db/migrate-instalador');
 const { migrateContratos } = require('./db/migrate-contratos');
 const { migrateAncora } = require('./db/migrate-ancora');
+const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { startAnchorPoller } = require('./services/anchor-service');
 
 const authRoutes = require('./modules/auth/routes');
@@ -29,6 +30,7 @@ const emergenciaRoutes = require('./modules/emergencia/routes');
 const perfilRoutes = require('./modules/perfil/routes');
 const notificacoesRoutes = require('./modules/notificacoes/routes');
 const indicacoesRoutes = require('./modules/indicacoes/routes');
+const indicacoesPublicRoutes = require('./modules/indicacoes/public-routes');
 const contratosRoutes = require('./modules/contratos/routes');
 const instaladorRoutes = require('./modules/instalador/routes');
 const webhooksRoutes = require('./modules/webhooks/routes');
@@ -67,6 +69,9 @@ app.get('/health', (req, res) => {
 
 // Planos públicos (cadastro)
 app.use('/v1/plans', plansRoutes);
+
+// Indicações — validação pública do código (cadastro)
+app.use('/v1/indicacoes', indicacoesPublicRoutes);
 
 // Auth público
 app.use('/v1/auth', authRoutes);
@@ -145,6 +150,9 @@ async function bootstrap() {
 
     await migrateAncora();
     logger.info('Âncora veicular (monitoramento + bloqueio) inicializada.');
+
+    await migrateIndicacoes();
+    logger.info('Indique e Ganhe (indicações + desconto) inicializado.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

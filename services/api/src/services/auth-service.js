@@ -157,7 +157,7 @@ class AuthService {
     };
   }
 
-  async register({ email, password, name, phone, cpf_cnpj, plan_id, billing_type }) {
+  async register({ email, password, name, phone, cpf_cnpj, plan_id, billing_type, referral_code }) {
     if (!email || !password) {
       throw new Error('Email e senha são obrigatórios.');
     }
@@ -170,12 +170,33 @@ class AuthService {
       throw new Error('Email já cadastrado.');
     }
 
+    if (referral_code) {
+      const { getReferralService } = require('./referral-service');
+      const validation = await getReferralService().validateCode(referral_code);
+      if (!validation.valido) {
+        throw new Error(validation.motivo || 'Código de indicação inválido.');
+      }
+    }
+
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
     const tokens = await this._issueTokens(user);
 
     authNotifications.sendRegistrationWelcome({ user, password }).catch((err) => {
       logger.warn('Notificação de cadastro não enviada.', { userId: user.id, err: err.message });
     });
+
+    let referral = null;
+    if (referral_code) {
+      const { getReferralService } = require('./referral-service');
+      try {
+        referral = await getReferralService().processReferralOnRegister({
+          referredUserId: user.id,
+          referralCode: referral_code,
+        });
+      } catch (err) {
+        logger.warn('Falha ao processar indicação no cadastro.', { userId: user.id, err: err.message });
+      }
+    }
 
     let provisioning = null;
     if (plan_id) {
@@ -193,7 +214,14 @@ class AuthService {
       await this.users.updateProvisioning(user.id, { provisioning_status: 'pending' });
     }
 
-    return { ...tokens, provisioning };
+    if (referral?.referrer_user_id) {
+      const { getReferralService } = require('./referral-service');
+      getReferralService().retryPendingDiscounts(referral.referrer_user_id).catch((err) => {
+        logger.warn('Retry desconto indicação após provisionamento.', { err: err.message });
+      });
+    }
+
+    return { ...tokens, provisioning, referral: referral ? { processed: true } : null };
   }
 
   async login({ email, password }) {

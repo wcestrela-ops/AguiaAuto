@@ -4,6 +4,8 @@ import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export default function ClientProfilePage() {
   const [profile, setProfile] = useState({ name: '', phone: '', email: '' });
+  const [referral, setReferral] = useState(null);
+  const [referralLoading, setReferralLoading] = useState(true);
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -13,6 +15,11 @@ export default function ClientProfilePage() {
     api.getPerfil()
       .then((res) => setProfile(res.data))
       .catch((err) => setError(err.message));
+
+    api.getReferralSummary()
+      .then((res) => setReferral(res.data))
+      .catch((err) => setError(err.message))
+      .finally(() => setReferralLoading(false));
   }, []);
 
   async function saveProfile(e) {
@@ -75,12 +82,74 @@ export default function ClientProfilePage() {
     }
   }
 
+  async function copyReferralLink() {
+    if (!referral?.link) return;
+    try {
+      await navigator.clipboard.writeText(referral.link);
+      setMessage('Link de indicação copiado!');
+    } catch (err) {
+      setError('Não foi possível copiar o link.');
+    }
+  }
+
   return (
     <div>
       <header className="page-header">
         <h1>Meu Perfil</h1>
-        <p>Gerencie seus dados, senha e notificações.</p>
+        <p>Gerencie seus dados, indicações, senha e notificações.</p>
       </header>
+
+      <div className="form-card">
+        <h3>🎁 Indique e Ganhe</h3>
+        <p className="muted" style={{ marginBottom: '1rem' }}>
+          Compartilhe seu link. Quando alguém se cadastrar com seu código, você ganha
+          {' '}<strong>{referral?.desconto_percentual || 50}% de desconto</strong> na próxima mensalidade pendente.
+        </p>
+
+        {referralLoading ? (
+          <p className="muted">Carregando seu código...</p>
+        ) : referral ? (
+          <>
+            <div className="share-link-box" style={{ marginBottom: '1rem' }}>
+              <input type="text" readOnly value={referral.link || ''} />
+              <button type="button" className="btn-secondary btn-sm" onClick={copyReferralLink}>
+                Copiar link
+              </button>
+            </div>
+
+            <p>
+              <strong>Seu código:</strong>{' '}
+              <code>{referral.codigo}</code>
+            </p>
+
+            <div className="card-meta" style={{ marginTop: '0.75rem' }}>
+              <span className="badge info">
+                {referral.estatisticas?.total_indicacoes || 0} indicações
+              </span>
+              <span className="badge success" style={{ marginLeft: '0.5rem' }}>
+                {referral.estatisticas?.descontos_aplicados || 0} descontos aplicados
+              </span>
+            </div>
+
+            {referral.indicacoes?.length > 0 && (
+              <ul className="device-list" style={{ marginTop: '1rem' }}>
+                {referral.indicacoes.map((item) => (
+                  <li key={item.id}>
+                    {item.referred_name || item.referred_email || 'Novo cliente'}
+                    <small>
+                      {new Date(item.created_at).toLocaleDateString('pt-BR')}
+                      {' · '}
+                      {item.discount_applied ? 'Desconto aplicado' : 'Aguardando mensalidade'}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="muted">Não foi possível carregar o programa de indicações.</p>
+        )}
+      </div>
 
       <div className="form-card">
         <h3>🔔 Notificações Push</h3>

@@ -128,6 +128,56 @@ class InvoiceRepository {
     return rows[0] || null;
   }
 
+  async findNextPendingMonthly(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM invoices
+       WHERE user_id = $1
+         AND status = 'pending'
+         AND is_initial_charge = false
+         AND (referral_id IS NULL OR discount_percent IS NULL)
+       ORDER BY due_date ASC NULLS LAST, created_at ASC
+       LIMIT 1`,
+      [userId]
+    );
+    return rows[0] || null;
+  }
+
+  async applyReferralDiscount(invoiceId, {
+    amount,
+    original_amount,
+    discount_percent,
+    referral_id,
+    payment,
+  }) {
+    const { rows } = await this.pool.query(
+      `UPDATE invoices SET
+        original_amount = COALESCE($2, original_amount),
+        discount_percent = COALESCE($3, discount_percent),
+        referral_id = COALESCE($4, referral_id),
+        amount = COALESCE($5, amount),
+        description = COALESCE($6, description),
+        invoice_url = COALESCE($7, invoice_url),
+        bank_slip_url = COALESCE($8, bank_slip_url),
+        pix_qrcode = COALESCE($9, pix_qrcode),
+        pix_copy_paste = COALESCE($10, pix_copy_paste),
+        updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [
+        invoiceId,
+        original_amount,
+        discount_percent,
+        referral_id,
+        amount,
+        payment?.description || null,
+        payment?.invoice_url || null,
+        payment?.bank_slip_url || null,
+        payment?.pix_qrcode || null,
+        payment?.pix_copy_paste || null,
+      ]
+    );
+    return rows[0];
+  }
+
   async countOverdueByUser(userId) {
     const { rows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM invoices

@@ -237,6 +237,14 @@ class ApiClient {
     return this.request(`/v1/veiculos/${id}/ancora`, { method: 'DELETE' }, { useClient: true });
   }
 
+  getReferralSummary() {
+    return this.request('/v1/indicacoes/resumo', {}, { useClient: true });
+  }
+
+  validateReferralCode(code) {
+    return this.request(`/v1/indicacoes/validar/${encodeURIComponent(code)}`);
+  }
+
   getPerfil() {
     return this.request('/v1/perfil', {}, { useClient: true });
   }
