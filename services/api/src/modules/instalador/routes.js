@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getInstallerService } = require('../../services/installer-service');
+const { installationPhotosUpload } = require('../../lib/upload');
 
 const router = Router();
 
@@ -40,18 +41,27 @@ router.get('/instalacoes/:id', async (req, res) => {
   }
 });
 
-router.post('/instalacoes/:id/finalizar', async (req, res) => {
-  try {
-    const data = await getInstallerService().finalizeInstallation(
-      req.user.id,
-      req.params.id,
-      req.body
-    );
-    res.json({ success: true, data, message: 'Instalação finalizada. Veículo ativo.' });
-  } catch (err) {
-    const status = err.message.includes('não encontrad') ? 404 : 400;
-    res.status(status).json({ success: false, error: err.message });
+router.post(
+  '/instalacoes/:id/finalizar',
+  installationPhotosUpload.array('photos', 3),
+  async (req, res) => {
+    try {
+      const data = await getInstallerService().finalizeInstallation(
+        req.user.id,
+        req.params.id,
+        req.body,
+        req.files || []
+      );
+      res.json({
+        success: true,
+        data,
+        message: 'Instalação finalizada. Relatório enviado ao cliente para aceite.',
+      });
+    } catch (err) {
+      const status = err.message.includes('não encontrad') ? 404 : 400;
+      res.status(status).json({ success: false, error: err.message });
+    }
   }
-});
+);
 
 module.exports = router;

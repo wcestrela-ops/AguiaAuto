@@ -409,6 +409,101 @@ td.actions { white-space: nowrap; }
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
 }
 
+.installer-report-form {
+  max-width: 720px;
+}
+
+.photo-upload-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.photo-thumb,
+.installation-photo,
+.photo-placeholder {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.photo-thumb {
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-thumb img,
+.installation-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-thumb .btn-ghost {
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+}
+
+.photo-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.contract-body {
+  font-size: 0.9375rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.contract-body h2 {
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+}
+
+.contract-body ol {
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.contract-service-card,
+.contract-delivery-card {
+  margin-bottom: 1.5rem;
+}
+
+.report-box {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.report-box h4 {
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.acceptance-check {
+  margin: 1rem 0;
+  align-items: flex-start;
+}
+
+.accepted-at {
+  margin-top: 0.75rem;
+}
+
 .dashboard-section { margin-top: 1.5rem; }
 
 .section-header {

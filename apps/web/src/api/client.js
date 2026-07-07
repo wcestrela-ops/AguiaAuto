@@ -418,11 +418,17 @@ class ApiClient {
     return this.request(`/v1/instalador/instalacoes/${id}`, {}, { useClient: true });
   }
 
-  finalizeInstallation(id, data) {
-    return this.request(`/v1/instalador/instalacoes/${id}/finalizar`, {
+  finalizeInstallation(id, formData) {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    return fetch(`${BASE}/v1/instalador/instalacoes/${id}/finalizar`, {
       method: 'POST',
-      body: JSON.stringify(data),
-    }, { useClient: true });
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (response) => {
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
+      return data;
+    });
   }
 
   getAdminInstallers() {
@@ -434,6 +440,33 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     }, { useAdmin: true });
+  }
+
+  getContratos() {
+    return this.request('/v1/contratos', {}, { useClient: true });
+  }
+
+  acceptServiceContract() {
+    return this.request('/v1/contratos/servico/aceitar', { method: 'POST' }, { useClient: true });
+  }
+
+  acceptInstallationDelivery(installationLogId) {
+    return this.request('/v1/contratos/entrega/aceitar', {
+      method: 'POST',
+      body: JSON.stringify({ installation_log_id: installationLogId }),
+    }, { useClient: true });
+  }
+
+  async getContractPhotoBlob(photoId) {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}/v1/contratos/fotos/${photoId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    return response.blob();
   }
 }
 

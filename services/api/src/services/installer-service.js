@@ -1,10 +1,12 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const { getInstallationRepository } = require('../repositories/installation-repository');
+const { getInstallationPhotoRepository } = require('../repositories/installation-photo-repository');
 const { getUserRepository } = require('../repositories/user-repository');
 const { formatVehicle } = require('./vehicle-service');
 const gpswox = require('../integrations/gpswox-gateway');
 const firebase = require('./firebase');
 const logger = require('../logger');
+const { movePhotosToInstallation, MAX_PHOTOS } = require('../lib/upload');
 
 function formatPendingJob(row) {
   return {
@@ -29,10 +31,18 @@ function formatPendingJob(row) {
   };
 }
 
+function parseDurationMinutes(value) {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 1) return null;
+  if (parsed > 24 * 60) throw new Error('Duração inválida (máximo 24 horas).');
+  return parsed;
+}
+
 class InstallerService {
   constructor() {
     this.vehicles = getVehicleRepository();
     this.installations = getInstallationRepository();
+    this.photos = getInstallationPhotoRepository();
     this.users = getUserRepository();
   }
 
@@ -51,6 +61,7 @@ class InstallerService {
         plate: row.plate,
         client_name: row.client_name,
         gpswox_device_id: row.gpswox_device_id,
+        duration_minutes: row.duration_minutes,
         created_at: row.created_at,
       })),
     };
@@ -77,11 +88,32 @@ class InstallerService {
     };
   }
 
-  async finalizeInstallation(installerId, vehicleId, data) {
-    const { gpswox_device_id, gpswox_name, imei, notes, create_in_gpswox } = data;
+  async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = []) {
+    const {
+      gpswox_device_id,
+      gpswox_name,
+      imei,
+      notes,
+      report,
+      duration_minutes,
+      create_in_gpswox,
+    } = data;
 
     if (!gpswox_device_id) {
       throw new Error('gpswox_device_id é obrigatório para finalizar.');
+    }
+
+    if (!report || !String(report).trim()) {
+      throw new Error('Relatório da instalação é obrigatório.');
+    }
+
+    const duration = parseDurationMinutes(duration_minutes);
+    if (!duration) {
+      throw new Error('Informe a duração da instalação em minutos.');
+    }
+
+    if (uploadedFiles.length > MAX_PHOTOS) {
+      throw new Error(`Máximo de ${MAX_PHOTOS} fotos por instalação.`);
     }
 
     const vehicle = await this.vehicles.findById(vehicleId);
@@ -92,8 +124,10 @@ class InstallerService {
     }
 
     const deviceName = gpswox_name || vehicle.plate;
+    const finishedAt = new Date();
+    const startedAt = new Date(finishedAt.getTime() - duration * 60 * 1000);
 
-    if (create_in_gpswox) {
+    if (create_in_gpswox === true || create_in_gpswox === 'true') {
       try {
         await gpswox.createVeiculo({
           device_id: gpswox_device_id,
@@ -118,13 +152,27 @@ class InstallerService {
       gpswox_device_id,
       imei: imei || null,
       notes: notes || null,
+      report: String(report).trim(),
+      duration_minutes: duration,
+      started_at: startedAt,
+      finished_at: finishedAt,
     });
+
+    let savedPhotos = [];
+    if (uploadedFiles.length > 0) {
+      const moved = movePhotosToInstallation(uploadedFiles, log.id);
+      savedPhotos = await this.photos.createMany(log.id, moved);
+    }
 
     try {
       await firebase.sendPushToUser(vehicle.user_id, {
-        title: 'Rastreador instalado — Águia',
-        body: `Seu veículo ${vehicle.plate} está ativo. Acompanhe pelo app.`,
-        data: { type: 'installation_complete', vehicle_id: String(vehicleId) },
+        title: 'Instalação concluída — confirme no app',
+        body: `Relatório de instalação do veículo ${vehicle.plate} disponível em Contratos.`,
+        data: {
+          type: 'installation_report',
+          vehicle_id: String(vehicleId),
+          installation_log_id: String(log.id),
+        },
       });
     } catch (err) {
       logger.warn('Push pós-instalação não enviado.', { userId: vehicle.user_id, err: err.message });
@@ -132,7 +180,10 @@ class InstallerService {
 
     return {
       vehicle: formatVehicle(updated),
-      installation: log,
+      installation: {
+        ...log,
+        photos: savedPhotos,
+      },
     };
   }
 

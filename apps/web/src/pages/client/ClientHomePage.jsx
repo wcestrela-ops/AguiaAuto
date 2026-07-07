@@ -40,6 +40,15 @@ export default function ClientHomePage() {
                   : ''}
               </p>
             </Link>
+            <Link to="/app/contratos" className="card card-link">
+              <span className="card-icon">📄</span>
+              <h3>Contratos</h3>
+              <p>
+                {dashboard.contratos_pendentes > 0
+                  ? `${dashboard.contratos_pendentes} pendente(s) de aceite`
+                  : 'Contrato e termos de entrega'}
+              </p>
+            </Link>
             <Link to="/app/alertas" className="card card-link">
               <span className="card-icon">🔔</span>
               <h3>Alertas</h3>

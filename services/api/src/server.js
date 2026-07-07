@@ -15,6 +15,7 @@ const { migrateFinanceiro } = require('./db/migrate-financeiro');
 const { migratePaymentGateways } = require('./db/migrate-payment-gateways');
 const { migrateAlerts } = require('./db/migrate-alerts');
 const { migrateInstalador } = require('./db/migrate-instalador');
+const { migrateContratos } = require('./db/migrate-contratos');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -25,6 +26,7 @@ const emergenciaRoutes = require('./modules/emergencia/routes');
 const perfilRoutes = require('./modules/perfil/routes');
 const notificacoesRoutes = require('./modules/notificacoes/routes');
 const indicacoesRoutes = require('./modules/indicacoes/routes');
+const contratosRoutes = require('./modules/contratos/routes');
 const instaladorRoutes = require('./modules/instalador/routes');
 const webhooksRoutes = require('./modules/webhooks/routes');
 const onboardingRoutes = require('./modules/onboarding/routes');
@@ -84,6 +86,7 @@ app.use('/v1/emergencia', jwtAuth, emergenciaRoutes);
 app.use('/v1/perfil', jwtAuth, perfilRoutes);
 app.use('/v1/notificacoes', jwtAuth, notificacoesRoutes);
 app.use('/v1/indicacoes', jwtAuth, indicacoesRoutes);
+app.use('/v1/contratos', jwtAuth, contratosRoutes);
 
 // Área do instalador — JWT + role
 app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
@@ -132,6 +135,9 @@ async function bootstrap() {
 
     await migrateInstalador();
     logger.info('Área do instalador (installation_logs) inicializada.');
+
+    await migrateContratos();
+    logger.info('Contratos e termos de entrega inicializados.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

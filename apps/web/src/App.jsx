@@ -18,6 +18,7 @@ import ClientVehiclesPage from './pages/client/ClientVehiclesPage';
 import ClientVehicleDetailPage from './pages/client/ClientVehicleDetailPage';
 import ClientFinanceiroPage from './pages/client/ClientFinanceiroPage';
 import ClientAlertsPage from './pages/client/ClientAlertsPage';
+import ClientContratosPage from './pages/client/ClientContratosPage';
 import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
 import ResetPasswordPage from './pages/client/ResetPasswordPage';
 import InstallerLayout from './pages/instalador/InstallerLayout';
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="veiculos/:id" element={<ClientVehicleDetailPage />} />
         <Route path="financeiro" element={<ClientFinanceiroPage />} />
         <Route path="alertas" element={<ClientAlertsPage />} />
+        <Route path="contratos" element={<ClientContratosPage />} />
         <Route path="perfil" element={<ClientProfilePage />} />
       </Route>
 

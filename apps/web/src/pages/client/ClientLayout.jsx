@@ -5,6 +5,7 @@ const NAV = [
   { to: '/app', label: 'Início', end: true },
   { to: '/app/veiculos', label: 'Meus Veículos' },
   { to: '/app/financeiro', label: 'Financeiro' },
+  { to: '/app/contratos', label: 'Contratos' },
   { to: '/app/alertas', label: 'Alertas' },
   { to: '/app/perfil', label: 'Meu Perfil' },
 ];

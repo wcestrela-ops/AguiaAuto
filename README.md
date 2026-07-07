@@ -220,6 +220,10 @@ Fluxo: `/recuperar-senha` → código no WhatsApp → `/recuperar-senha/confirma
 | Instalador | `GET /v1/instalador/agendamentos` | ✅ |
 | Instalador | `POST /v1/instalador/instalacoes/:id/finalizar` | ✅ |
 | **Admin — Instaladores** | `GET/POST /v1/admin/instaladores` | ✅ |
+| Contratos | `GET /v1/contratos` | ✅ |
+| Contratos | `POST /v1/contratos/servico/aceitar` | ✅ |
+| Contratos | `POST /v1/contratos/entrega/aceitar` | ✅ |
+| Contratos | `GET /v1/contratos/fotos/:id` | ✅ |
 
 ## Painel Admin — Configuração de APIs
 
@@ -390,9 +394,16 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 
 ### Fase 5 — Instalador ✅ (atual)
 - PWA `/instalador` — painel, agendamentos, histórico e finalização
+- Relatório de instalação com até **3 fotos**, duração e descrição do técnico
 - Vincula `gpswox_device_id`, ativa veículo e notifica cliente via push
 - Admin: `/admin/instaladores` — criar contas com role `installer`
-- Tabela `installation_logs` para auditoria
+- Tabela `installation_logs` + `installation_photos` para auditoria
+
+### Fase 5b — Contratos e Aceite ✅ (atual)
+- PWA `/app/contratos` — contrato de serviço + termos de entrega por veículo
+- Cliente aceita que o veículo saiu com rastreador em funcionamento normal
+- Aceite registrado em `contract_acceptances` com IP e data
+- Fotos servidas com autenticação JWT
 
 ### Fase 6 — Extras
 - Indique e Ganhe
@@ -415,7 +426,25 @@ Rotas JWT (`role: installer` ou `admin`):
 | GET | `/v1/instalador/agendamentos` | Veículos pendentes |
 | GET | `/v1/instalador/historico` | Histórico do instalador logado |
 | GET | `/v1/instalador/instalacoes/:id` | Detalhe do agendamento |
-| POST | `/v1/instalador/instalacoes/:id/finalizar` | Ativa rastreador |
+| POST | `/v1/instalador/instalacoes/:id/finalizar` | Ativa rastreador + relatório (multipart, máx. 3 fotos) |
+
+## Contratos e Termo de Entrega
+
+O cliente acessa `/app/contratos` para:
+
+1. **Contrato de Prestação de Serviços** — aceite único ao utilizar a plataforma
+2. **Termo de Entrega** — após cada instalação, com relatório do técnico, fotos e duração
+
+Ao aceitar o termo de entrega, o cliente declara que verificou o relatório e concorda que o veículo (carro ou moto) deixou a instalação com o rastreador em **funcionamento normal**.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/v1/contratos` | Contrato + entregas pendentes/aceitas |
+| POST | `/v1/contratos/servico/aceitar` | Aceitar contrato de serviço |
+| POST | `/v1/contratos/entrega/aceitar` | Aceitar termo de entrega (`installation_log_id`) |
+| GET | `/v1/contratos/fotos/:id` | Foto do relatório (JWT) |
+
+Fotos ficam em `services/api/uploads/` (configurável via `UPLOAD_DIR`).
 
 ## Filosofia
 
