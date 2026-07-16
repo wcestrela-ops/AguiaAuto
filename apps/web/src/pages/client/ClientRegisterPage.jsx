@@ -106,7 +106,7 @@ export default function ClientRegisterPage() {
         referral_code: form.referral_code?.trim() || undefined,
         accept_terms: true,
         vehicle: {
-          plate: form.plate.trim(),
+          plate: form.plate.trim() || undefined,
           brand: form.brand.trim() || undefined,
           model: form.model.trim() || undefined,
         },
@@ -189,12 +189,11 @@ export default function ClientRegisterPage() {
         <fieldset className="register-fieldset">
           <legend>Seu veículo</legend>
           <label>
-            Placa
+            Placa (opcional)
             <input
               value={form.plate}
               onChange={(e) => update('plate', e.target.value.toUpperCase())}
-              required
-              placeholder="ABC1D23"
+              placeholder="ABC1D23 — deixe em branco se ainda não emplacou"
               maxLength={8}
             />
           </label>
@@ -208,7 +207,7 @@ export default function ClientRegisterPage() {
               <input value={form.model} onChange={(e) => update('model', e.target.value)} placeholder="Ex.: Argo" />
             </label>
           </div>
-          <small className="hint">O veículo ficará aguardando instalação do rastreador. Você receberá push quando o técnico finalizar.</small>
+          <small className="hint">Veículos novos podem ser cadastrados sem placa. O veículo ficará aguardando instalação do rastreador. Você receberá push quando o técnico finalizar.</small>
         </fieldset>
 
         <label className="checkbox-row">

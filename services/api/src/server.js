@@ -32,6 +32,7 @@ const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
 const { migrateFleetReminders } = require('./db/migrate-fleet-reminders');
 const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
+const { migrateVehiclePlateOptional } = require('./db/migrate-vehicle-plate-optional');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
@@ -205,6 +206,9 @@ async function bootstrap() {
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
+
+    await migrateVehiclePlateOptional();
+    logger.info('Veículos — placa opcional (veículos novos sem emplacamento) inicializado.');
 
     await migrateTrackerLibrary();
     logger.info('Biblioteca de modelos e comandos SMS de rastreadores inicializada.');

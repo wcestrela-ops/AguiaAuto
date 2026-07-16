@@ -23,7 +23,8 @@ const ONBOARDING_STEPS = [
 ];
 
 function normalizePlate(plate) {
-  return String(plate || '').trim().toUpperCase();
+  const normalized = String(plate || '').trim().toUpperCase();
+  return normalized || null;
 }
 
 function stepResult(step, status, extra = {}) {
@@ -47,7 +48,6 @@ class OnboardingService {
         'cpf_cnpj',
         'phone',
         'plan_id',
-        'vehicle.plate',
         'accept_terms',
       ],
     };
@@ -71,8 +71,9 @@ class OnboardingService {
     if (!password || password.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.');
     if (!phoneRaw) throw new Error('Telefone é obrigatório para contato e WhatsApp.');
     if (!planId) throw new Error('Selecione um plano para continuar.');
-    if (!normalizePlate(vehicleInput.plate)) throw new Error('Placa do veículo é obrigatória.');
     if (!acceptTerms) throw new Error('Aceite o Contrato de Prestação de Serviços para continuar.');
+
+    const plate = normalizePlate(vehicleInput.plate);
 
     const cpfCheck = validateCpfCnpj(payload.cpf_cnpj);
     if (!cpfCheck.valid) throw new Error(cpfCheck.error);
@@ -84,7 +85,7 @@ class OnboardingService {
     const [existingEmail, existingCpf, existingPlate, plan] = await Promise.all([
       this.users.findByEmail(email),
       this.users.findByCpfCnpj(cpfCheck.normalized),
-      this.vehicles.findByPlate(vehicleInput.plate),
+      plate ? this.vehicles.findByPlate(plate) : Promise.resolve(null),
       this.plans.findById(planId),
     ]);
 
@@ -140,7 +141,7 @@ class OnboardingService {
 
     const vehicle = await this.vehicles.create({
       user_id: user.id,
-      plate: normalizePlate(vehicleInput.plate),
+      plate,
       brand: vehicleInput.brand?.trim() || null,
       model: vehicleInput.model?.trim() || null,
       color: vehicleInput.color?.trim() || null,

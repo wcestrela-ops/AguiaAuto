@@ -383,7 +383,7 @@ export const ADMIN_GUIDES = {
       },
       {
         title: '2. Dados do veículo',
-        body: 'Placa obrigatória. Marca, modelo, cor e ano são opcionais para identificação no app.',
+        body: 'Placa opcional (veículos novos podem estar sem emplacamento). Marca, modelo, cor e ano ajudam na identificação no app.',
       },
       {
         title: '3. GPSWOX',

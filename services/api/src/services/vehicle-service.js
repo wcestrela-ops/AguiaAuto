@@ -39,7 +39,7 @@ function formatVehicle(v) {
     tracker_model_id: v.tracker_model_id || null,
     tracker_imei: v.tracker_imei || null,
     gpswox_synced_at: v.gpswox_synced_at || null,
-    label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate,
+    label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate || 'Sem placa',
     created_at: v.created_at,
     updated_at: v.updated_at,
   };
@@ -330,10 +330,15 @@ class VehicleService {
   }
 
   async create(data) {
-    if (!data.user_id || !data.plate) {
-      throw new Error('user_id e plate são obrigatórios.');
+    if (!data.user_id) {
+      throw new Error('user_id é obrigatório.');
     }
-    const vehicle = await this.repo.create(data);
+    const plate = data.plate ? String(data.plate).trim().toUpperCase() : null;
+    if (plate) {
+      const existing = await this.repo.findByPlate(plate);
+      if (existing) throw new Error('Placa já cadastrada em outro veículo.');
+    }
+    const vehicle = await this.repo.create({ ...data, plate });
     return formatVehicle(vehicle);
   }
 

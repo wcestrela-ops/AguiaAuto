@@ -5,6 +5,7 @@ import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpG
 import { isValidImei, isValidTrackerPhone, normalizeImei } from '../../utils/imei';
 
 const EMPTY_FORM = {
+  plate: '',
   gpswox_device_id: '',
   gpswox_name: '',
   imei: '',
@@ -54,7 +55,8 @@ export default function InstallerJobPage() {
         const vehicle = data?.vehicle || {};
         setForm((prev) => ({
           ...prev,
-          gpswox_name: data?.plate || '',
+          plate: data?.plate || '',
+          gpswox_name: data?.plate || [data?.brand, data?.model].filter(Boolean).join(' ') || '',
           gpswox_device_id: vehicle.gpswox_device_id || data?.gpswox_device_id || '',
           imei: vehicle.tracker_imei || '',
           tracker_phone: vehicle.tracker_phone || '',
@@ -130,6 +132,7 @@ export default function InstallerJobPage() {
       const formData = new FormData();
       formData.append('gpswox_device_id', form.gpswox_device_id.trim());
       if (form.gpswox_name.trim()) formData.append('gpswox_name', form.gpswox_name.trim());
+      if (form.plate.trim()) formData.append('plate', form.plate.trim());
       formData.append('imei', normalizeImei(form.imei));
       formData.append('tracker_phone', form.tracker_phone.trim());
       formData.append('tracker_model_id', form.tracker_model_id);
@@ -170,7 +173,7 @@ export default function InstallerJobPage() {
         <section className="card">
           <h3>Veículo</h3>
           <dl className="detail-list">
-            <div><dt>Placa</dt><dd>{job.plate}</dd></div>
+            <div><dt>Placa</dt><dd>{job.plate || 'Sem placa'}</dd></div>
             <div><dt>Marca / Modelo</dt><dd>{[job.brand, job.model].filter(Boolean).join(' ') || '—'}</dd></div>
             <div><dt>Cor</dt><dd>{job.color || '—'}</dd></div>
             <div><dt>Ano</dt><dd>{job.year || '—'}</dd></div>
@@ -211,6 +214,20 @@ export default function InstallerJobPage() {
 
         <h3>Dados do rastreador</h3>
 
+        {!job.plate && (
+          <label>
+            Placa do veículo
+            <input
+              type="text"
+              value={form.plate}
+              onChange={(e) => updateForm('plate', e.target.value.toUpperCase())}
+              placeholder="Informe se o veículo já foi emplacado"
+              maxLength={8}
+            />
+            <small className="field-hint">Opcional no cadastro — preencha aqui se o cliente ainda não tinha placa.</small>
+          </label>
+        )}
+
         <label>
           Device ID GPSWOX *
           <input
@@ -228,7 +245,7 @@ export default function InstallerJobPage() {
             type="text"
             value={form.gpswox_name}
             onChange={(e) => updateForm('gpswox_name', e.target.value)}
-            placeholder={job.plate}
+            placeholder={job.plate || 'Nome no GPSWOX'}
           />
         </label>
 

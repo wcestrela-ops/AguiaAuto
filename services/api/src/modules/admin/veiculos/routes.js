@@ -21,8 +21,8 @@ router.post('/', async (req, res) => {
   try {
     const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei } = req.body;
 
-    if (!user_id || !plate) {
-      return res.status(400).json({ success: false, error: 'user_id e plate são obrigatórios.' });
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: 'user_id é obrigatório.' });
     }
 
     const user = await getUserRepository().findById(user_id);

@@ -240,7 +240,7 @@ export default function AdminClienteDetailPage() {
             ) : (
               veiculos.map((vehicle) => (
                 <tr key={vehicle.id}>
-                  <td><strong>{vehicle.plate}</strong></td>
+                  <td><strong>{vehicle.plate || 'Sem placa'}</strong></td>
                   <td>{[vehicle.brand, vehicle.model].filter(Boolean).join(' ') || '—'}</td>
                   <td>
                     <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>

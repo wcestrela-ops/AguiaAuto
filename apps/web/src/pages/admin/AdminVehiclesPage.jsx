@@ -101,7 +101,7 @@ export default function AdminVehiclesPage() {
     setMessage('');
 
     const payload = {
-      plate: form.plate.trim(),
+      plate: form.plate.trim() || null,
       brand: form.brand.trim() || null,
       model: form.model.trim() || null,
       color: form.color.trim() || null,
@@ -237,8 +237,8 @@ export default function AdminVehiclesPage() {
           )}
 
           <label>
-            Placa <span className="required">*</span>
-            <input value={form.plate} onChange={(e) => updateForm('plate', e.target.value)} required />
+            Placa
+            <input value={form.plate} onChange={(e) => updateForm('plate', e.target.value.toUpperCase())} placeholder="Opcional — veículo novo sem emplacamento" />
           </label>
           <label>
             Marca
@@ -340,7 +340,7 @@ export default function AdminVehiclesPage() {
             ) : (
               vehicles.map((vehicle) => (
                 <tr key={vehicle.id}>
-                  <td>{vehicle.plate}</td>
+                  <td>{vehicle.plate || 'Sem placa'}</td>
                   <td>{vehicle.user_name || vehicle.user_email}</td>
                   <td><code>{vehicle.gpswox_device_id || '—'}</code></td>
                   <td>{vehicle.tracker_phone || '—'}</td>

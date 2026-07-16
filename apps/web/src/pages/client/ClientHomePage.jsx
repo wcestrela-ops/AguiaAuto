@@ -96,7 +96,7 @@ export default function ClientHomePage() {
                     <div className="vehicle-card-header">
                       <div>
                         <h3>{vehicle.label}</h3>
-                        <p className="muted">{vehicle.plate}</p>
+                        <p className="muted">{vehicle.plate || 'Sem placa'}</p>
                       </div>
                       <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
                         {vehicleStatusLabel(vehicle.status)}

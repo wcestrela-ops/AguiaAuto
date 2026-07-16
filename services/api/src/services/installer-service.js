@@ -30,7 +30,7 @@ function formatPendingJob(row) {
     status: row.status,
     gpswox_device_id: row.gpswox_device_id,
     gpswox_name: row.gpswox_name,
-    label: [row.brand, row.model, row.plate].filter(Boolean).join(' · ') || row.plate,
+    label: [row.brand, row.model, row.plate].filter(Boolean).join(' · ') || row.plate || 'Sem placa',
     client: {
       id: row.user_id,
       name: row.user_name,
@@ -106,6 +106,7 @@ class InstallerService {
     const {
       gpswox_device_id,
       gpswox_name,
+      plate,
       imei,
       tracker_phone,
       tracker_model_id,
@@ -167,7 +168,19 @@ class InstallerService {
       throw new Error('Veículo não está aguardando instalação.');
     }
 
-    const deviceName = gpswox_name || vehicle.plate;
+    const normalizedPlate = plate ? String(plate).trim().toUpperCase() : null;
+    if (normalizedPlate) {
+      const existing = await this.vehicles.findByPlate(normalizedPlate);
+      if (existing && existing.id !== vehicleId) {
+        throw new Error('Placa já cadastrada em outro veículo.');
+      }
+    }
+
+    const resolvedPlate = normalizedPlate || vehicle.plate;
+    const deviceName = gpswox_name
+      || resolvedPlate
+      || [vehicle.brand, vehicle.model].filter(Boolean).join(' ')
+      || `Veículo ${vehicle.id}`;
     const finishedAt = new Date();
     const startedAt = new Date(finishedAt.getTime() - duration * 60 * 1000);
 
@@ -177,7 +190,7 @@ class InstallerService {
           device_id: gpswox_device_id,
           imei: normalizedImei,
           name: deviceName,
-          plate: vehicle.plate,
+          plate: resolvedPlate,
         });
       } catch (err) {
         logger.warn('Falha ao criar veículo no GPSWOX (continuando).', { vehicleId, err: err.message });
@@ -187,6 +200,7 @@ class InstallerService {
     const updated = await this.vehicles.update(vehicleId, {
       gpswox_device_id,
       gpswox_name: deviceName,
+      plate: normalizedPlate || undefined,
       status: VEHICLE_STATUS.ACTIVE,
       tracker_imei: normalizedImei,
       tracker_phone: normalizedPhone,
@@ -215,7 +229,7 @@ class InstallerService {
     try {
       await firebase.sendPushToUser(vehicle.user_id, {
         title: 'Instalação concluída — confirme no app',
-        body: `Relatório de instalação do veículo ${vehicle.plate} disponível em Contratos.`,
+        body: `Relatório de instalação do veículo ${resolvedPlate || deviceName} disponível em Contratos.`,
         data: {
           type: 'installation_report',
           vehicle_id: String(vehicleId),
