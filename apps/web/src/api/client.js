@@ -510,6 +510,32 @@ class ApiClient {
     return this.request('/v1/admin/usuarios', {}, { useAdmin: true });
   }
 
+  getAdminClientsSummary() {
+    return this.request('/v1/admin/usuarios/painel/resumo', {}, { useAdmin: true });
+  }
+
+  getAdminClientsPanel(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.offset != null) query.set('offset', String(params.offset));
+    if (params.q) query.set('q', params.q);
+    if (params.active) query.set('active', params.active);
+    if (params.provisioning_status) query.set('provisioning_status', params.provisioning_status);
+    const qs = query.toString();
+    return this.request(`/v1/admin/usuarios/painel${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getAdminClientDetail(userId) {
+    return this.request(`/v1/admin/usuarios/${userId}`, {}, { useAdmin: true });
+  }
+
+  updateAdminClient(userId, data) {
+    return this.request(`/v1/admin/usuarios/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   getAdminCharges() {
     return this.request('/v1/admin/financeiro/cobrancas', {}, { useAdmin: true });
   }
@@ -517,6 +543,17 @@ class ApiClient {
   getAdminBillingNotifications(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return this.request(`/v1/admin/financeiro/notificacoes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getBillingAutomationStatus() {
+    return this.request('/v1/admin/financeiro/cobranca/status', {}, { useAdmin: true });
+  }
+
+  markManualPayment(invoiceId, data) {
+    return this.request(`/v1/admin/financeiro/cobrancas/${invoiceId}/baixa-manual`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
   }
 
   createAdminCharge(data) {
@@ -734,6 +771,157 @@ class ApiClient {
       throw new Error(data?.error || `Erro ${response.status}`);
     }
     return response.blob();
+  }
+
+  // ─── Frota (documentos + manutenção) ─────────────────────────────────────
+  getFrotaOverview() {
+    return this.request('/v1/frota', {}, { useClient: true });
+  }
+
+  createFrotaDocument(vehicleId, formData) {
+    return this.uploadClientForm(`/v1/frota/documentos/veiculos/${vehicleId}`, formData);
+  }
+
+  updateFrotaDocument(id, formData) {
+    return this.uploadClientForm(`/v1/frota/documentos/${id}`, formData, 'PUT');
+  }
+
+  deleteFrotaDocument(id) {
+    return this.request(`/v1/frota/documentos/${id}`, { method: 'DELETE' }, { useClient: true });
+  }
+
+  async openFrotaDocumentFile(id) {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}/v1/frota/documentos/${id}/arquivo`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  createFrotaMaintenance(vehicleId, data) {
+    return this.request(`/v1/frota/manutencao/veiculos/${vehicleId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useClient: true });
+  }
+
+  updateFrotaMaintenance(id, data) {
+    return this.request(`/v1/frota/manutencao/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useClient: true });
+  }
+
+  deleteFrotaMaintenance(id) {
+    return this.request(`/v1/frota/manutencao/${id}`, { method: 'DELETE' }, { useClient: true });
+  }
+
+  async uploadClientForm(path, formData, method = 'POST') {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    return data;
+  }
+
+  getAdminFrotaDocuments() {
+    return this.request('/v1/admin/frota/documentos', {}, { useAdmin: true });
+  }
+
+  createAdminFrotaDocument(vehicleId, formData) {
+    return this.uploadAdminForm(`/v1/admin/frota/documentos/veiculos/${vehicleId}`, formData);
+  }
+
+  deleteAdminFrotaDocument(id) {
+    return this.request(`/v1/admin/frota/documentos/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  getAdminFrotaMaintenance() {
+    return this.request('/v1/admin/frota/manutencao', {}, { useAdmin: true });
+  }
+
+  createAdminFrotaMaintenance(data) {
+    return this.request('/v1/admin/frota/manutencao', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  deleteAdminFrotaMaintenance(id) {
+    return this.request(`/v1/admin/frota/manutencao/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  async uploadAdminForm(path, formData, method = 'POST') {
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    return data;
+  }
+
+  getAdminIndicacoes() {
+    return this.request('/v1/admin/indicacoes', {}, { useAdmin: true });
+  }
+
+  syncAdminIndicacoes() {
+    return this.request('/v1/admin/indicacoes/sync', { method: 'POST' }, { useAdmin: true });
+  }
+
+  getEmergencyContacts() {
+    return this.request('/v1/emergencia/contatos', {}, { useClient: true });
+  }
+
+  saveEmergencyContacts(contatos) {
+    return this.request('/v1/emergencia/contatos', {
+      method: 'PUT',
+      body: JSON.stringify({ contatos }),
+    }, { useClient: true });
+  }
+
+  triggerEmergency(payload) {
+    return this.request('/v1/emergencia/acionar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useClient: true });
+  }
+
+  getAdminEmergencyEvents(limit = 30) {
+    return this.request(`/v1/admin/emergencia/eventos?limit=${limit}`, {}, { useAdmin: true });
+  }
+
+  getAdminAuditLogs(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.offset != null) query.set('offset', String(params.offset));
+    if (params.action) query.set('action', params.action);
+    if (params.actor_type) query.set('actor_type', params.actor_type);
+    if (params.resource_type) query.set('resource_type', params.resource_type);
+    if (params.actor_id) query.set('actor_id', params.actor_id);
+    const qs = query.toString();
+    return this.request(`/v1/admin/audit${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getAdminAuditActions() {
+    return this.request('/v1/admin/audit/acoes', {}, { useAdmin: true });
   }
 }
 

@@ -9,6 +9,7 @@ const { requireServiceContract } = require('./middleware/require-service-contrac
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
+const { migrateUserAccess } = require('./db/migrate-user-access');
 const { migrateFcmTokens } = require('./db/migrate-fcm');
 const { migratePasswordReset } = require('./db/migrate-password-reset');
 const { migrateVehicles } = require('./db/migrate-vehicles');
@@ -26,11 +27,17 @@ const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
 const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
+const { migrateBillingAutomation } = require('./db/migrate-billing-automation');
+const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
+const { migrateFleetReminders } = require('./db/migrate-fleet-reminders');
+const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
+const { startBillingReminderPoller } = require('./services/billing-reminder-service');
+const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -42,6 +49,7 @@ const perfilRoutes = require('./modules/perfil/routes');
 const notificacoesRoutes = require('./modules/notificacoes/routes');
 const indicacoesRoutes = require('./modules/indicacoes/routes');
 const indicacoesPublicRoutes = require('./modules/indicacoes/public-routes');
+const frotaRoutes = require('./modules/frota/routes');
 const contratosRoutes = require('./modules/contratos/routes');
 const instaladorRoutes = require('./modules/instalador/routes');
 const webhooksRoutes = require('./modules/webhooks/routes');
@@ -57,7 +65,9 @@ const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
-const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
+const adminFrotaRoutes = require('./modules/admin/frota/routes');
+const adminIndicacoesRoutes = require('./modules/admin/indicacoes/routes');
+const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
@@ -115,6 +125,7 @@ app.use('/v1/emergencia', jwtAuth, requireServiceContract, emergenciaRoutes);
 app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
 app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
 app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
+app.use('/v1/frota', jwtAuth, requireServiceContract, frotaRoutes);
 app.use('/v1/contratos', jwtAuth, contratosRoutes);
 
 // Área do instalador — JWT + role
@@ -135,6 +146,9 @@ app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
 app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
 app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
+app.use('/v1/admin/frota', adminAuth, adminFrotaRoutes);
+app.use('/v1/admin/indicacoes', adminAuth, adminIndicacoesRoutes);
+app.use('/v1/admin/emergencia', adminAuth, adminEmergenciaRoutes);
 app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
@@ -149,6 +163,9 @@ async function bootstrap() {
 
     await migrateUsers();
     logger.info('Autenticação JWT (clientes) inicializada.');
+
+    await migrateUserAccess();
+    logger.info('Último acesso de clientes inicializado.');
 
     await migrateFcmTokens();
     logger.info('FCM tokens (push notifications) inicializado.');
@@ -201,6 +218,18 @@ async function bootstrap() {
     await migrateBillingNotifications();
     logger.info('Notificações de cobrança (WhatsApp/SMS) inicializadas.');
 
+    await migrateBillingAutomation();
+    logger.info('Automação de lembretes e baixa manual inicializada.');
+
+    await migrateVehicleFleet();
+    logger.info('Documentos e manutenção de veículos inicializados.');
+
+    await migrateFleetReminders();
+    logger.info('Lembretes push de documentos e manutenção inicializados.');
+
+    await migrateEmergencia();
+    logger.info('Botão de emergência (SOS) inicializado.');
+
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');
 
@@ -224,7 +253,13 @@ async function bootstrap() {
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
       startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
-      logger.info('Pollers de âncora, indicações e sync GPSWOX iniciados.');
+      startBillingReminderPoller(
+        parseInt(process.env.BILLING_REMINDER_CHECK_MS || '0', 10) || undefined,
+      );
+      startFleetReminderPoller(
+        parseInt(process.env.FLEET_REMINDER_CHECK_MS || '0', 10) || undefined,
+      );
+      logger.info('Pollers de âncora, indicações, sync GPSWOX, lembretes de cobrança e frota iniciados.');
     }
   });
 }

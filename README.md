@@ -241,6 +241,9 @@ SMTP_FROM=noreply@seudominio.com
 | **Admin — Planos** | `GET/POST/PUT /v1/admin/plans` | ✅ |
 | **Admin — Alertas** | `GET /v1/admin/alertas` | ✅ |
 | Emergência | `GET /v1/emergencia/contatos` | ✅ |
+| Emergência | `PUT /v1/emergencia/contatos` | ✅ |
+| Emergência | `POST /v1/emergencia/acionar` | ✅ |
+| Admin Emergência | `GET /v1/admin/emergencia/eventos` | ✅ |
 | Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
 | Instalador | `GET /v1/instalador/painel` | ✅ |
 | Instalador | `GET /v1/instalador/agendamentos` | ✅ |
@@ -434,9 +437,10 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - Aceite registrado em `contract_acceptances` com IP e data
 - Fotos servidas com autenticação JWT
 
-### Fase 6 — Extras
-- Indique e Ganhe
-- Documentos e Manutenção
+### Fase 6 — Extras ✅ (atual)
+- **Indique e Ganhe** — link no perfil, desconto automático na mensalidade, painel admin `/admin/indicacoes`
+- **Documentos e Manutenção** — CRLV, seguro, IPVA e revisões por veículo (`/app/frota` cliente, `/admin/frota` admin)
+- Alertas operacionais no dashboard admin para vencimentos e manutenções próximas
 
 ## Área do Instalador
 

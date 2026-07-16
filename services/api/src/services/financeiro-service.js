@@ -5,7 +5,9 @@ const { getPlanRepository } = require('../repositories/plan-repository');
 const { getProvisioningService } = require('./provisioning-service');
 const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
 const { sendBillingReminder } = require('./billing-notifications');
+const { getBillingReminderService } = require('./billing-reminder-service');
 const { getBillingNotificationRepository, formatNotification } = require('../repositories/billing-notification-repository');
+const { getBillingConfig } = require('../lib/billing-templates');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
 
@@ -28,6 +30,8 @@ function formatInvoice(invoice) {
     pix_qrcode: invoice.pix_qrcode,
     pix_copy_paste: invoice.pix_copy_paste,
     paid_at: invoice.paid_at,
+    paid_via: invoice.paid_via || null,
+    manual_payment_notes: invoice.manual_payment_notes || null,
     created_at: invoice.created_at,
   };
 }
@@ -155,7 +159,11 @@ class FinanceiroService {
 
     const link = invoice.invoice_url || (invoice.pix_copy_paste ? 'Código PIX no app' : null);
     let notification = null;
-    if (refreshed.phone && link) {
+    const billingSettings = await getBillingConfig();
+    const notifyNewCharge = billingSettings.notify_on_new_charge !== false
+      && billingSettings.notify_on_new_charge !== 'false';
+
+    if (notifyNewCharge && refreshed.phone && link) {
       try {
         const result = await sendBillingReminder(
           normalizePhone(refreshed.phone),
@@ -163,12 +171,15 @@ class FinanceiroService {
             valor: Number(invoice.amount).toFixed(2),
             vencimento: invoice.due_date,
             link,
+            descricao: invoice.description || 'Cobrança',
           },
           {
             userId: user_id,
             user: refreshed.email,
+            clientName: refreshed.name,
             invoiceId: invoice.id,
-            trigger: 'billing.reminder',
+            trigger: 'billing.new_charge',
+            templateKey: 'template_new_charge',
           },
         );
         notification = formatNotification(result.notification);
@@ -202,6 +213,35 @@ class FinanceiroService {
     return getBillingNotificationRepository().listRecent(options);
   }
 
+  async markManualPayment(invoiceId, { notes, send_notification = true } = {}) {
+    const invoice = await this.invoices.findById(invoiceId);
+    if (!invoice) throw new Error('Fatura não encontrada.');
+
+    const updated = await this.invoices.markPaidManually(invoiceId, { notes });
+    const user = await this.users.findById(updated.user_id);
+
+    let notification = null;
+    if (send_notification && user?.phone) {
+      try {
+        const result = await getBillingReminderService().notifyPaymentReceived(
+          updated,
+          user,
+          { trigger: 'billing.payment_received.manual' },
+        );
+        if (result?.notification) {
+          notification = formatNotification(result.notification);
+        }
+      } catch (err) {
+        logger.warn('Falha ao notificar pagamento manual.', { invoiceId, err: err.message });
+      }
+    }
+
+    return {
+      ...formatInvoice(updated),
+      notification,
+    };
+  }
+
   async processWebhookEvent({ provider, event, payment }) {
     if (!payment?.external_payment_id && !payment?.asaas_payment_id) {
       return { processed: false, reason: 'Pagamento sem ID.' };
@@ -231,6 +271,11 @@ class FinanceiroService {
     }
 
     const subscription = await this.subscriptions.findActiveByUser(targetUser.id);
+    const previous = externalId
+      ? await this.invoices.findByExternalPayment(paymentProvider, externalId)
+      : null;
+    const wasPaid = previous?.status === 'paid';
+
     const invoice = await this.invoices.upsertFromPayment({
       user_id: targetUser.id,
       subscription_id: subscription?.id || null,
@@ -245,6 +290,18 @@ class FinanceiroService {
     if (['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED', 'payment.updated', 'payment.created'].includes(event)
       || payment.status === 'paid') {
       logger.info('Pagamento confirmado.', { userId: targetUser.id, paymentId: externalId, provider: paymentProvider });
+
+      if (!wasPaid && invoice.status === 'paid' && targetUser.phone) {
+        try {
+          await getBillingReminderService().notifyPaymentReceived(
+            invoice,
+            targetUser,
+            { trigger: 'billing.payment_received' },
+          );
+        } catch (err) {
+          logger.warn('Falha ao notificar pagamento recebido.', { invoiceId: invoice.id, err: err.message });
+        }
+      }
     }
 
     return { processed: true, invoice_id: invoice.id, event, provider: paymentProvider };

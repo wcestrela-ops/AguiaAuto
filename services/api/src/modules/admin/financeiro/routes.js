@@ -5,6 +5,33 @@ const { getUserRepository } = require('../../../repositories/user-repository');
 
 const router = Router();
 
+router.get('/cobranca/status', async (req, res) => {
+  try {
+    const { getBillingReminderService } = require('../../../services/billing-reminder-service');
+    const data = await getBillingReminderService().getStatus();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/cobrancas/:id/baixa-manual', async (req, res) => {
+  try {
+    const { notes, send_notification } = req.body;
+    const data = await getFinanceiroService().markManualPayment(req.params.id, {
+      notes,
+      send_notification: send_notification !== false,
+    });
+    res.json({
+      success: true,
+      data,
+      message: 'Baixa manual registrada.',
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/notificacoes', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit || '50', 10);

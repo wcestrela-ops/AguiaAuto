@@ -1,6 +1,8 @@
 const { getPool } = require('../db/pool');
 const { getGpswoxSyncService } = require('./gpswox-sync-service');
 const { getBillingNotificationRepository } = require('../repositories/billing-notification-repository');
+const { getVehicleFleetService } = require('./vehicle-fleet-service');
+const { getEmergencyService } = require('./emergency-service');
 
 class OperationalDashboardService {
   constructor() {
@@ -24,6 +26,8 @@ class OperationalDashboardService {
       billingFailed24h,
       recentBillingFallbacks,
       gpswoxSync,
+      fleetOps,
+      emergencyOps,
     ] = await Promise.all([
       this._vehiclesMissingChip(),
       this._vehiclesMissingDevice(),
@@ -43,6 +47,8 @@ class OperationalDashboardService {
         channel: 'sms',
       }).then((rows) => rows.filter((row) => row.used_fallback)),
       getGpswoxSyncService().getStatus().catch(() => null),
+      getVehicleFleetService().getOperationalSummary().catch(() => null),
+      getEmergencyService().getOperationalStats().catch(() => null),
     ]);
 
     const alerts = [];
@@ -141,6 +147,63 @@ class OperationalDashboardService {
       });
     }
 
+    if (fleetOps?.documents_expired > 0) {
+      alerts.push({
+        severity: 'error',
+        key: 'fleet_documents_expired',
+        title: 'Documentos de veículos vencidos',
+        count: fleetOps.documents_expired,
+        link: '/admin/frota',
+      });
+    }
+
+    if (fleetOps?.documents_expiring > fleetOps?.documents_expired) {
+      const expiringSoon = fleetOps.documents_expiring - (fleetOps.documents_expired || 0);
+      if (expiringSoon > 0) {
+        alerts.push({
+          severity: 'warning',
+          key: 'fleet_documents_expiring',
+          title: 'Documentos vencendo (30 dias)',
+          count: expiringSoon,
+          link: '/admin/frota',
+        });
+      }
+    }
+
+    if (fleetOps?.maintenance_overdue > 0) {
+      alerts.push({
+        severity: 'error',
+        key: 'fleet_maintenance_overdue',
+        title: 'Manutenções em atraso',
+        count: fleetOps.maintenance_overdue,
+        link: '/admin/frota',
+      });
+    }
+
+    if (fleetOps?.maintenance_due > fleetOps?.maintenance_overdue) {
+      const dueSoon = fleetOps.maintenance_due - (fleetOps.maintenance_overdue || 0);
+      if (dueSoon > 0) {
+        alerts.push({
+          severity: 'warning',
+          key: 'fleet_maintenance_due',
+          title: 'Manutenções próximas (30 dias)',
+          count: dueSoon,
+          link: '/admin/frota',
+        });
+      }
+    }
+
+    if (emergencyOps?.count_24h > 0) {
+      alerts.push({
+        severity: 'error',
+        key: 'emergency_events_24h',
+        title: 'Emergências acionadas (24h)',
+        count: emergencyOps.count_24h,
+        link: '/admin/integracoes/emergencia',
+        hint: 'Clientes usaram o botão SOS — verifique eventos.',
+      });
+    }
+
     if (pendingInstallations > 0) {
       alerts.push({
         severity: 'info',
@@ -201,8 +264,15 @@ class OperationalDashboardService {
         billing_notifications_failed_24h: billingFailed24h,
         overdue_invoices: overdueInvoices,
         gpswox_unlinked_devices: gpswoxSync?.unlinked_devices_last_success || 0,
+        fleet_documents_expiring: fleetOps?.documents_expiring || 0,
+        fleet_documents_expired: fleetOps?.documents_expired || 0,
+        fleet_maintenance_due: fleetOps?.maintenance_due || 0,
+        fleet_maintenance_overdue: fleetOps?.maintenance_overdue || 0,
+        emergency_events_24h: emergencyOps?.count_24h || 0,
       },
       gpswox_sync: gpswoxSync,
+      fleet: fleetOps,
+      emergency: emergencyOps,
       alerts,
       details: {
         vehicles_missing_chip: vehiclesMissingChip.items,
@@ -212,6 +282,8 @@ class OperationalDashboardService {
         recent_failed_commands: recentFailedCommands,
         recent_failed_sms: recentFailedSms,
         recent_billing_sms_fallback: recentBillingFallbacks,
+        fleet_expiring_documents: fleetOps?.recent_expiring_documents || [],
+        fleet_due_maintenance: fleetOps?.recent_due_maintenance || [],
       },
     };
   }

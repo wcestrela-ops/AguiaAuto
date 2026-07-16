@@ -69,9 +69,13 @@ class InvoiceRepository {
           bank_slip_url = COALESCE($6, bank_slip_url),
           pix_qrcode = COALESCE($7, pix_qrcode),
           pix_copy_paste = COALESCE($8, pix_copy_paste),
-          paid_at = COALESCE($9, paid_at),
-          billing_type = COALESCE($10, billing_type),
-          updated_at = NOW()
+        paid_at = COALESCE($9, paid_at),
+        billing_type = COALESCE($10, billing_type),
+        paid_via = CASE
+          WHEN COALESCE($2, status) = 'paid' AND paid_via IS NULL THEN 'gateway'
+          ELSE paid_via
+        END,
+        updated_at = NOW()
          WHERE id = $1 RETURNING *`,
         [
           existing.id, data.status, data.amount, data.due_date,
@@ -204,6 +208,67 @@ class InvoiceRepository {
       [userId]
     );
     return rows[0].count;
+  }
+
+  async listForReminderOffset(daysAfterDue) {
+    const { rows } = await this.pool.query(
+      `SELECT i.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
+       FROM invoices i
+       JOIN users u ON u.id = i.user_id
+       WHERE i.status IN ('pending', 'overdue')
+         AND i.due_date IS NOT NULL
+         AND u.phone IS NOT NULL
+         AND TRIM(u.phone) <> ''
+         AND (i.due_date + ($1 || ' days')::interval)::date = CURRENT_DATE
+       ORDER BY i.due_date ASC`,
+      [String(daysAfterDue)],
+    );
+    return rows;
+  }
+
+  async listUserIdsForReminderOffset(daysAfterDue) {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT i.user_id
+       FROM invoices i
+       JOIN users u ON u.id = i.user_id
+       WHERE i.status IN ('pending', 'overdue')
+         AND i.due_date IS NOT NULL
+         AND u.phone IS NOT NULL
+         AND TRIM(u.phone) <> ''
+         AND (i.due_date + ($1 || ' days')::interval)::date = CURRENT_DATE
+       ORDER BY i.user_id`,
+      [String(daysAfterDue)],
+    );
+    return rows.map((row) => row.user_id);
+  }
+
+  async listOpenInvoicesForUser(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM invoices
+       WHERE user_id = $1
+         AND status IN ('pending', 'overdue')
+       ORDER BY due_date ASC NULLS LAST, created_at ASC`,
+      [userId],
+    );
+    return rows;
+  }
+
+  async markPaidManually(id, { notes } = {}) {
+    const { rows } = await this.pool.query(
+      `UPDATE invoices SET
+        status = 'paid',
+        paid_at = NOW(),
+        paid_via = 'manual',
+        payment_provider = COALESCE(payment_provider, 'manual'),
+        manual_payment_notes = COALESCE($2, manual_payment_notes),
+        updated_at = NOW()
+       WHERE id = $1
+         AND status NOT IN ('paid', 'waived', 'refunded')
+       RETURNING *`,
+      [id, notes || null],
+    );
+    if (!rows[0]) throw new Error('Fatura não encontrada ou já quitada.');
+    return rows[0];
   }
 }
 

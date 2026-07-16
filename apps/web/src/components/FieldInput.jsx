@@ -17,6 +17,23 @@ export default function FieldInput({ field, value, onChange }) {
     );
   }
 
+  if (field.type === 'textarea') {
+    return (
+      <label htmlFor={id}>
+        {field.label}
+        {field.required && <span className="required">*</span>}
+        <textarea
+          id={id}
+          rows={5}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder || ''}
+        />
+        {hint && <small className="hint">{hint}</small>}
+      </label>
+    );
+  }
+
   if (field.type === 'password') {
     return (
       <label htmlFor={id}>

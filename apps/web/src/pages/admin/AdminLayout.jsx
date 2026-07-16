@@ -7,10 +7,14 @@ const NAV = [
   { to: '/admin/whatsapp', label: 'WhatsApp' },
   { to: '/admin/sms', label: 'SMS Rastreador' },
   { to: '/admin/veiculos', label: 'Veículos' },
+  { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/instaladores', label: 'Instaladores' },
   { to: '/admin/contratos', label: 'Contratos' },
+  { to: '/admin/frota', label: 'Documentos' },
+  { to: '/admin/indicacoes', label: 'Indicações' },
+  { to: '/admin/auditoria', label: 'Auditoria' },
 ];
 
 export default function AdminLayout() {

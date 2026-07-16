@@ -321,6 +321,46 @@ class ReferralService {
       data: { type: 'referral_reward', invoice_id: String(result.invoice_id || '') },
     });
   }
+
+  async getAdminOverview() {
+    const [stats, rows] = await Promise.all([
+      this.referrals.getGlobalStats(),
+      this.referrals.listAll({ limit: 100 }),
+    ]);
+
+    const statusLabels = {
+      awaiting_completion: 'Aguardando instalação e contrato',
+      qualified: 'Confirmada',
+      applied: 'Desconto aplicado',
+    };
+
+    return {
+      estatisticas: stats,
+      desconto_percentual: REFERRAL_DISCOUNT_PERCENT,
+      regra: `Cada indicação confirmada no mês = ${REFERRAL_DISCOUNT_PERCENT}% de desconto. Duas no mês = mensalidade isenta.`,
+      indicacoes: rows.map((row) => ({
+        id: row.id,
+        referrer: {
+          id: row.referrer_user_id,
+          name: row.referrer_name,
+          email: row.referrer_email,
+          codigo: row.referrer_code,
+        },
+        referred: {
+          id: row.referred_user_id,
+          name: row.referred_name,
+          email: row.referred_email,
+          cadastro_em: row.referred_at,
+        },
+        discount_percent: row.discount_percent,
+        discount_status: row.discount_status,
+        discount_status_label: statusLabels[row.discount_status] || row.discount_status,
+        discount_applied: row.discount_applied,
+        qualified_at: row.qualified_at,
+        created_at: row.created_at,
+      })),
+    };
+  }
 }
 
 let instance = null;

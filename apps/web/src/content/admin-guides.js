@@ -440,7 +440,11 @@ export const ADMIN_GUIDES = {
       },
       {
         title: 'Lembrete ao cliente',
-        body: 'Após criar a cobrança, o sistema envia lembrete por WhatsApp. Se falhar, usa SMS automaticamente.',
+        body: 'Configure dias e templates em Integrações → Cobrança. WhatsApp primeiro; SMS opcional para não duplicar outros envios.',
+      },
+      {
+        title: 'Baixa manual',
+        body: 'Para pagamento em dinheiro/espécie, use "Baixa manual" na cobrança. Opcionalmente notifica o cliente com template personalizado.',
       },
       {
         title: 'Coluna Notificação',
@@ -456,10 +460,39 @@ export const ADMIN_GUIDES = {
       },
     ],
     links: [
+      { label: 'Cobrança e lembretes', to: '/admin/integracoes/cobranca' },
       { label: 'Mercado Pago', to: '/admin/integracoes/mercadopago' },
       { label: 'Asaas', to: '/admin/integracoes/asaas' },
       { label: 'Failover', to: '/admin/integracoes/payment_gateways' },
     ],
+  },
+
+  cobranca: {
+    title: 'Cobrança e lembretes automáticos',
+    summary: 'Dias de lembrete, templates personalizados, SMS opcional e confirmação de pagamento.',
+    steps: [
+      {
+        title: 'Dias de lembrete',
+        body: 'Ative vencimento (dia 0), +1, +2, +3 e +15 dias após o vencimento. O job roda periodicamente conforme intervalo configurado.',
+      },
+      {
+        title: 'SMS opcional',
+        body: 'Desative "Permitir SMS nos lembretes" se você envia cobrança por outro canal. Ative "somente SMS" para lembretes agendados sem WhatsApp.',
+      },
+      {
+        title: 'Mensagem consolidada por cliente',
+        body: 'Se o cliente tiver várias faturas em aberto, o sistema envia uma única mensagem por dia (não uma por fatura). {{resumo_valor}}, {{resumo_vencimento}} e {{resumo_atraso}} adaptam o texto automaticamente; {{detalhe_faturas}} lista cada fatura quando há 2 ou mais; {{total_valor}} é sempre a soma. O PIX/link é atualizado no gateway antes do envio.',
+      },
+      {
+        title: 'Templates',
+        body: 'Variáveis: {{cliente}}, {{valor}}, {{total_valor}}, {{vencimento}}, {{resumo_valor}}, {{resumo_vencimento}}, {{resumo_atraso}}, {{detalhe_faturas}}, {{lista_faturas}}, {{faturas_pendentes}}, {{meses_atraso}}, {{pix}}, {{link}}, {{pix_ou_link}}, {{dias_atraso}}, {{data_pagamento}}.',
+      },
+      {
+        title: 'Pagamento recebido',
+        body: 'Webhook automático e baixa manual podem enviar confirmação usando template_payment_received.',
+      },
+    ],
+    links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
   },
 
   admin_alerts: {
@@ -516,12 +549,112 @@ export const ADMIN_GUIDES = {
       { title: 'Comandos com falha', body: 'Últimas 24h — bloqueio/desbloqueio que nem 4G nem SMS conseguiram.' },
       { title: 'Provisionamento', body: 'Clientes sem Asaas/GPSWOX completo — veja Financeiro → Reprovisionar.' },
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
+      { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
+      { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
+      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — configure em Integrações → Emergência.' },
     ],
     links: [
       { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Financeiro', to: '/admin/financeiro' },
+      { label: 'Documentos', to: '/admin/frota' },
       { label: 'SMS', to: '/admin/sms' },
+    ],
+  },
+
+  admin_frota: {
+    title: 'Documentos e manutenção',
+    summary: 'Gestão de CRLV, seguro, IPVA e histórico de revisões por veículo.',
+    steps: [
+      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
+      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
+      { title: 'Push automático', body: 'Configure em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia quando houver vencimentos próximos ou atrasados.' },
+      { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
+    ],
+    links: [
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Integração Frota', to: '/admin/integracoes/frota' },
+    ],
+  },
+
+  admin_indicacoes: {
+    title: 'Indique e Ganhe',
+    summary: 'Indicações confirmadas geram 50% de desconto por mês; duas no mês isentam a mensalidade.',
+    steps: [
+      { title: 'Qualificação', body: 'Indicado precisa concluir instalação, aceitar contrato e ter veículo ativo.' },
+      { title: 'Desconto automático', body: 'Poller aplica desconto na mensalidade do mês. Use "Sincronizar" para forçar.' },
+      { title: 'Cliente', body: 'Link e código ficam em Meu Perfil no app cliente.' },
+    ],
+    links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
+  },
+
+  admin_audit: {
+    title: 'Auditoria administrativa',
+    summary: 'Histórico de ações sensíveis no painel e no app cliente.',
+    steps: [
+      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), edição de clientes, comandos remotos (cliente), sync GPSWOX e failover SMS.' },
+      { title: 'Filtros', body: 'Filtre por ação, tipo de ator (admin/cliente/sistema), recurso ou ID do ator.' },
+      { title: 'Detalhes', body: 'Clique em JSON para ver metadados completos (placa, canal, totais do sync, etc.).' },
+    ],
+    links: [
+      { label: 'Clientes', to: '/admin/clientes' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Integrações GPSWOX', to: '/admin/integracoes/gpswox' },
+    ],
+  },
+
+  admin_clientes: {
+    title: 'Painel de clientes',
+    summary: 'Ficha completa com cadastro, veículos, financeiro, provisionamento e indicações.',
+    steps: [
+      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo e provisionamento.' },
+      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app.' },
+      { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
+      { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },
+    ],
+    links: [
+      { label: 'Financeiro', to: '/admin/financeiro' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Indicações', to: '/admin/indicacoes' },
+    ],
+  },
+
+  emergencia: {
+    title: 'Emergência (SOS)',
+    summary: 'Botão de pânico no app — alerta contatos e central via WhatsApp/SMS.',
+    steps: [
+      { title: 'Central', body: 'Informe telefones em "Telefones da central" — recebem alerta automático a cada SOS.' },
+      { title: 'Assistência 24h', body: 'Exibido no app para ligação rápida (não envia alerta automático).' },
+      { title: 'Canais', body: 'WhatsApp primeiro, SMS como fallback — igual cobrança.' },
+      { title: 'Cooldown', body: 'Intervalo mínimo entre acionamentos evita spam acidental.' },
+    ],
+    links: [{ label: 'Integrações', to: '/admin/integracoes' }],
+  },
+
+  frota: {
+    title: 'Lembretes de documentos e manutenção',
+    summary: 'Push automático quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
+    steps: [
+      {
+        title: 'Consolidado por cliente',
+        body: 'No máximo um push por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+      },
+      {
+        title: 'Antecedência',
+        body: 'Itens com vencimento dentro do prazo configurado (padrão 30 dias) entram no lembrete — inclui já vencidos.',
+      },
+      {
+        title: 'Firebase',
+        body: 'Requer integração Firebase ativa e o cliente com app/PWA registrado para push.',
+      },
+      {
+        title: 'Histórico admin',
+        body: 'GET /v1/admin/frota/lembretes lista envios recentes; POST .../lembretes/executar força uma rodada.',
+      },
+    ],
+    links: [
+      { label: 'Documentos (admin)', to: '/admin/frota' },
+      { label: 'Firebase', to: '/admin/integracoes/firebase' },
     ],
   },
 };
@@ -536,6 +669,9 @@ export const INTEGRATION_GUIDE_KEYS = {
   smtp: 'smtp',
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
+  cobranca: 'cobranca',
+  frota: 'frota',
+  emergencia: 'emergencia',
 };
 
 export function getAdminGuide(guideId) {
