@@ -28,6 +28,7 @@ const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
 const { migrateBillingAutomation } = require('./db/migrate-billing-automation');
 const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
+const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
@@ -63,6 +64,7 @@ const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
 const adminFrotaRoutes = require('./modules/admin/frota/routes');
 const adminIndicacoesRoutes = require('./modules/admin/indicacoes/routes');
+const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
@@ -143,6 +145,7 @@ app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
 app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
 app.use('/v1/admin/frota', adminAuth, adminFrotaRoutes);
 app.use('/v1/admin/indicacoes', adminAuth, adminIndicacoesRoutes);
+app.use('/v1/admin/emergencia', adminAuth, adminEmergenciaRoutes);
 app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
@@ -214,6 +217,9 @@ async function bootstrap() {
 
     await migrateVehicleFleet();
     logger.info('Documentos e manutenção de veículos inicializados.');
+
+    await migrateEmergencia();
+    logger.info('Botão de emergência (SOS) inicializado.');
 
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');

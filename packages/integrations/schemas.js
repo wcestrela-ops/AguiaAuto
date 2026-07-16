@@ -155,6 +155,26 @@ const INTEGRATIONS = {
       },
     ],
   },
+  emergencia: {
+    label: 'Emergência (SOS)',
+    description: 'Botão de pânico no app — notifica contatos via WhatsApp/SMS com localização',
+    fields: [
+      { key: 'emergency_enabled', label: 'Botão de emergência ativo', type: 'boolean', default: true },
+      { key: 'cooldown_minutes', label: 'Intervalo mínimo entre acionamentos (min)', type: 'number', default: 5 },
+      { key: 'notify_whatsapp', label: 'Tentar WhatsApp primeiro', type: 'boolean', default: true },
+      { key: 'notify_sms', label: 'Permitir SMS (fallback ou principal)', type: 'boolean', default: true },
+      { key: 'assistencia_24h_label', label: 'Assistência 24h — rótulo', type: 'text', default: 'Assistência 24h Águia' },
+      { key: 'assistencia_24h_phone', label: 'Assistência 24h — telefone', type: 'text', hint: 'Exibido no app para ligação rápida' },
+      { key: 'seguradora_label', label: 'Seguradora — rótulo', type: 'text', default: 'Seguradora' },
+      { key: 'seguradora_phone', label: 'Seguradora — telefone', type: 'text' },
+      {
+        key: 'company_alert_phones',
+        label: 'Telefones da central (alerta automático)',
+        type: 'textarea',
+        hint: 'Um por linha ou separados por vírgula — recebem SMS/WhatsApp quando cliente aciona SOS',
+      },
+    ],
+  },
 };
 
 function getSchema(key) {

@@ -551,6 +551,7 @@ export const ADMIN_GUIDES = {
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
       { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
       { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
+      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — configure em Integrações → Emergência.' },
     ],
     links: [
       { label: 'Instaladores', to: '/admin/instaladores' },
@@ -582,6 +583,18 @@ export const ADMIN_GUIDES = {
     ],
     links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
   },
+
+  emergencia: {
+    title: 'Emergência (SOS)',
+    summary: 'Botão de pânico no app — alerta contatos e central via WhatsApp/SMS.',
+    steps: [
+      { title: 'Central', body: 'Informe telefones em "Telefones da central" — recebem alerta automático a cada SOS.' },
+      { title: 'Assistência 24h', body: 'Exibido no app para ligação rápida (não envia alerta automático).' },
+      { title: 'Canais', body: 'WhatsApp primeiro, SMS como fallback — igual cobrança.' },
+      { title: 'Cooldown', body: 'Intervalo mínimo entre acionamentos evita spam acidental.' },
+    ],
+    links: [{ label: 'Integrações', to: '/admin/integracoes' }],
+  },
 };
 
 /** Guia por chave de integração (IntegrationEditPage) */
@@ -595,6 +608,7 @@ export const INTEGRATION_GUIDE_KEYS = {
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
   cobranca: 'cobranca',
+  emergencia: 'emergencia',
 };
 
 export function getAdminGuide(guideId) {

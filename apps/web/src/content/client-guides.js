@@ -240,6 +240,33 @@ export const CLIENT_GUIDES = {
     ],
   },
 
+  client_emergency: {
+    title: 'Botão de emergência (SOS)',
+    summary: 'Notifica contatos de confiança por WhatsApp/SMS com localização do veículo.',
+    steps: [
+      { title: 'Cadastre contatos', body: 'Informe nome e telefone de até 5 pessoas que receberão o alerta.' },
+      { title: 'Acione o SOS', body: 'Escolha o veículo para incluir GPS. Selecione SOS e confirme.' },
+      { title: 'Risco imediato', body: 'Em perigo grave, ligue 190 — o SOS complementa, não substitui.' },
+    ],
+    links: [{ label: 'Meu perfil', to: '/app/perfil' }],
+  },
+
+  client_emergency_dial: {
+    title: 'Ligação rápida',
+    summary: '190, 193, 192 e telefones da Águia configurados pelo admin.',
+    steps: [
+      { title: 'Toque no card', body: 'Abre o discador do celular com o número.' },
+    ],
+  },
+
+  client_emergency_contacts: {
+    title: 'Contatos de emergência',
+    summary: 'Quem recebe SMS/WhatsApp quando você aciona o SOS.',
+    steps: [
+      { title: 'Salvar', body: 'Use números com DDD. Mantenha atualizado.' },
+    ],
+  },
+
   client_profile: {
     title: 'Meu perfil',
     summary: 'Dados pessoais, indicações, senha e notificações push do dispositivo.',

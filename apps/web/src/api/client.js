@@ -859,6 +859,28 @@ class ApiClient {
   syncAdminIndicacoes() {
     return this.request('/v1/admin/indicacoes/sync', { method: 'POST' }, { useAdmin: true });
   }
+
+  getEmergencyContacts() {
+    return this.request('/v1/emergencia/contatos', {}, { useClient: true });
+  }
+
+  saveEmergencyContacts(contatos) {
+    return this.request('/v1/emergencia/contatos', {
+      method: 'PUT',
+      body: JSON.stringify({ contatos }),
+    }, { useClient: true });
+  }
+
+  triggerEmergency(payload) {
+    return this.request('/v1/emergencia/acionar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useClient: true });
+  }
+
+  getAdminEmergencyEvents(limit = 30) {
+    return this.request(`/v1/admin/emergencia/eventos?limit=${limit}`, {}, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

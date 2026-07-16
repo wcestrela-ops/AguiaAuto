@@ -241,6 +241,9 @@ SMTP_FROM=noreply@seudominio.com
 | **Admin — Planos** | `GET/POST/PUT /v1/admin/plans` | ✅ |
 | **Admin — Alertas** | `GET /v1/admin/alertas` | ✅ |
 | Emergência | `GET /v1/emergencia/contatos` | ✅ |
+| Emergência | `PUT /v1/emergencia/contatos` | ✅ |
+| Emergência | `POST /v1/emergencia/acionar` | ✅ |
+| Admin Emergência | `GET /v1/admin/emergencia/eventos` | ✅ |
 | Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
 | Instalador | `GET /v1/instalador/painel` | ✅ |
 | Instalador | `GET /v1/instalador/agendamentos` | ✅ |

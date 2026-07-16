@@ -48,8 +48,15 @@ const vehicleCommandLimiter = createRateLimiter({
   keyFn: (req) => `cmd:${req.user?.id || req.ip}:${req.params?.id || ''}`,
 });
 
+const emergencyTriggerLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_EMERGENCY || '6', 10),
+  keyFn: (req) => `emergency:${req.user?.id || req.ip}`,
+});
+
 module.exports = {
   createRateLimiter,
   authLoginLimiter,
   vehicleCommandLimiter,
+  emergencyTriggerLimiter,
 };

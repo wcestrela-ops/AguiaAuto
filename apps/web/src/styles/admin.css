@@ -1011,3 +1011,70 @@ td.actions { white-space: nowrap; }
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
 }
+
+/* ─── Emergência (cliente) ─────────────────────────────────────────────── */
+.emergency-page {
+  max-width: 720px;
+}
+
+.emergency-sos-card {
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.35);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.emergency-sos-hint {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.emergency-sos-button {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1.125rem 1.5rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.emergency-sos-button:hover:not(:disabled) {
+  background: #bb2d3b;
+}
+
+.emergency-sos-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.emergency-dial-grid {
+  margin-bottom: 1.5rem;
+}
+
+.emergency-dial-card h3 {
+  font-size: 1rem;
+}
+
+.emergency-contact-row {
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+.emergency-contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.emergency-home-card {
+  border-color: rgba(220, 53, 69, 0.35);
+}

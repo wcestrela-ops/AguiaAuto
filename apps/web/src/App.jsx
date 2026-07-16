@@ -20,6 +20,7 @@ import ClientFinanceiroPage from './pages/client/ClientFinanceiroPage';
 import ClientAlertsPage from './pages/client/ClientAlertsPage';
 import ClientContratosPage from './pages/client/ClientContratosPage';
 import ClientFrotaPage from './pages/client/ClientFrotaPage';
+import ClientEmergenciaPage from './pages/client/ClientEmergenciaPage';
 import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
 import ResetPasswordPage from './pages/client/ResetPasswordPage';
 import InstallerLayout from './pages/instalador/InstallerLayout';
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="alertas" element={<ClientAlertsPage />} />
         <Route path="contratos" element={<ClientContratosPage />} />
         <Route path="frota" element={<ClientFrotaPage />} />
+        <Route path="emergencia" element={<ClientEmergenciaPage />} />
         <Route path="perfil" element={<ClientProfilePage />} />
       </Route>
 

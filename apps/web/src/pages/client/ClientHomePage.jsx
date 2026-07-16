@@ -64,6 +64,11 @@ export default function ClientHomePage() {
                     : 'CRLV, seguro e revisões'}
               </p>
             </Link>
+            <Link to="/app/emergencia" className="card card-link emergency-home-card">
+              <span className="card-icon">🆘</span>
+              <h3>Emergência</h3>
+              <p>SOS — alerta contatos com localização</p>
+            </Link>
             <Link to="/app/alertas" className="card card-link">
               <span className="card-icon">🔔</span>
               <h3>Alertas</h3>
