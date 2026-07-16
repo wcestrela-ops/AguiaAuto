@@ -9,6 +9,20 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function fleetChannelLabel(channel) {
+  if (channel === 'whatsapp') return 'WhatsApp';
+  if (channel === 'sms') return 'SMS';
+  if (channel === 'push') return 'Push';
+  return channel || '—';
+}
+
+function fleetChannelBadge(channel) {
+  if (channel === 'whatsapp') return 'info';
+  if (channel === 'sms') return 'warning';
+  if (channel === 'push') return 'success';
+  return '';
+}
+
 function vehicleLabel(v) {
   return [v.plate || 'Sem placa', v.user_name || v.user_email].filter(Boolean).join(' — ');
 }
@@ -100,7 +114,13 @@ export default function AdminFrotaPage() {
       const res = await api.executarAdminFrotaLembretes();
       const data = res.data || {};
       if (data.skipped) {
-        setMessage(`Rodada ignorada: ${data.reason || 'indisponível'}.`);
+        const reasonLabels = {
+          disabled: 'integração ou lembretes automáticos desativados',
+          push_disabled: 'todos os canais desativados',
+          channels_disabled: 'nenhum canal de entrega ativo (push, WhatsApp ou SMS)',
+          in_progress: 'rodada já em andamento',
+        };
+        setMessage(`Rodada ignorada: ${reasonLabels[data.reason] || data.reason || 'indisponível'}.`);
       } else {
         setMessage(`Rodada concluída — ${data.reminders_sent ?? 0} push(es) enviado(s), ${data.errors_count ?? 0} erro(s).`);
       }
@@ -333,7 +353,7 @@ export default function AdminFrotaPage() {
       {tab === 'lembretes' && (
         <>
           <div className="section-header">
-            <SectionTitleWithHelp title="Lembretes automáticos (push)" guideId="frota" />
+            <SectionTitleWithHelp title="Lembretes automáticos (push, WhatsApp e SMS)" guideId="frota" />
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button type="button" className="btn-secondary" onClick={loadReminders} disabled={reminderLoading}>
                 {reminderLoading ? 'Atualizando...' : 'Atualizar'}
@@ -356,6 +376,8 @@ export default function AdminFrotaPage() {
                     <div><dt>Integração</dt><dd>{reminderStatus?.integration_enabled ? 'Ativa' : 'Inativa'}</dd></div>
                     <div><dt>Lembretes automáticos</dt><dd>{reminderStatus?.auto_reminders_enabled ? 'Sim' : 'Não'}</dd></div>
                     <div><dt>Push Firebase</dt><dd>{reminderStatus?.reminder_push_enabled ? 'Sim' : 'Não'}</dd></div>
+                    <div><dt>WhatsApp</dt><dd>{reminderStatus?.reminder_whatsapp_enabled ? 'Sim' : 'Não'}</dd></div>
+                    <div><dt>SMS</dt><dd>{reminderStatus?.reminder_sms_enabled ? 'Sim (fallback ou exclusivo)' : 'Não'}</dd></div>
                     <div><dt>Intervalo</dt><dd>{reminderStatus?.reminder_check_interval_hours ?? '—'} h</dd></div>
                     <div><dt>Antecedência</dt><dd>{reminderStatus?.warning_days ?? '—'} dias</dd></div>
                   </dl>
@@ -403,13 +425,14 @@ export default function AdminFrotaPage() {
                 </>
               )}
 
-              <h3>Histórico de push por cliente</h3>
+              <h3>Histórico por cliente e canal</h3>
               <div className="table-card">
                 <table>
                   <thead>
                     <tr>
                       <th>Data</th>
                       <th>Cliente</th>
+                      <th>Canal</th>
                       <th>Docs</th>
                       <th>Manutenção</th>
                       <th>Status</th>
@@ -418,7 +441,7 @@ export default function AdminFrotaPage() {
                   </thead>
                   <tbody>
                     {reminderNotifications.length === 0 ? (
-                      <tr><td colSpan={6} className="muted">Nenhum lembrete registrado ainda.</td></tr>
+                      <tr><td colSpan={7} className="muted">Nenhum lembrete registrado ainda.</td></tr>
                     ) : (
                       reminderNotifications.map((item) => (
                         <Fragment key={item.id}>
@@ -429,6 +452,17 @@ export default function AdminFrotaPage() {
                               {item.user_id ? (
                                 <div><Link to={`/admin/clientes/${item.user_id}`}>Ficha #{item.user_id}</Link></div>
                               ) : null}
+                            </td>
+                            <td>
+                              <span className={`badge ${fleetChannelBadge(item.channel)}`}>
+                                {fleetChannelLabel(item.channel)}
+                              </span>
+                              {item.used_fallback && (
+                                <small className="muted" style={{ display: 'block' }}>via SMS (fallback)</small>
+                              )}
+                              {item.phone && (
+                                <small className="muted" style={{ display: 'block' }}>{item.phone}</small>
+                              )}
                             </td>
                             <td>{item.documents_count ?? 0}</td>
                             <td>{item.maintenance_count ?? 0}</td>
@@ -454,7 +488,7 @@ export default function AdminFrotaPage() {
                           </tr>
                           {expandedReminderId === item.id && (
                             <tr>
-                              <td colSpan={6}>
+                              <td colSpan={7}>
                                 <ul className="muted" style={{ margin: 0, paddingLeft: '1.25rem' }}>
                                   {(item.items_snapshot || []).map((entry) => (
                                     <li key={`${entry.kind}-${entry.id}`}>

@@ -157,12 +157,22 @@ const INTEGRATIONS = {
   },
   frota: {
     label: 'Documentos e Manutenção',
-    description: 'Lembretes push automáticos de vencimento de documentos e revisões programadas',
+    description: 'Lembretes automáticos de vencimento via push, WhatsApp e SMS',
     fields: [
-      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos', type: 'boolean', default: true, hint: 'Envia um push consolidado por cliente por dia' },
+      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos', type: 'boolean', default: true, hint: 'Envia um lembrete consolidado por cliente por dia' },
       { key: 'reminder_check_interval_hours', label: 'Verificar lembretes a cada (horas)', type: 'number', default: 6, env: 'FLEET_REMINDER_CHECK_HOURS' },
       { key: 'warning_days', label: 'Antecedência do alerta (dias)', type: 'number', default: 30, hint: 'Documentos e manutenções com vencimento neste prazo entram no lembrete' },
       { key: 'reminder_push_enabled', label: 'Enviar notificação push', type: 'boolean', default: true, hint: 'Requer Firebase configurado e app com token FCM registrado' },
+      { key: 'reminder_whatsapp_enabled', label: 'Enviar WhatsApp', type: 'boolean', default: true, hint: 'Mensagem no telefone cadastrado do cliente' },
+      { key: 'reminder_sms_enabled', label: 'Permitir SMS nos lembretes', type: 'boolean', default: false, hint: 'Fallback quando WhatsApp falhar, ou canal exclusivo se "somente SMS"' },
+      { key: 'reminder_sms_only', label: 'Lembretes somente via SMS', type: 'boolean', default: false, hint: 'Quando ativo, lembretes de frota não usam WhatsApp' },
+      {
+        key: 'template_fleet_reminder',
+        label: 'Mensagem — lembrete de documentos/manutenção',
+        type: 'textarea',
+        default: '📋 Lembrete Águia — documentos e manutenção\n\nOlá {{cliente}},\n\n{{resumo}}\n\n{{detalhe_itens}}\n\nAcesse o app em Documentos e Manutenção para atualizar.',
+        hint: 'Variáveis: {{cliente}}, {{resumo}}, {{detalhe_itens}}, {{documentos_vencidos}}, {{documentos_vencendo}}, {{manutencao_atrasada}}, {{manutencao_proxima}}, {{total_itens}}',
+      },
     ],
   },
   emergencia: {

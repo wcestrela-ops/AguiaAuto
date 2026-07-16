@@ -2,16 +2,22 @@ const { getPool } = require('../db/pool');
 const { getVehicleDocumentRepository } = require('../repositories/vehicle-document-repository');
 const { getVehicleMaintenanceRepository } = require('../repositories/vehicle-maintenance-repository');
 const { getFleetReminderNotificationRepository } = require('../repositories/fleet-reminder-notification-repository');
+const { getUserRepository } = require('../repositories/user-repository');
 const {
   getFleetReminderConfig,
   isAutoRemindersEnabled,
   isPushEnabled,
+  isWhatsappEnabled,
+  isSmsEnabled,
+  isAnyDeliveryChannelEnabled,
 } = require('../lib/fleet-reminder-config');
 const {
   formatDocument,
   formatMaintenance,
   expiryStatus,
 } = require('./vehicle-fleet-service');
+const { sendTemplatedFleetReminder } = require('./fleet-notifications');
+const { normalizePhone } = require('../lib/phone');
 const firebase = require('../integrations/firebase');
 const logger = require('../logger');
 
@@ -73,6 +79,7 @@ class FleetReminderService {
     this.documents = getVehicleDocumentRepository();
     this.maintenance = getVehicleMaintenanceRepository();
     this.notifications = getFleetReminderNotificationRepository();
+    this.users = getUserRepository();
     this.runInProgress = false;
     this.lastRun = null;
   }
@@ -85,6 +92,8 @@ class FleetReminderService {
       reminder_check_interval_hours: settings.reminder_check_interval_hours,
       warning_days: settings.warning_days,
       reminder_push_enabled: isPushEnabled(settings),
+      reminder_whatsapp_enabled: isWhatsappEnabled(settings),
+      reminder_sms_enabled: isSmsEnabled(settings),
       last_run: this.lastRun,
     };
   }
@@ -96,8 +105,8 @@ class FleetReminderService {
     if (!force && (!settings.integrationEnabled || !isAutoRemindersEnabled(settings))) {
       return { skipped: true, reason: 'disabled' };
     }
-    if (!force && !isPushEnabled(settings)) {
-      return { skipped: true, reason: 'push_disabled' };
+    if (!force && !isAnyDeliveryChannelEnabled(settings)) {
+      return { skipped: true, reason: 'channels_disabled' };
     }
 
     this.runInProgress = true;
@@ -116,7 +125,7 @@ class FleetReminderService {
 
       for (const userId of userIds) {
         try {
-          const sent = await this._sendDailyReminder(userId, warningDays);
+          const sent = await this._sendDailyReminder(userId, warningDays, settings);
           if (sent) {
             remindersSent += 1;
             details.push({
@@ -125,6 +134,7 @@ class FleetReminderService {
               status: 'sent',
               documents: sent.documentsCount,
               maintenance: sent.maintenanceCount,
+              channels: sent.channels,
             });
           }
         } catch (err) {
@@ -159,7 +169,7 @@ class FleetReminderService {
     }
   }
 
-  async _sendDailyReminder(userId, warningDays) {
+  async _sendDailyReminder(userId, warningDays, settings) {
     if (await this.notifications.hasSentForUserTriggerToday(userId, DAILY_TRIGGER)) {
       return false;
     }
@@ -173,53 +183,100 @@ class FleetReminderService {
       return false;
     }
 
+    const user = await this.users.findById(userId);
     const { title, body } = buildReminderMessage(docRows, maintRows);
     const itemsSnapshot = buildItemsSnapshot(docRows, maintRows);
+    const basePayload = {
+      user_id: userId,
+      trigger: DAILY_TRIGGER,
+      documents_count: docRows.length,
+      maintenance_count: maintRows.length,
+      items_snapshot: itemsSnapshot,
+    };
 
-    try {
-      const pushResult = await firebase.sendPushToUser(userId, {
-        title,
-        body,
-        data: {
-          type: 'fleet_reminder',
-          trigger: DAILY_TRIGGER,
-          documents_count: String(docRows.length),
-          maintenance_count: String(maintRows.length),
-          path: '/app/frota',
-        },
-      });
+    const channels = [];
+    let anySuccess = false;
 
-      if (!pushResult.success) {
-        throw new Error(pushResult.errors?.[0]?.error || 'Push não entregue — nenhum dispositivo ativo.');
+    if (isPushEnabled(settings)) {
+      try {
+        const pushResult = await firebase.sendPushToUser(userId, {
+          title,
+          body,
+          data: {
+            type: 'fleet_reminder',
+            trigger: DAILY_TRIGGER,
+            documents_count: String(docRows.length),
+            maintenance_count: String(maintRows.length),
+            path: '/app/frota',
+          },
+        });
+
+        if (!pushResult.success) {
+          throw new Error(pushResult.errors?.[0]?.error || 'Push não entregue — nenhum dispositivo ativo.');
+        }
+
+        await this.notifications.create({
+          ...basePayload,
+          channel: 'push',
+          status: 'sent',
+        });
+        channels.push({ channel: 'push', status: 'sent' });
+        anySuccess = true;
+      } catch (err) {
+        await this.notifications.create({
+          ...basePayload,
+          channel: 'push',
+          status: 'failed',
+          error_message: err.message,
+        });
+        channels.push({ channel: 'push', status: 'failed', error: err.message });
       }
-
-      await this.notifications.create({
-        user_id: userId,
-        trigger: DAILY_TRIGGER,
-        channel: 'push',
-        status: 'sent',
-        documents_count: docRows.length,
-        maintenance_count: maintRows.length,
-        items_snapshot: itemsSnapshot,
-      });
-
-      return {
-        documentsCount: docRows.length,
-        maintenanceCount: maintRows.length,
-      };
-    } catch (err) {
-      await this.notifications.create({
-        user_id: userId,
-        trigger: DAILY_TRIGGER,
-        channel: 'push',
-        status: 'failed',
-        documents_count: docRows.length,
-        maintenance_count: maintRows.length,
-        items_snapshot: itemsSnapshot,
-        error_message: err.message,
-      });
-      throw err;
     }
+
+    const messagingEnabled = isWhatsappEnabled(settings) || isSmsEnabled(settings);
+    if (messagingEnabled) {
+      const phone = user?.phone ? normalizePhone(user.phone) : null;
+      if (!phone) {
+        const channel = isSmsEnabled(settings) && !isWhatsappEnabled(settings) ? 'sms' : 'whatsapp';
+        await this.notifications.create({
+          ...basePayload,
+          channel,
+          phone: null,
+          status: 'failed',
+          error_message: 'Cliente sem telefone cadastrado.',
+        });
+        channels.push({ channel, status: 'failed', error: 'Cliente sem telefone cadastrado.' });
+      } else {
+        try {
+          const result = await sendTemplatedFleetReminder(phone, {
+            user,
+            documents: docRows,
+            maintenance: maintRows,
+            userId,
+            itemsSnapshot,
+          });
+          channels.push({
+            channel: result.channel,
+            status: result.status,
+            used_fallback: result.used_fallback,
+          });
+          if (result.status === 'sent') anySuccess = true;
+        } catch (err) {
+          channels.push({ channel: 'whatsapp', status: 'failed', error: err.message });
+        }
+      }
+    }
+
+    if (!anySuccess) {
+      const errors = channels.map((item) => item.error).filter(Boolean);
+      throw new Error(errors.join('; ') || 'Nenhum canal entregou o lembrete.');
+    }
+
+    return {
+      documentsCount: docRows.length,
+      maintenanceCount: maintRows.length,
+      channels,
+    };
   }
 }
 

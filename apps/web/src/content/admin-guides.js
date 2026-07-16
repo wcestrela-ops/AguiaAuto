@@ -571,8 +571,8 @@ export const ADMIN_GUIDES = {
     steps: [
       { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
       { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
-      { title: 'Lembretes push', body: 'Aba "Lembretes push" mostra status, histórico de envios e botão "Executar agora" para forçar uma rodada.' },
-      { title: 'Push automático', body: 'Configure intervalo e antecedência em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia.' },
+      { title: 'Lembretes push', body: 'Aba "Lembretes push" mostra status, histórico por canal (push/WhatsApp/SMS) e botão "Executar agora".' },
+      { title: 'Push automático', body: 'Configure canais, intervalo e template em Integrações → Documentos e Manutenção.' },
       { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
     ],
     links: [
@@ -658,23 +658,27 @@ export const ADMIN_GUIDES = {
 
   frota: {
     title: 'Lembretes de documentos e manutenção',
-    summary: 'Push automático quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
+    summary: 'Push, WhatsApp e SMS automáticos quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
     steps: [
       {
         title: 'Consolidado por cliente',
-        body: 'No máximo um push por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+        body: 'No máximo um lembrete por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+      },
+      {
+        title: 'Canais',
+        body: 'Push (Firebase), WhatsApp no telefone cadastrado e SMS opcional (fallback ou exclusivo). Pelo menos um canal deve estar ativo.',
       },
       {
         title: 'Antecedência',
         body: 'Itens com vencimento dentro do prazo configurado (padrão 30 dias) entram no lembrete — inclui já vencidos.',
       },
       {
-        title: 'Firebase',
-        body: 'Requer integração Firebase ativa e o cliente com app/PWA registrado para push.',
+        title: 'Template',
+        body: 'Personalize a mensagem WhatsApp/SMS com variáveis como {{cliente}}, {{resumo}} e {{detalhe_itens}}.',
       },
       {
         title: 'Histórico admin',
-        body: 'Na aba Lembretes push em /admin/frota: status, rodadas recentes, histórico por cliente e execução manual.',
+        body: 'Na aba Lembretes push em /admin/frota: status, rodadas recentes, histórico por canal e execução manual.',
       },
     ],
     links: [

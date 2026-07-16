@@ -9,8 +9,8 @@ class FleetReminderNotificationRepository {
     const { rows } = await this.pool.query(
       `INSERT INTO fleet_reminder_notifications (
         user_id, trigger, channel, status, documents_count, maintenance_count,
-        items_snapshot, error_message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        items_snapshot, error_message, phone, used_fallback, provider_type, external_ref
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         data.user_id,
@@ -21,6 +21,10 @@ class FleetReminderNotificationRepository {
         data.maintenance_count || 0,
         JSON.stringify(data.items_snapshot || []),
         data.error_message || null,
+        data.phone || null,
+        data.used_fallback === true,
+        data.provider_type || null,
+        data.external_ref || null,
       ],
     );
     return rows[0];
