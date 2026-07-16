@@ -413,6 +413,56 @@ td.actions { white-space: nowrap; }
   max-width: 720px;
 }
 
+.installer-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.installer-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.installer-checklist-item.done {
+  color: var(--text);
+}
+
+.installer-checklist-mark {
+  width: 1.25rem;
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+.installer-checklist-item.done .installer-checklist-mark {
+  color: var(--success, #22c55e);
+}
+
+.installer-comm-check {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.field-hint.error {
+  color: var(--error, #ef4444);
+}
+
 .photo-upload-block {
   display: flex;
   flex-direction: column;

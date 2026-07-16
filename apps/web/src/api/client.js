@@ -603,6 +603,10 @@ class ApiClient {
     return this.request(`/v1/instalador/instalacoes/${id}`, {}, { useClient: true });
   }
 
+  getInstallerTrackerModels() {
+    return this.request('/v1/instalador/modelos-rastreador', {}, { useClient: true });
+  }
+
   finalizeInstallation(id, formData) {
     const token = this.accessToken || localStorage.getItem('access_token');
     return fetch(`${BASE}/v1/instalador/instalacoes/${id}/finalizar`, {

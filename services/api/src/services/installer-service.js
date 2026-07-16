@@ -2,11 +2,21 @@ const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicl
 const { getInstallationRepository } = require('../repositories/installation-repository');
 const { getInstallationPhotoRepository } = require('../repositories/installation-photo-repository');
 const { getUserRepository } = require('../repositories/user-repository');
+const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
+const { getTrackerCommandService } = require('./tracker-command-service');
 const { formatVehicle } = require('./vehicle-service');
 const gpswox = require('../integrations/gpswox-gateway');
 const firebase = require('./firebase');
 const logger = require('../logger');
 const { movePhotosToInstallation, MAX_PHOTOS } = require('../lib/upload');
+const {
+  normalizeImei,
+  isValidImei,
+  normalizeTrackerPhone,
+  isValidTrackerPhone,
+} = require('../lib/imei');
+
+const MIN_PHOTOS = 1;
 
 function formatPendingJob(row) {
   return {
@@ -88,11 +98,17 @@ class InstallerService {
     };
   }
 
+  async listTrackerModels() {
+    return getTrackerCommandService().listModelsWithCommands();
+  }
+
   async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = []) {
     const {
       gpswox_device_id,
       gpswox_name,
       imei,
+      tracker_phone,
+      tracker_model_id,
       notes,
       report,
       duration_minutes,
@@ -103,13 +119,41 @@ class InstallerService {
       throw new Error('gpswox_device_id é obrigatório para finalizar.');
     }
 
+    const normalizedImei = normalizeImei(imei);
+    if (!isValidImei(normalizedImei)) {
+      throw new Error('IMEI inválido — informe 15 dígitos válidos.');
+    }
+
+    const normalizedPhone = normalizeTrackerPhone(tracker_phone);
+    if (!isValidTrackerPhone(normalizedPhone)) {
+      throw new Error('Chip SIM inválido — informe o número com DDD (10 a 13 dígitos).');
+    }
+
+    const modelId = parseInt(tracker_model_id, 10);
+    if (Number.isNaN(modelId)) {
+      throw new Error('Modelo do rastreador é obrigatório.');
+    }
+
+    const trackerModel = await getTrackerModelRepository().findById(modelId);
+    if (!trackerModel) {
+      throw new Error('Modelo de rastreador não encontrado.');
+    }
+
     if (!report || !String(report).trim()) {
       throw new Error('Relatório da instalação é obrigatório.');
+    }
+
+    if (String(report).trim().length < 20) {
+      throw new Error('Relatório muito curto — descreva a instalação com mais detalhes.');
     }
 
     const duration = parseDurationMinutes(duration_minutes);
     if (!duration) {
       throw new Error('Informe a duração da instalação em minutos.');
+    }
+
+    if (uploadedFiles.length < MIN_PHOTOS) {
+      throw new Error(`Adicione pelo menos ${MIN_PHOTOS} foto da instalação.`);
     }
 
     if (uploadedFiles.length > MAX_PHOTOS) {
@@ -131,7 +175,7 @@ class InstallerService {
       try {
         await gpswox.createVeiculo({
           device_id: gpswox_device_id,
-          imei: imei || gpswox_device_id,
+          imei: normalizedImei,
           name: deviceName,
           plate: vehicle.plate,
         });
@@ -144,13 +188,17 @@ class InstallerService {
       gpswox_device_id,
       gpswox_name: deviceName,
       status: VEHICLE_STATUS.ACTIVE,
+      tracker_imei: normalizedImei,
+      tracker_phone: normalizedPhone,
+      tracker_model_id: modelId,
+      tracker_model: trackerModel.name,
     });
 
     const log = await this.installations.create({
       vehicle_id: vehicleId,
       installer_id: installerId,
       gpswox_device_id,
-      imei: imei || null,
+      imei: normalizedImei,
       notes: notes || null,
       report: String(report).trim(),
       duration_minutes: duration,

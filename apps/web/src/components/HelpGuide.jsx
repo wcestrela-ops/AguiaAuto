@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminGuide } from '../content/admin-guides';
 import { getClientGuide } from '../content/client-guides';
+import { getInstallerGuide } from '../content/installer-guides';
 
 function resolveGuide(guideId, scope) {
   if (!guideId) return null;
-  return scope === 'client' ? getClientGuide(guideId) : getAdminGuide(guideId);
+  if (scope === 'client') return getClientGuide(guideId);
+  if (scope === 'installer') return getInstallerGuide(guideId);
+  return getAdminGuide(guideId);
 }
 
 function GuideContent({ guide }) {

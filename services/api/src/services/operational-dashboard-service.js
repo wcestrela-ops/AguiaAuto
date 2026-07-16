@@ -10,6 +10,7 @@ class OperationalDashboardService {
     const [
       vehiclesMissingChip,
       vehiclesMissingDevice,
+      vehiclesMissingImei,
       vehiclesMissingModel,
       pendingInstallations,
       provisioningIssues,
@@ -22,6 +23,7 @@ class OperationalDashboardService {
     ] = await Promise.all([
       this._vehiclesMissingChip(),
       this._vehiclesMissingDevice(),
+      this._vehiclesMissingImei(),
       this._vehiclesMissingModel(),
       this._countPendingInstallations(),
       this._provisioningIssues(),
@@ -53,6 +55,17 @@ class OperationalDashboardService {
         title: 'Veículos sem Device ID GPSWOX',
         count: vehiclesMissingDevice.count,
         link: '/admin/veiculos',
+      });
+    }
+
+    if (vehiclesMissingImei.count > 0) {
+      alerts.push({
+        severity: 'warning',
+        key: 'vehicles_missing_imei',
+        title: 'Veículos ativos sem IMEI',
+        count: vehiclesMissingImei.count,
+        link: '/admin/veiculos',
+        hint: 'IMEI deve ser registrado na instalação para suporte e failover SMS.',
       });
     }
 
@@ -146,6 +159,7 @@ class OperationalDashboardService {
       counts: {
         vehicles_missing_chip: vehiclesMissingChip.count,
         vehicles_missing_device: vehiclesMissingDevice.count,
+        vehicles_missing_imei: vehiclesMissingImei.count,
         vehicles_missing_model: vehiclesMissingModel.count,
         pending_installations: pendingInstallations,
         provisioning_issues: provisioningIssues.count,
@@ -159,6 +173,7 @@ class OperationalDashboardService {
       details: {
         vehicles_missing_chip: vehiclesMissingChip.items,
         vehicles_missing_device: vehiclesMissingDevice.items,
+        vehicles_missing_imei: vehiclesMissingImei.items,
         provisioning_issues: provisioningIssues.items,
         recent_failed_commands: recentFailedCommands,
         recent_failed_sms: recentFailedSms,
@@ -196,6 +211,24 @@ class OperationalDashboardService {
     const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM vehicles
        WHERE gpswox_device_id IS NULL OR TRIM(gpswox_device_id) = ''`,
+    );
+    return { count: countRows[0].count, items: rows };
+  }
+
+  async _vehiclesMissingImei() {
+    const { rows } = await this.pool.query(
+      `SELECT v.id, v.plate, v.status, u.email AS user_email, u.name AS user_name
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       WHERE v.status IN ('active', 'blocked')
+         AND (v.tracker_imei IS NULL OR TRIM(v.tracker_imei) = '')
+       ORDER BY v.updated_at DESC
+       LIMIT 15`,
+    );
+    const { rows: countRows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM vehicles
+       WHERE status IN ('active', 'blocked')
+         AND (tracker_imei IS NULL OR TRIM(tracker_imei) = '')`,
     );
     return { count: countRows[0].count, items: rows };
   }

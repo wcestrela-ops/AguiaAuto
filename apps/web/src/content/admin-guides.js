@@ -465,16 +465,50 @@ export const ADMIN_GUIDES = {
     links: [{ label: 'Integração Alertas', to: '/admin/integracoes/alertas' }],
   },
 
+  instaladores: {
+    title: 'Fluxo de instalação',
+    summary: 'Cadastre instaladores, deixe veículos pendentes e o campo preenche IMEI, chip e modelo no checklist.',
+    steps: [
+      {
+        title: '1. Criar instalador',
+        body: 'Cadastre e-mail e senha aqui. Credenciais são enviadas por e-mail/WhatsApp. Login em /login redireciona para /instalador.',
+      },
+      {
+        title: '2. Veículo pendente',
+        body: 'Em Veículos, cadastre com status "Aguardando instalação". Device ID pode ficar vazio — o instalador preenche na finalização.',
+      },
+      {
+        title: '3. Checklist na instalação',
+        body: 'Instalador informa Device ID, IMEI (15 dígitos), chip SIM, modelo do rastreador, mínimo 1 foto e teste de comunicação.',
+      },
+      {
+        title: '4. Cliente aceita',
+        body: 'Após finalizar, o cliente recebe push e aceita contrato + dados de instalação em /app/contratos.',
+      },
+      {
+        title: '5. Veículo ativo',
+        body: 'IMEI, chip e modelo são gravados no veículo automaticamente — habilita comandos 4G/SMS no app cliente.',
+      },
+    ],
+    links: [
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Contratos', to: '/admin/contratos' },
+    ],
+  },
+
   operational_dashboard: {
     title: 'Painel operacional',
     summary: 'Indicadores do que trava a operação no dia a dia — veículos, comandos, SMS e financeiro.',
     steps: [
+      { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação em campo — veja Instaladores e Veículos.' },
+      { title: 'Veículos sem IMEI', body: 'Ativos/bloqueados sem tracker_imei — deveriam ser preenchidos no checklist do instalador.' },
       { title: 'Veículos sem chip', body: 'Ativos/bloqueados sem tracker_phone não têm backup SMS.' },
       { title: 'Comandos com falha', body: 'Últimas 24h — bloqueio/desbloqueio que nem 4G nem SMS conseguiram.' },
       { title: 'Provisionamento', body: 'Clientes sem Asaas/GPSWOX completo — veja Financeiro → Reprovisionar.' },
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
     ],
     links: [
+      { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Financeiro', to: '/admin/financeiro' },
       { label: 'SMS', to: '/admin/sms' },
