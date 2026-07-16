@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status } = req.body;
+    const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone } = req.body;
 
     if (!user_id || !plate) {
       return res.status(400).json({ success: false, error: 'user_id e plate são obrigatórios.' });
@@ -43,6 +43,7 @@ router.post('/', async (req, res) => {
       gpswox_device_id,
       gpswox_name,
       status,
+      tracker_phone,
     });
 
     res.status(201).json({ success: true, data });
@@ -53,7 +54,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { plate, brand, model, color, year, gpswox_device_id, gpswox_name, status } = req.body;
+    const { plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, error: 'Status inválido.' });
@@ -68,6 +69,7 @@ router.put('/:id', async (req, res) => {
       gpswox_device_id,
       gpswox_name,
       status,
+      tracker_phone,
     });
 
     res.json({ success: true, data });

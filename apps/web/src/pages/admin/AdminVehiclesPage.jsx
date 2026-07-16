@@ -18,6 +18,7 @@ const EMPTY_FORM = {
   year: '',
   gpswox_device_id: '',
   gpswox_name: '',
+  tracker_phone: '',
   status: 'pending_installation',
 };
 
@@ -72,6 +73,7 @@ export default function AdminVehiclesPage() {
       year: vehicle.year ? String(vehicle.year) : '',
       gpswox_device_id: vehicle.gpswox_device_id || '',
       gpswox_name: vehicle.gpswox_name || '',
+      tracker_phone: vehicle.tracker_phone || '',
       status: vehicle.status || 'pending_installation',
     });
     setShowForm(true);
@@ -92,6 +94,7 @@ export default function AdminVehiclesPage() {
       year: form.year ? Number(form.year) : null,
       gpswox_device_id: form.gpswox_device_id.trim() || null,
       gpswox_name: form.gpswox_name.trim() || null,
+      tracker_phone: form.tracker_phone.trim() || null,
       status: form.status,
     };
 
@@ -181,6 +184,15 @@ export default function AdminVehiclesPage() {
             GPSWOX Nome
             <input value={form.gpswox_name} onChange={(e) => updateForm('gpswox_name', e.target.value)} />
             <small className="hint">Nome do veículo no GPSWOX (fallback Playwright)</small>
+          </label>
+          <label>
+            Número do chip (SMS failover)
+            <input
+              value={form.tracker_phone}
+              onChange={(e) => updateForm('tracker_phone', e.target.value)}
+              placeholder="5511999999999"
+            />
+            <small className="hint">Usado quando o comando 4G falhar (desbloqueio, bloqueio, etc.)</small>
           </label>
 
           <label>

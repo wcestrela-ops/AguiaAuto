@@ -20,6 +20,7 @@ const { migrateContratos } = require('./db/migrate-contratos');
 const { migrateContratosSnapshot } = require('./db/migrate-contratos-snapshot');
 const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
+const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 
@@ -159,6 +160,9 @@ async function bootstrap() {
 
     await migrateIndicacoes();
     logger.info('Indique e Ganhe (indicações + desconto) inicializado.');
+
+    await migrateVehicleSms();
+    logger.info('Veículos — chip SMS e logs de comando inicializados.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

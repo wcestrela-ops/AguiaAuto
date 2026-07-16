@@ -48,11 +48,14 @@ services:
       GATEWAY_URL: http://gpswox-gateway:3001
       DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
       CORS_ORIGIN: http://localhost:8080
+      SMS_HUB_URL: http://sms-hub-api:4000
+      AGUIA_SERVICE_SECRET: ${ADMIN_SECRET:-altere-este-segredo-admin}
     ports:
       - "3000:3000"
     depends_on:
       - postgres
       - gpswox-gateway
+      - sms-hub-api
     networks:
       - aguia_network
 
@@ -113,6 +116,7 @@ services:
       SMS_HUB_API_PORT: 4000
       SMS_HUB_CORS_ORIGIN: http://localhost:8080,http://localhost:5173
       AGUIA_ADMIN_SECRET: ${ADMIN_SECRET:-altere-este-segredo-admin}
+      AGUIA_SERVICE_SECRET: ${ADMIN_SECRET:-altere-este-segredo-admin}
     ports:
       - "4000:4000"
     depends_on:

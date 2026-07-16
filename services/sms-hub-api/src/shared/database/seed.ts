@@ -3,12 +3,15 @@ import dataSource from './data-source';
 import { CompanyEntity } from '../../modules/companies/infrastructure/company.entity';
 import { UserEntity } from '../../modules/users/infrastructure/user.entity';
 import { UserRole, UserStatus, CompanyStatus } from '../../modules/users/domain/user-role.enum';
+import { SmsGatewayEntity } from '../../modules/gateways/infrastructure/sms-gateway.entity';
+import { GatewayStatus, GatewayType } from '../../modules/gateways/domain/gateway.enums';
 
 async function seed() {
   await dataSource.initialize();
 
   const companyRepo = dataSource.getRepository(CompanyEntity);
   const userRepo = dataSource.getRepository(UserEntity);
+  const gatewayRepo = dataSource.getRepository(SmsGatewayEntity);
 
   let company = await companyRepo.findOne({ where: { name: 'Empresa Teste' } });
   if (!company) {
@@ -55,6 +58,20 @@ async function seed() {
       }),
     );
     console.log(`Operador criado: ${operatorEmail}`);
+  }
+
+  let gateway = await gatewayRepo.findOne({ where: { name: 'Gateway Simulado' } });
+  if (!gateway) {
+    gateway = await gatewayRepo.save(
+      gatewayRepo.create({
+        name: 'Gateway Simulado',
+        type: GatewayType.FAKE,
+        priority: 1,
+        active: true,
+        status: GatewayStatus.ONLINE,
+      }),
+    );
+    console.log('Gateway FAKE criado.');
   }
 
   await dataSource.destroy();

@@ -14,7 +14,8 @@ class VehicleRepository {
 
   async listByUser(userId) {
     const { rows } = await this.pool.query(
-      `SELECT id, user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status, created_at, updated_at
+      `SELECT id, user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status,
+              tracker_phone, created_at, updated_at
        FROM vehicles WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
@@ -45,13 +46,14 @@ class VehicleRepository {
 
   async create(data) {
     const { rows } = await this.pool.query(
-      `INSERT INTO vehicles (user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `INSERT INTO vehicles (user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status, tracker_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         data.user_id, data.gpswox_device_id, data.gpswox_name,
         data.plate, data.brand, data.model, data.color, data.year,
         data.status || VEHICLE_STATUS.PENDING_INSTALLATION,
+        data.tracker_phone || null,
       ]
     );
     return rows[0];
@@ -71,11 +73,13 @@ class VehicleRepository {
         color = COALESCE($7, color),
         year = COALESCE($8, year),
         status = COALESCE($9, status),
+        tracker_phone = COALESCE($10, tracker_phone),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
         id, data.gpswox_device_id, data.gpswox_name, data.plate,
         data.brand, data.model, data.color, data.year, data.status,
+        data.tracker_phone,
       ]
     );
     return rows[0];

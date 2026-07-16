@@ -109,10 +109,18 @@ Endpoints implementados na Fase 1 (prefixo **`/api/v1/sms`**):
 
 O módulo AG SMS está embutido em **`apps/web`** em `/admin/sms`, com item **AG SMS** no menu admin.
 
-- Proxy dev: `/api/v1/sms` → SMS Hub API (`:4000`)
-- Proxy prod (nginx): mesma regra em `apps/web/nginx.conf`
-- Auth bridge: admin logado na Águia conecta automaticamente via `POST /api/v1/sms/auth/bridge`
-- Configure `AGUIA_ADMIN_SECRET` no `.env.sms-hub` igual ao `ADMIN_SECRET` da Águia
+### Failover 4G → SMS (comandos veiculares)
+
+Quando o cliente envia **bloquear/desbloquear** (ou outro comando) pelo painel:
+
+1. A API Águia tenta primeiro via **GPSWOX (4G)**
+2. Se o 4G falhar de forma elegível (gateway offline, conexão recusada, etc.)
+3. A API chama **`POST /api/v1/sms/internal/dispatches/send`** no SMS Hub
+4. SMS Hub envia pelo gateway configurado (FAKE em dev) para o **`tracker_phone`** do veículo
+5. Comandos SMS mapeados: `RELAY,1#` (bloqueio), `RELAY,0#` (desbloqueio), `WHERE#` (localizar)
+
+Configure no admin do veículo: **Número do chip (SMS failover)**  
+Env: `SMS_HUB_URL`, `AGUIA_SERVICE_SECRET` (igual ao `ADMIN_SECRET`)
 
 ## PWA
 
