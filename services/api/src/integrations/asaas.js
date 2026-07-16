@@ -82,6 +82,127 @@ function onlyDigits(value) {
   return value ? String(value).replace(/\D/g, '') : '';
 }
 
+function buildQuery(params = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === '') continue;
+    query.set(key, String(value));
+  }
+  const qs = query.toString();
+  return qs ? `?${qs}` : '';
+}
+
+async function fetchAllPaginated(fetchPage, pageSize = 100) {
+  const items = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await fetchPage({ offset, limit: pageSize });
+    const batch = page?.data || [];
+    items.push(...batch);
+    if (!page?.hasMore) break;
+    offset += pageSize;
+  }
+
+  return items;
+}
+
+function formatCustomer(customer) {
+  return {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    cpf_cnpj: customer.cpfCnpj || null,
+    phone: customer.mobilePhone || customer.phone || null,
+    deleted: Boolean(customer.deleted),
+  };
+}
+
+const SUBSCRIPTION_STATUS_MAP = {
+  ACTIVE: 'active',
+  EXPIRED: 'cancelled',
+  INACTIVE: 'cancelled',
+};
+
+function mapSubscriptionStatus(asaasStatus) {
+  return SUBSCRIPTION_STATUS_MAP[asaasStatus] || 'cancelled';
+}
+
+function formatSubscription(subscription) {
+  return {
+    id: subscription.id,
+    customer_id: subscription.customer,
+    status: mapSubscriptionStatus(subscription.status),
+    asaas_status: subscription.status || null,
+    value: subscription.value,
+    billing_type: subscription.billingType,
+    cycle: subscription.cycle,
+    next_due_date: subscription.nextDueDate,
+    description: subscription.description,
+  };
+}
+
+async function listCustomers({ offset = 0, limit = 100, cpfCnpj, email, name } = {}) {
+  const cpf = onlyDigits(cpfCnpj);
+  return request(`/customers${buildQuery({
+    offset,
+    limit: Math.min(limit, 100),
+    cpfCnpj: cpf || undefined,
+    email,
+    name,
+  })}`);
+}
+
+async function listPayments({ offset = 0, limit = 100, customer, subscription } = {}) {
+  return request(`/payments${buildQuery({
+    offset,
+    limit: Math.min(limit, 100),
+    customer,
+    subscription,
+  })}`);
+}
+
+async function listSubscriptions({ offset = 0, limit = 100, customer } = {}) {
+  return request(`/subscriptions${buildQuery({
+    offset,
+    limit: Math.min(limit, 100),
+    customer,
+  })}`);
+}
+
+async function listAllCustomers(filters = {}) {
+  const customers = await fetchAllPaginated(
+    ({ offset, limit }) => listCustomers({ ...filters, offset, limit }),
+  );
+  return customers.filter((customer) => !customer.deleted).map(formatCustomer);
+}
+
+async function listCustomerPayments(customerId) {
+  const payments = await fetchAllPaginated(
+    ({ offset, limit }) => listPayments({ customer: customerId, offset, limit }),
+  );
+  return payments.map(formatPayment);
+}
+
+async function listCustomerSubscriptions(customerId) {
+  const subscriptions = await fetchAllPaginated(
+    ({ offset, limit }) => listSubscriptions({ customer: customerId, offset, limit }),
+  );
+  return subscriptions.map(formatSubscription);
+}
+
+async function findCustomer({ cpfCnpj, email } = {}) {
+  if (cpfCnpj) {
+    const page = await listCustomers({ cpfCnpj, limit: 1 });
+    if (page?.data?.[0]) return formatCustomer(page.data[0]);
+  }
+  if (email) {
+    const page = await listCustomers({ email, limit: 1 });
+    if (page?.data?.[0]) return formatCustomer(page.data[0]);
+  }
+  return null;
+}
+
 async function createCustomer({ name, email, cpfCnpj, phone }) {
   const mobilePhone = onlyDigits(phone);
   const cpf = onlyDigits(cpfCnpj);
@@ -183,6 +304,13 @@ module.exports = {
   getConfig,
   createCustomer,
   getCustomer,
+  findCustomer,
+  listCustomers,
+  listPayments,
+  listSubscriptions,
+  listAllCustomers,
+  listCustomerPayments,
+  listCustomerSubscriptions,
   createPayment,
   createSubscription,
   getSubscriptionPayments,
@@ -191,5 +319,9 @@ module.exports = {
   deletePayment,
   handleWebhook,
   formatPayment,
+  formatCustomer,
+  formatSubscription,
   mapPaymentStatus,
+  mapSubscriptionStatus,
+  fetchAllPaginated,
 };

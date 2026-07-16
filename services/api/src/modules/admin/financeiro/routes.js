@@ -180,4 +180,72 @@ router.post('/reprovisionar/:userId', async (req, res) => {
   }
 });
 
+router.get('/sync-asaas/status', async (req, res) => {
+  try {
+    const { getAsaasSyncService } = require('../../../services/asaas-sync-service');
+    const data = await getAsaasSyncService().getStatus();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/sync-asaas/preview', async (req, res) => {
+  try {
+    const { getAsaasSyncService } = require('../../../services/asaas-sync-service');
+    const data = await getAsaasSyncService().preview({
+      create_users: req.query.create_users !== 'false',
+      import_invoices: req.query.import_invoices !== 'false',
+      import_subscriptions: req.query.import_subscriptions !== 'false',
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/sync-asaas', async (req, res) => {
+  try {
+    const { getAsaasSyncService } = require('../../../services/asaas-sync-service');
+    const {
+      dry_run = false,
+      create_users = true,
+      import_invoices = true,
+      import_subscriptions = true,
+    } = req.body || {};
+
+    const data = await getAsaasSyncService().runSync({
+      dry_run: Boolean(dry_run),
+      create_users: create_users !== false,
+      import_invoices: import_invoices !== false,
+      import_subscriptions: import_subscriptions !== false,
+      triggered_by: 'admin',
+      adminUserId: req.user?.id,
+    });
+
+    await getAuditService().adminAction('asaas.sync.request', {
+      resourceType: 'integration',
+      resourceId: 'asaas',
+      metadata: {
+        dry_run: Boolean(dry_run),
+        total_customers: data.total_customers,
+        users_created: data.users_created,
+        users_linked: data.users_linked,
+        invoices_imported: data.invoices_imported,
+      },
+      req,
+    });
+
+    res.json({
+      success: true,
+      data,
+      message: dry_run
+        ? 'Prévia de sincronização Asaas concluída (sem alterações).'
+        : 'Sincronização Asaas concluída.',
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

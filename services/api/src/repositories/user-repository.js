@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { getPool } = require('../db/pool');
 
 const SALT_ROUNDS = 12;
@@ -33,10 +34,23 @@ class UserRepository {
     const digits = String(cpfCnpj || '').replace(/\D/g, '');
     if (!digits) return null;
     const { rows } = await this.pool.query(
-      `SELECT id, email, name, cpf_cnpj FROM users
+      `SELECT id, email, name, cpf_cnpj, asaas_customer_id FROM users
        WHERE regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') = $1
        LIMIT 1`,
       [digits],
+    );
+    return rows[0] || null;
+  }
+
+  async findByAsaasCustomerId(asaasCustomerId) {
+    if (!asaasCustomerId) return null;
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, phone, cpf_cnpj, role, active, asaas_customer_id,
+              provisioning_status, created_at
+       FROM users
+       WHERE asaas_customer_id = $1
+       LIMIT 1`,
+      [String(asaasCustomerId)],
     );
     return rows[0] || null;
   }
@@ -83,6 +97,33 @@ class UserRepository {
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, email, name, phone, cpf_cnpj, role, active, email_verified, created_at`,
       [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role]
+    );
+    return rows[0];
+  }
+
+  async createImportedFromAsaas({
+    email,
+    name,
+    phone,
+    cpf_cnpj,
+    asaas_customer_id,
+  }) {
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString('base64url'), SALT_ROUNDS);
+    const { rows } = await this.pool.query(
+      `INSERT INTO users (
+        email, password_hash, name, phone, cpf_cnpj, role,
+        asaas_customer_id, provisioning_status
+      ) VALUES ($1, $2, $3, $4, $5, 'client', $6, 'partial')
+      RETURNING id, email, name, phone, cpf_cnpj, role, active,
+                asaas_customer_id, provisioning_status, created_at`,
+      [
+        email.toLowerCase().trim(),
+        passwordHash,
+        name,
+        phone || null,
+        cpf_cnpj || null,
+        asaas_customer_id,
+      ],
     );
     return rows[0];
   }

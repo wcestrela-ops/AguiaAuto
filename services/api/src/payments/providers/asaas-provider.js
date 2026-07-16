@@ -29,15 +29,29 @@ const asaasProvider = {
 
   async ensureCustomer(user) {
     if (user.asaas_customer_id) {
-      return { external_customer_id: user.asaas_customer_id };
+      return { external_customer_id: user.asaas_customer_id, linked: true };
     }
+
+    const existing = await asaasIntegration.findCustomer({
+      cpfCnpj: user.cpf_cnpj,
+      email: user.email,
+    });
+
+    if (existing?.id) {
+      return {
+        external_customer_id: existing.id,
+        linked: true,
+        raw: existing,
+      };
+    }
+
     const customer = await asaasIntegration.createCustomer({
       name: user.name,
       email: user.email,
       cpfCnpj: user.cpf_cnpj,
       phone: user.phone,
     });
-    return { external_customer_id: customer.id, raw: customer };
+    return { external_customer_id: customer.id, created: true, raw: customer };
   },
 
   async createPixCharge({ user, amount, dueDate, description, preferPix = true }) {

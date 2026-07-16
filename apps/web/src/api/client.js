@@ -655,6 +655,22 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
+  getAsaasSyncStatus() {
+    return this.request('/v1/admin/financeiro/sync-asaas/status', {}, { useAdmin: true });
+  }
+
+  previewAsaasSync(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/financeiro/sync-asaas/preview${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  runAsaasSync(data = {}) {
+    return this.request('/v1/admin/financeiro/sync-asaas', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   getAdminPlans() {
     return this.request('/v1/admin/plans', {}, { useAdmin: true });
   }

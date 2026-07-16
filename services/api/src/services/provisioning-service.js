@@ -217,6 +217,18 @@ class ProvisioningService {
       billing_type: subscription?.billing_type || 'PIX',
     });
   }
+
+  async ensureAsaasCustomer(userId) {
+    let user = await this.users.findByIdWithProvisioning(userId);
+    if (!user) throw new Error('Usuário não encontrado.');
+
+    const result = await this.payments.ensureCustomers(user, this.users);
+    return {
+      asaas_customer_id: result.user.asaas_customer_id || null,
+      linked: Boolean(result.user.asaas_customer_id),
+      errors: result.errors,
+    };
+  }
 }
 
 let instance = null;

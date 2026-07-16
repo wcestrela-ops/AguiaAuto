@@ -182,6 +182,13 @@ class AuthService {
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
     const tokens = await this._issueTokens(user, { ip, forceAccess: true });
 
+    try {
+      const { getProvisioningService } = require('./provisioning-service');
+      await getProvisioningService().ensureAsaasCustomer(user.id);
+    } catch (err) {
+      logger.warn('Falha ao registrar cliente no Asaas.', { userId: user.id, err: err.message });
+    }
+
     let plan = null;
     if (plan_id) {
       const { getPlanRepository } = require('../repositories/plan-repository');
