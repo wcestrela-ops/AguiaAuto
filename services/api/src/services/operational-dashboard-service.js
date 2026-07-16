@@ -1,5 +1,6 @@
 const { getPool } = require('../db/pool');
 const { getGpswoxSyncService } = require('./gpswox-sync-service');
+const { getBillingNotificationRepository } = require('../repositories/billing-notification-repository');
 
 class OperationalDashboardService {
   constructor() {
@@ -19,6 +20,9 @@ class OperationalDashboardService {
       overdueInvoices,
       recentFailedCommands,
       recentFailedSms,
+      billingSmsFallback24h,
+      billingFailed24h,
+      recentBillingFallbacks,
       gpswoxSync,
     ] = await Promise.all([
       this._vehiclesMissingChip(),
@@ -32,6 +36,12 @@ class OperationalDashboardService {
       this._countOverdueInvoices(),
       this._recentFailedCommands(10),
       this._recentFailedSms(10),
+      getBillingNotificationRepository().countSince(24, { channel: 'sms', usedFallback: true, status: 'sent' }),
+      getBillingNotificationRepository().countSince(24, { status: 'failed' }),
+      getBillingNotificationRepository().listRecent({
+        limit: 10,
+        channel: 'sms',
+      }).then((rows) => rows.filter((row) => row.used_fallback)),
       getGpswoxSyncService().getStatus().catch(() => null),
     ]);
 
@@ -96,6 +106,28 @@ class OperationalDashboardService {
         title: 'SMS falharam (24h)',
         count: failedSms24h,
         link: '/admin/sms',
+        hint: 'Inclui rastreador e cobrança — filtre por ação na página SMS.',
+      });
+    }
+
+    if (billingSmsFallback24h > 0) {
+      alerts.push({
+        severity: 'warning',
+        key: 'billing_sms_fallback',
+        title: 'Cobranças enviadas via SMS (WhatsApp indisponível)',
+        count: billingSmsFallback24h,
+        link: '/admin/financeiro',
+        hint: 'WhatsApp falhou e o lembrete foi entregue por SMS.',
+      });
+    }
+
+    if (billingFailed24h > 0) {
+      alerts.push({
+        severity: 'error',
+        key: 'billing_notifications_failed',
+        title: 'Lembretes de cobrança falharam (24h)',
+        count: billingFailed24h,
+        link: '/admin/financeiro',
       });
     }
 
@@ -165,6 +197,8 @@ class OperationalDashboardService {
         provisioning_issues: provisioningIssues.count,
         failed_commands_24h: failedCommands24h,
         failed_sms_24h: failedSms24h,
+        billing_sms_fallback_24h: billingSmsFallback24h,
+        billing_notifications_failed_24h: billingFailed24h,
         overdue_invoices: overdueInvoices,
         gpswox_unlinked_devices: gpswoxSync?.unlinked_devices_last_success || 0,
       },
@@ -177,6 +211,7 @@ class OperationalDashboardService {
         provisioning_issues: provisioningIssues.items,
         recent_failed_commands: recentFailedCommands,
         recent_failed_sms: recentFailedSms,
+        recent_billing_sms_fallback: recentBillingFallbacks,
       },
     };
   }

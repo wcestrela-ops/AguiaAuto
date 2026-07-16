@@ -260,12 +260,22 @@ class SmsRepository {
     return rows[0] || null;
   }
 
-  async listDispatches({ limit = 50, vehicleId } = {}) {
+  async listDispatches({ limit = 50, vehicleId, action } = {}) {
     const params = [Math.min(limit, 200)];
-    let sql = 'SELECT * FROM sms_dispatches';
+    const conditions = [];
+
     if (vehicleId) {
-      sql += ' WHERE vehicle_id = $2';
       params.push(vehicleId);
+      conditions.push(`vehicle_id = $${params.length}`);
+    }
+    if (action) {
+      params.push(action);
+      conditions.push(`action = $${params.length}`);
+    }
+
+    let sql = 'SELECT * FROM sms_dispatches';
+    if (conditions.length) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
     }
     sql += ' ORDER BY created_at DESC LIMIT $1';
     const { rows } = await this.pool.query(sql, params);

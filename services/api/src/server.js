@@ -25,6 +25,7 @@ const { migrateAdminAudit } = require('./db/migrate-admin-audit');
 const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
 const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
+const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
@@ -196,6 +197,9 @@ async function bootstrap() {
 
     await migrateGpswoxSyncRuns();
     logger.info('Histórico de sync GPSWOX agendado inicializado.');
+
+    await migrateBillingNotifications();
+    logger.info('Notificações de cobrança (WhatsApp/SMS) inicializadas.');
 
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');

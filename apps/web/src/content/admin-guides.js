@@ -428,7 +428,7 @@ export const ADMIN_GUIDES = {
 
   financeiro: {
     title: 'Financeiro e cobranças',
-    summary: 'Cobranças manuais, status de gateways e provisionamento Asaas + GPSWOX.',
+    summary: 'Cobranças manuais, status de gateways, provisionamento e lembretes WhatsApp→SMS.',
     steps: [
       {
         title: 'Gateways',
@@ -439,11 +439,19 @@ export const ADMIN_GUIDES = {
         body: 'Selecione cliente, valor, vencimento e tipo (mensalidade vs adesão inicial). PIX é recomendado.',
       },
       {
+        title: 'Lembrete ao cliente',
+        body: 'Após criar a cobrança, o sistema envia lembrete por WhatsApp. Se falhar, usa SMS automaticamente.',
+      },
+      {
+        title: 'Coluna Notificação',
+        body: 'WhatsApp = entregue pelo WhatsApp. SMS (fallback) = WhatsApp falhou e SMS foi usado. Falhou = nenhum canal.',
+      },
+      {
         title: 'Provisionamento',
         body: 'Reprovisionar recria cliente no Asaas e usuário/dispositivos no GPSWOX após pagamento confirmado.',
       },
       {
-        title: 'Failover',
+        title: 'Failover pagamento',
         body: 'Se um gateway falhar na cobrança, o backup é usado — configure em Gateways de Pagamento.',
       },
     ],
@@ -501,6 +509,8 @@ export const ADMIN_GUIDES = {
     summary: 'Indicadores do que trava a operação no dia a dia — veículos, comandos, SMS e financeiro.',
     steps: [
       { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação em campo — veja Instaladores e Veículos.' },
+      { title: 'Cobrança SMS fallback', body: 'Lembretes que foram para SMS porque WhatsApp falhou — veja Financeiro.' },
+      { title: 'Lembretes falharam', body: 'Cobranças em que WhatsApp e SMS não entregaram o lembrete.' },
       { title: 'Veículos sem IMEI', body: 'Ativos/bloqueados sem tracker_imei — deveriam ser preenchidos no checklist do instalador.' },
       { title: 'Veículos sem chip', body: 'Ativos/bloqueados sem tracker_phone não têm backup SMS.' },
       { title: 'Comandos com falha', body: 'Últimas 24h — bloqueio/desbloqueio que nem 4G nem SMS conseguiram.' },

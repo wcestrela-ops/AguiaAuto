@@ -97,7 +97,12 @@ class ProvisioningService {
                 valor: Number(initialInvoice.amount).toFixed(2),
                 vencimento: initialInvoice.due_date,
                 link: initialInvoice.invoice_url || 'Use o código PIX no app',
-              }, { user: user.email });
+              }, {
+                userId,
+                user: user.email,
+                invoiceId: initialInvoice.id,
+                trigger: 'billing.initial',
+              });
             }
           } catch (err) {
             errors.push({ step: 'initial_charge', error: err.message });
@@ -131,7 +136,11 @@ class ProvisioningService {
                 valor: Number(plan.price_monthly).toFixed(2),
                 vencimento: 'Assinatura recorrente',
                 link: recurring.init_point,
-              }, { user: user.email });
+              }, {
+                userId,
+                user: user.email,
+                trigger: 'billing.subscription',
+              });
             }
 
             subscriptionOk = true;

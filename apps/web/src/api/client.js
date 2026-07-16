@@ -514,6 +514,11 @@ class ApiClient {
     return this.request('/v1/admin/financeiro/cobrancas', {}, { useAdmin: true });
   }
 
+  getAdminBillingNotifications(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/financeiro/notificacoes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
   createAdminCharge(data) {
     return this.request('/v1/admin/financeiro/cobrancas', {
       method: 'POST',

@@ -29,7 +29,8 @@ router.get('/dispatches', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit || '50', 10);
     const vehicleId = req.query.vehicle_id ? parseInt(req.query.vehicle_id, 10) : undefined;
-    const data = await getSmsService().listDispatches({ limit, vehicleId });
+    const action = req.query.action || undefined;
+    const data = await getSmsService().listDispatches({ limit, vehicleId, action });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

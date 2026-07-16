@@ -35,8 +35,36 @@ function addDays(days) {
   return d.toISOString().slice(0, 10);
 }
 
+function formatDateTime(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('pt-BR');
+}
+
+function notificationBadge(notification) {
+  if (!notification) {
+    return { label: '—', badge: 'muted' };
+  }
+  if (notification.status === 'failed') {
+    return { label: 'Falhou', badge: 'error' };
+  }
+  if (notification.channel === 'sms' && notification.used_fallback) {
+    return { label: 'SMS (fallback)', badge: 'warning' };
+  }
+  if (notification.channel === 'whatsapp') {
+    return { label: 'WhatsApp', badge: 'success' };
+  }
+  return { label: notification.channel || 'Enviado', badge: 'info' };
+}
+
+function notificationSummary(result) {
+  if (!result?.notification) return 'Cobrança criada (sem lembrete — cliente sem telefone ou link).';
+  const badge = notificationBadge(result.notification);
+  return `Cobrança criada. Lembrete enviado via ${badge.label}.`;
+}
+
 export default function AdminFinanceiroPage() {
   const [charges, setCharges] = useState([]);
+  const [billingNotifications, setBillingNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [plans, setPlans] = useState([]);
   const [gateways, setGateways] = useState(null);
@@ -58,16 +86,18 @@ export default function AdminFinanceiroPage() {
   async function load() {
     setLoading(true);
     try {
-      const [chargesRes, usersRes, plansRes, gatewaysRes] = await Promise.all([
+      const [chargesRes, usersRes, plansRes, gatewaysRes, notificationsRes] = await Promise.all([
         api.getAdminCharges(),
         api.getAdminUsers(),
         api.getAdminPlans(),
         api.getPaymentGateways(),
+        api.getAdminBillingNotifications({ limit: 30 }),
       ]);
       setCharges(chargesRes.data || []);
       setUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
       setGateways(gatewaysRes.data);
+      setBillingNotifications(notificationsRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -95,7 +125,7 @@ export default function AdminFinanceiroPage() {
     setError('');
     setMessage('');
     try {
-      await api.createAdminCharge({
+      const res = await api.createAdminCharge({
         user_id: Number(form.user_id),
         value: Number(form.value),
         due_date: form.due_date,
@@ -104,7 +134,7 @@ export default function AdminFinanceiroPage() {
         description: form.description,
         plan_id: form.plan_id ? Number(form.plan_id) : undefined,
       });
-      setMessage('Cobrança criada e enviada ao cliente.');
+      setMessage(notificationSummary(res.data));
       setShowForm(false);
       load();
     } catch (err) {
@@ -236,6 +266,11 @@ export default function AdminFinanceiroPage() {
       )}
 
       <div className="info-box">
+        <strong>Lembretes de cobrança:</strong> WhatsApp primeiro; se falhar, SMS automaticamente.
+        A coluna <em>Notificação</em> abaixo mostra o canal usado em cada cobrança.
+      </div>
+
+      <div className="info-box">
         <strong>Dois gateways:</strong> Mercado Pago para adesão inicial (PIX) e Asaas para recorrência.
         Se um falhar, o outro é usado automaticamente. Configure em Integrações → Gateways de Pagamento.
       </div>
@@ -292,14 +327,17 @@ export default function AdminFinanceiroPage() {
               <th>Vencimento</th>
               <th>Gateway</th>
               <th>Status</th>
+              <th>Notificação</th>
               <th>Link</th>
             </tr>
           </thead>
           <tbody>
             {charges.length === 0 ? (
-              <tr><td colSpan={6} className="muted">Nenhuma cobrança.</td></tr>
+              <tr><td colSpan={8} className="muted">Nenhuma cobrança.</td></tr>
             ) : (
-              charges.map((charge) => (
+              charges.map((charge) => {
+                const notify = notificationBadge(charge.last_notification);
+                return (
                 <tr key={charge.id}>
                   <td>{charge.user_name || charge.user_email}</td>
                   <td>{charge.description}</td>
@@ -308,12 +346,69 @@ export default function AdminFinanceiroPage() {
                   <td><span className="badge info">{PROVIDER_LABELS[charge.payment_provider] || charge.payment_provider}</span></td>
                   <td><span className="badge info">{charge.status}</span></td>
                   <td>
+                    <span className={`badge ${notify.badge}`}>{notify.label}</span>
+                    {charge.last_notification?.created_at && (
+                      <small className="muted" style={{ display: 'block' }}>
+                        {formatDateTime(charge.last_notification.created_at)}
+                      </small>
+                    )}
+                  </td>
+                  <td>
                     {charge.invoice_url ? (
                       <a href={charge.invoice_url} target="_blank" rel="noreferrer">Abrir</a>
                     ) : '—'}
                   </td>
                 </tr>
-              ))
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="section-header" style={{ marginTop: '1.5rem' }}>
+        <SectionTitleWithHelp title="Histórico de lembretes (WhatsApp / SMS)" guideId="financeiro" />
+      </div>
+
+      <div className="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Cobrança</th>
+              <th>Canal</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {billingNotifications.length === 0 ? (
+              <tr><td colSpan={5} className="muted">Nenhum lembrete registrado ainda.</td></tr>
+            ) : (
+              billingNotifications.map((item) => {
+                const notify = notificationBadge(item);
+                return (
+                  <tr key={item.id}>
+                    <td><small>{formatDateTime(item.created_at)}</small></td>
+                    <td>{item.user_name || item.user_email || item.phone}</td>
+                    <td>{item.invoice_description || `#${item.invoice_id || '—'}`}</td>
+                    <td>
+                      <span className={`badge ${notify.badge}`}>{notify.label}</span>
+                      {item.provider_type && (
+                        <small className="muted" style={{ display: 'block' }}>{item.provider_type}</small>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${item.status === 'failed' ? 'error' : 'success'}`}>
+                        {item.status}
+                      </span>
+                      {item.error_message && item.status === 'failed' && (
+                        <small className="muted" style={{ display: 'block' }}>{item.error_message}</small>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

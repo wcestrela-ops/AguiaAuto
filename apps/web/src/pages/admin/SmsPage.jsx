@@ -40,14 +40,19 @@ export default function SmsPage() {
   const [gpswoxTemplates, setGpswoxTemplates] = useState([]);
   const [syncModelId, setSyncModelId] = useState('');
   const [syncLang, setSyncLang] = useState('en');
+  const [dispatchFilter, setDispatchFilter] = useState('all');
 
   async function load() {
     setLoading(true);
     try {
+      const dispatchParams = { limit: 20 };
+      if (dispatchFilter === 'billing') dispatchParams.action = 'billing.reminder';
+      else if (dispatchFilter === 'tracker') dispatchParams.action = 'tracker.command';
+
       const [providersRes, typesRes, dispatchesRes, modelsRes, gpswoxRes] = await Promise.all([
         api.getSmsProviders(),
         api.getSmsTypes(),
-        api.getSmsDispatches({ limit: 20 }),
+        api.getSmsDispatches(dispatchParams),
         api.getTrackerModels(),
         api.getSmsGpswoxGatewayInfo().catch(() => ({ data: null })),
       ]);
@@ -63,7 +68,7 @@ export default function SmsPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [dispatchFilter]);
 
   const selectedType = types.find((t) => t.type === form.provider);
   const selectedModel = models.find((m) => String(m.id) === sendForm.model_id);
@@ -576,20 +581,51 @@ export default function SmsPage() {
       </div>
 
       <div className="table-card" style={{ marginTop: '1.5rem' }}>
-        <h3>Últimos envios</h3>
+        <div className="section-header">
+          <h3>Últimos envios SMS</h3>
+          <div className="history-presets">
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'billing', label: 'Cobrança' },
+              { id: 'tracker', label: 'Rastreador' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                className={`btn-secondary btn-sm${dispatchFilter === opt.id ? ' active' : ''}`}
+                onClick={() => setDispatchFilter(opt.id)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="guide-inline muted">
+          Cobrança = fallback quando WhatsApp falhou. Rastreador = comandos 4G→SMS.
+        </p>
         <table>
           <thead>
             <tr><th>Data</th><th>Telefone</th><th>Ação</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {dispatches.map((d) => (
+            {dispatches.length === 0 ? (
+              <tr><td colSpan={4} className="muted">Nenhum envio neste filtro.</td></tr>
+            ) : (
+            dispatches.map((d) => (
               <tr key={d.id}>
                 <td><small>{new Date(d.created_at).toLocaleString('pt-BR')}</small></td>
                 <td>{d.phone}</td>
-                <td>{d.action || d.source}</td>
+                <td>
+                  {d.action === 'billing.reminder' ? (
+                    <span className="badge warning">Cobrança (fallback)</span>
+                  ) : (
+                    d.action || d.source
+                  )}
+                </td>
                 <td><span className="badge">{d.status}</span></td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>
