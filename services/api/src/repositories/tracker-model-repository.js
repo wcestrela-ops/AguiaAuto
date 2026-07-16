@@ -82,14 +82,17 @@ class TrackerModelRepository {
 
   async createCommand(modelId, data) {
     const { rows } = await this.pool.query(
-      `INSERT INTO tracker_commands (model_id, action_key, label, sms_template, gpswox_command, sort_order, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      `INSERT INTO tracker_commands (
+        model_id, action_key, label, sms_template, gpswox_command,
+        gpswox_sms_template_id, sort_order, active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
         modelId,
         data.action_key,
         data.label,
         data.sms_template,
         data.gpswox_command || null,
+        data.gpswox_sms_template_id || null,
         data.sort_order ?? 0,
         data.active ?? true,
       ],
@@ -104,11 +107,21 @@ class TrackerModelRepository {
         label = COALESCE($3, label),
         sms_template = COALESCE($4, sms_template),
         gpswox_command = COALESCE($5, gpswox_command),
-        sort_order = COALESCE($6, sort_order),
-        active = COALESCE($7, active),
+        gpswox_sms_template_id = COALESCE($6, gpswox_sms_template_id),
+        sort_order = COALESCE($7, sort_order),
+        active = COALESCE($8, active),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
-      [id, data.action_key, data.label, data.sms_template, data.gpswox_command, data.sort_order, data.active],
+      [
+        id,
+        data.action_key,
+        data.label,
+        data.sms_template,
+        data.gpswox_command,
+        data.gpswox_sms_template_id,
+        data.sort_order,
+        data.active,
+      ],
     );
     if (!rows[0]) throw new Error('Comando não encontrado.');
     return rows[0];

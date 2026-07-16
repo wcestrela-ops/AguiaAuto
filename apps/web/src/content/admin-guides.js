@@ -345,6 +345,34 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  sms_gpswox_templates: {
+    title: 'Templates SMS na API GPSWOX',
+    summary: 'Sincronize modelos SMS entre Águia e GPSWOX via API oficial (user_api_hash).',
+    steps: [
+      {
+        title: 'Pré-requisito',
+        body: 'Configure GPSWOX em Integrações com URL e API Hash. O hash admin é usado em get_user_sms_templates.',
+      },
+      {
+        title: 'Listar GPSWOX',
+        body: 'Carrega templates existentes no painel GPSWOX (title + message).',
+      },
+      {
+        title: 'Importar → Águia',
+        body: 'Copia templates GPSWOX para o modelo selecionado. Comandos com mesmo ID GPSWOX são atualizados.',
+      },
+      {
+        title: 'Enviar Águia → GPSWOX',
+        body: 'Cria ou atualiza templates no GPSWOX a partir dos comandos do modelo. Salva gpswox_sms_template_id no comando.',
+      },
+      {
+        title: 'Endpoints usados',
+        body: 'GET get_user_sms_templates · POST add_user_sms_template · POST edit_user_sms_template · GET get_user_sms_message',
+      },
+    ],
+    links: [{ label: 'Integrações GPSWOX', to: '/admin/integracoes/gpswox' }],
+  },
+
   vehicles: {
     title: 'Como cadastrar um veículo / rastreador',
     summary: 'Fluxo completo: cliente, GPSWOX, chip SIM e modelo de comandos.',

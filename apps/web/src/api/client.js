@@ -374,6 +374,25 @@ class ApiClient {
     return this.request('/v1/sms/gateway/info', {}, { useAdmin: false, useClient: false });
   }
 
+  getGpswoxSmsTemplates(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/sms/gpswox-templates${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  importGpswoxSmsTemplates(data) {
+    return this.request('/v1/admin/sms/gpswox-templates/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  pushGpswoxSmsTemplates(data) {
+    return this.request('/v1/admin/sms/gpswox-templates/push', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   createSmsProvider(data) {
     return this.request('/v1/admin/sms', {
       method: 'POST',

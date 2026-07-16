@@ -34,6 +34,9 @@ export default function SmsPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [gpswoxGateway, setGpswoxGateway] = useState(null);
+  const [gpswoxTemplates, setGpswoxTemplates] = useState([]);
+  const [syncModelId, setSyncModelId] = useState('');
+  const [syncLang, setSyncLang] = useState('en');
 
   async function load() {
     setLoading(true);
@@ -147,6 +150,63 @@ export default function SmsPage() {
         sort_order: cmd.sort_order,
       });
       setMessage('Comando atualizado.');
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleLoadGpswoxTemplates() {
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.getGpswoxSmsTemplates({ lang: syncLang });
+      setGpswoxTemplates(res.data?.items || []);
+      setMessage(`${res.data?.total || 0} template(s) SMS no GPSWOX.`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleImportGpswoxTemplates(dryRun = false) {
+    if (!syncModelId) {
+      setError('Selecione um modelo de rastreador para importar.');
+      return;
+    }
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.importGpswoxSmsTemplates({
+        model_id: Number(syncModelId),
+        dry_run: dryRun,
+        lang: syncLang,
+      });
+      const s = res.data;
+      setMessage(
+        dryRun
+          ? `Prévia: ${s.created} criar, ${s.updated} atualizar (${s.total_gpswox} no GPSWOX).`
+          : `Importado: ${s.created} criados, ${s.updated} atualizados.`,
+      );
+      if (!dryRun) load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handlePushGpswoxTemplates() {
+    if (!syncModelId) {
+      setError('Selecione um modelo de rastreador para enviar ao GPSWOX.');
+      return;
+    }
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.pushGpswoxSmsTemplates({
+        model_id: Number(syncModelId),
+        lang: syncLang,
+      });
+      const s = res.data;
+      setMessage(`Enviado ao GPSWOX: ${s.pushed} OK, ${s.failed} falha(s).`);
       load();
     } catch (err) {
       setError(err.message);
@@ -280,6 +340,67 @@ export default function SmsPage() {
       </form>
 
       <div className="form-card" style={{ marginTop: '1.5rem' }}>
+        <SectionTitleWithHelp title="Templates SMS GPSWOX (API)" guideId="sms_gpswox_templates" />
+        <p className="guide-inline">
+          Sincronize com a API oficial: get_user_sms_templates, add_user_sms_template e edit_user_sms_template.
+          Requer API Hash em Integrações → GPSWOX.
+        </p>
+
+        <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <label>
+            Idioma API
+            <select value={syncLang} onChange={(e) => setSyncLang(e.target.value)}>
+              <option value="en">en</option>
+              <option value="pt">pt</option>
+              <option value="es">es</option>
+            </select>
+          </label>
+          <label>
+            Modelo Águia (destino/origem)
+            <select value={syncModelId} onChange={(e) => setSyncModelId(e.target.value)}>
+              <option value="">Selecione...</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn-secondary" onClick={handleLoadGpswoxTemplates}>
+            Listar GPSWOX
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => handleImportGpswoxTemplates(true)}>
+            Prévia importar
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => handleImportGpswoxTemplates(false)}>
+            Importar → Águia
+          </button>
+          <button type="button" onClick={handlePushGpswoxTemplates}>
+            Enviar Águia → GPSWOX
+          </button>
+        </div>
+
+        {gpswoxTemplates.length > 0 && (
+          <table>
+            <thead>
+              <tr>
+                <th>ID GPSWOX</th>
+                <th>Título</th>
+                <th>Mensagem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gpswoxTemplates.map((t) => (
+                <tr key={t.id}>
+                  <td><code>{t.id}</code></td>
+                  <td>{t.title || t.título}</td>
+                  <td><code>{t.message || t.mensagem}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="form-card" style={{ marginTop: '1.5rem' }}>
         <SectionTitleWithHelp title="Modelos de rastreador e comandos" guideId="sms_tracker_models" />
         <p className="guide-inline">
           Cadastre cada modelo (GT06, Joker, etc.) com comandos SMS editáveis. Veículos usam o modelo vinculado em Veículos.
@@ -313,7 +434,8 @@ export default function SmsPage() {
                       <th>Ação</th>
                       <th>Label</th>
                       <th>SMS</th>
-                      <th>GPSWOX</th>
+                      <th>GPSWOX cmd</th>
+                      <th>Template ID</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -347,6 +469,9 @@ export default function SmsPage() {
                               setModels([...models]);
                             }}
                           />
+                        </td>
+                        <td>
+                          <small className="muted">{cmd.gpswox_sms_template_id || '—'}</small>
                         </td>
                         <td>
                           <button type="button" className="btn-sm" onClick={() => handleUpdateCommand(model.id, cmd)}>Salvar</button>

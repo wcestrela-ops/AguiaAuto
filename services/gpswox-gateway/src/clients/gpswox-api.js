@@ -37,7 +37,54 @@ class GpswoxApiClient {
       throw new Error(data?.message || data?.error || `Erro GPSWOX (${response.status})`);
     }
 
+    if (data && data.status != null && Number(data.status) !== 1) {
+      throw new Error(data?.message || data?.error || 'GPSWOX retornou status de erro.');
+    }
+
     return data;
+  }
+
+  _extractPaginatedItems(response, key = 'user_sms_templates') {
+    const container = response?.items?.[key] || response?.items || response;
+    const rows = container?.data || container?.items || [];
+    return {
+      items: Array.isArray(rows) ? rows : [],
+      total: container?.total ?? (Array.isArray(rows) ? rows.length : 0),
+      meta: container,
+    };
+  }
+
+  async getUserSmsTemplates(lang = 'en') {
+    const data = await this.request('get_user_sms_templates', { query: { lang } });
+    return this._extractPaginatedItems(data);
+  }
+
+  async addUserSmsTemplate({ title, message, lang = 'en' }) {
+    return this.request('add_user_sms_template', {
+      method: 'POST',
+      query: { lang },
+      body: { title, message },
+    });
+  }
+
+  async editUserSmsTemplate({ id, title, message, lang = 'en' }) {
+    return this.request('edit_user_sms_template', {
+      method: 'POST',
+      query: { lang, user_sms_template_id: id },
+      body: { title, message },
+    });
+  }
+
+  async getUserSmsTemplateMessage(templateId, lang = 'en') {
+    return this.request('get_user_sms_message', {
+      query: { lang, user_sms_template_id: templateId },
+    });
+  }
+
+  async getEditUserSmsTemplateData(templateId, lang = 'en') {
+    return this.request('edit_user_sms_template_data', {
+      query: { lang, user_sms_template_id: templateId },
+    });
   }
 
   async getDevices() {

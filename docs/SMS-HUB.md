@@ -93,6 +93,22 @@ http://SMS_GATEWAY/sendsms.php?username=USER&password=PASSWORD&number=%NUMBER%&m
 
 Substitua `USER`/`PASSWORD` pelos campos Usuário e Senha do gateway. Útil para gateways PHP, modems ou serviços compatíveis com GPSWOX.
 
+## Templates SMS GPSWOX (API oficial)
+
+A API GPSWOX expõe templates SMS por usuário admin (`user_api_hash`):
+
+| Endpoint GPSWOX | Uso no Águia |
+|-----------------|--------------|
+| `GET get_user_sms_templates` | Listar templates no admin SMS |
+| `POST add_user_sms_template` | Enviar comandos Águia → GPSWOX |
+| `POST edit_user_sms_template` | Atualizar template já vinculado |
+| `GET get_user_sms_message` | Consultar mensagem por template ID |
+
+Admin → **SMS Rastreador** → seção **Templates SMS GPSWOX (API)**:
+- **Importar → Águia** — copia templates do GPSWOX para um modelo da biblioteca
+- **Enviar Águia → GPSWOX** — publica comandos do modelo no GPSWOX
+- Cada comando pode ter `gpswox_sms_template_id` para sync bidirecional
+
 ## Biblioteca de comandos
 
 Tabelas `tracker_models` + `tracker_commands` — editável em `/admin/sms`.
