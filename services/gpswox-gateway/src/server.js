@@ -19,6 +19,8 @@ const {
   createSmsTemplate,
   updateSmsTemplate,
   getSmsTemplateMessage,
+  manageGeofence,
+  manageEvents,
 } = require('./services/tracking');
 
 const app = express();
@@ -232,12 +234,29 @@ app.post('/alertas', (req, res) => {
   res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
 });
 
-app.post('/cerca', (req, res) => {
-  res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
+app.post('/cerca', async (req, res) => {
+  try {
+    const resultado = await manageGeofence(req.body || {});
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    const status = err.message.includes('obrigatório') || err.message.includes('inválid') ? 400 : 500;
+    return res.status(status).json({ success: false, error: err.message });
+  }
 });
 
-app.post('/eventos', (req, res) => {
-  res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
+app.post('/eventos', async (req, res) => {
+  const { device_id: deviceId, deviceId: camelDeviceId } = req.body || {};
+  if (!deviceId && !camelDeviceId) {
+    return res.status(400).json({ success: false, error: 'device_id é obrigatório.' });
+  }
+
+  try {
+    const resultado = await manageEvents(req.body || {});
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    const status = err.message.includes('obrigatório') || err.message.includes('inválid') ? 400 : 500;
+    return res.status(status).json({ success: false, error: err.message });
+  }
 });
 
 process.on('SIGTERM', async () => {

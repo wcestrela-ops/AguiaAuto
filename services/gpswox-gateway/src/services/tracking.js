@@ -3,6 +3,12 @@ const { getGpswoxConfig } = require('../config/provider');
 const { getVehicleLocation } = require('../playwright/tracker');
 const { enqueue } = require('../queue');
 const logger = require('../logger');
+const {
+  circleToCoordinates,
+  formatCoordinatesForGpswox,
+  extractGeofenceItems,
+  extractEventItems,
+} = require('../lib/geofence');
 
 async function getApiClient() {
   const settings = await getGpswoxConfig();
@@ -147,6 +153,118 @@ async function getSmsTemplateMessage(templateId, lang = 'en') {
   return api.getUserSmsTemplateMessage(templateId, lang);
 }
 
+async function manageGeofence(payload = {}) {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Cercas requerem api_hash configurado no painel admin.');
+
+  const action = String(payload.action || 'list').toLowerCase();
+
+  if (action === 'list') {
+    const response = await api.getGeofences(payload.filters || {});
+    return { geofences: extractGeofenceItems(response), raw: response };
+  }
+
+  if (action === 'groups') {
+    const response = await api.getGeofenceGroups(payload.filters || {});
+    return { groups: response?.items || response, raw: response };
+  }
+
+  if (action === 'create' || action === 'create_circle') {
+    const name = payload.name?.trim();
+    if (!name) throw new Error('name é obrigatório para criar cerca.');
+
+    let coordinates = payload.coordinates;
+    if (action === 'create_circle') {
+      coordinates = circleToCoordinates(payload.latitude, payload.longitude, payload.radius_meters);
+    }
+
+    const body = {
+      name,
+      coordinates: formatCoordinatesForGpswox(coordinates),
+      polygon_color: payload.polygon_color || payload.color || '#2563eb',
+      group_id: payload.group_id ?? 0,
+    };
+
+    const response = await api.addGeofence(body);
+    return { geofence: response?.data || response, raw: response };
+  }
+
+  if (action === 'update') {
+    const geofenceId = payload.geofence_id ?? payload.id;
+    if (!geofenceId) throw new Error('geofence_id é obrigatório para atualizar cerca.');
+
+    const body = {};
+    if (payload.name) body.name = payload.name;
+    if (payload.polygon_color || payload.color) body.polygon_color = payload.polygon_color || payload.color;
+    if (payload.group_id != null) body.group_id = payload.group_id;
+    if (payload.coordinates) body.coordinates = formatCoordinatesForGpswox(payload.coordinates);
+
+    const response = await api.editGeofence(geofenceId, body);
+    return { geofence: response?.data || response, raw: response };
+  }
+
+  if (action === 'delete') {
+    const geofenceId = payload.geofence_id ?? payload.id;
+    if (!geofenceId) throw new Error('geofence_id é obrigatório para excluir cerca.');
+    const response = await api.destroyGeofence(geofenceId);
+    return { deleted: true, geofence_id: geofenceId, raw: response };
+  }
+
+  if (action === 'toggle') {
+    const geofenceId = payload.geofence_id ?? payload.id;
+    if (!geofenceId) throw new Error('geofence_id é obrigatório para alternar cerca.');
+    const response = await api.changeActiveGeofence(geofenceId);
+    return { geofence_id: geofenceId, raw: response };
+  }
+
+  if (action === 'point_in') {
+    const lat = parseFloat(payload.latitude);
+    const lng = parseFloat(payload.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new Error('latitude e longitude são obrigatórios para point_in.');
+    }
+    const response = await api.pointInGeofences(lat, lng, payload.filters || {});
+    return { matches: response?.items || response, raw: response };
+  }
+
+  throw new Error(`Ação de cerca inválida: ${action}`);
+}
+
+async function manageEvents(payload = {}) {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Eventos requerem api_hash configurado no painel admin.');
+
+  const action = String(payload.action || 'list').toLowerCase();
+  const deviceId = payload.device_id ?? payload.deviceId;
+  if (!deviceId) throw new Error('device_id é obrigatório.');
+
+  if (action === 'list') {
+    const query = {
+      device_id: deviceId,
+      ...(payload.from ? { from: payload.from } : {}),
+      ...(payload.to ? { to: payload.to } : {}),
+      ...(payload.filters || {}),
+    };
+    const response = await api.getEvents(query);
+    const events = extractEventItems(response);
+    return {
+      device_id: deviceId,
+      from: payload.from || null,
+      to: payload.to || null,
+      total: events.length,
+      events,
+      raw: response,
+    };
+  }
+
+  if (action === 'delete') {
+    const response = await api.destroyEvents(deviceId, payload.filters || {});
+    return { device_id: deviceId, deleted: true, raw: response };
+  }
+
+  throw new Error(`Ação de eventos inválida: ${action}`);
+}
+
 module.exports = {
   getLocation,
   blockDevice,
@@ -161,4 +279,6 @@ module.exports = {
   createSmsTemplate,
   updateSmsTemplate,
   getSmsTemplateMessage,
+  manageGeofence,
+  manageEvents,
 };

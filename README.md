@@ -409,7 +409,38 @@ Para adicionar uma nova API no futuro, basta registrar o schema em `packages/int
 | `POST /comandos` | Enviar comando |
 | `POST /historico` | Histórico de posições (`device_id`, `from`, `to`) |
 | `POST /compartilhar` | Link de compartilhamento GPSWOX |
-| `POST /cerca` | 🚧 Em desenvolvimento |
+| `POST /dispositivos` | Listar dispositivos GPSWOX |
+| `POST /cerca` | Cercas (`action`: list, create, create_circle, update, delete, toggle, point_in, groups) |
+| `POST /eventos` | Eventos (`action`: list, delete — `device_id`, opcional `from`/`to`) |
+
+Exemplo — cerca circular (útil para âncora):
+
+```bash
+curl -X POST http://localhost:3001/cerca \
+  -H "Authorization: Bearer SEU_GATEWAY_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create_circle",
+    "name": "Ancora Veiculo 42",
+    "latitude": -23.5505,
+    "longitude": -46.6333,
+    "radius_meters": 50
+  }'
+```
+
+Exemplo — listar eventos de um dispositivo:
+
+```bash
+curl -X POST http://localhost:3001/eventos \
+  -H "Authorization: Bearer SEU_GATEWAY_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "list",
+    "device_id": "123",
+    "from": "2026-07-01 00:00:00",
+    "to": "2026-07-16 23:59:59"
+  }'
+```
 
 ## Desenvolvimento local
 
@@ -423,15 +454,17 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 ## Testes automatizados
 
 ```bash
-npm test               # API + PWA (31 testes)
+npm test               # API + PWA + Gateway
 npm run test:api       # Apenas API (node:test)
 npm run test:web       # Apenas PWA (vitest + jsdom)
+npm run test:gateway   # Apenas Gateway GPSWOX
 ```
 
 | Pacote | Runner | Cobertura inicial |
 |--------|--------|-------------------|
 | `@aguia/api` | Node.js `node:test` | IMEI/chip, export formatters, atribuição instalador (`formatPendingJob`), bloqueio `CONTRACT_REQUIRED` |
 | `@aguia/web` | Vitest | IMEI, status veículo, `CONTRACT_REQUIRED` no client API, `setClientPageError` |
+| `@aguia/gpswox-gateway` | Node.js `node:test` | Polígonos circulares, parsing de cercas/eventos GPSWOX |
 
 Testes ficam em `services/api/test/` e `apps/web/src/**/*.test.js`. Não exigem PostgreSQL — foco em regras de negócio e utilitários. Para CI, execute `npm test` após `npm install`.
 

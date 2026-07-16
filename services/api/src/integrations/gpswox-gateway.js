@@ -50,4 +50,9 @@ module.exports = {
   getSmsTemplateMessage: (id, lang = 'en') => gatewayRequest(`/sms-templates/${id}/message`, {
     body: { lang },
   }),
+  manageGeofence: (payload) => gatewayRequest('/cerca', { body: payload }),
+  getDeviceEvents: (payload) => gatewayRequest('/eventos', { body: payload }),
+  deleteDeviceEvents: (deviceId, filters = {}) => gatewayRequest('/eventos', {
+    body: { action: 'delete', device_id: deviceId, filters },
+  }),
 };

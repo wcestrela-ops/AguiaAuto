@@ -161,6 +161,53 @@ class GpswoxApiClient {
       },
     });
   }
+
+  async getGeofences(filters = {}) {
+    return this.request('get_geofences', { query: filters });
+  }
+
+  async addGeofence(payload) {
+    return this.request('add_geofence', { method: 'POST', body: payload });
+  }
+
+  async editGeofence(geofenceId, payload) {
+    return this.request('edit_geofence', {
+      method: 'POST',
+      body: { ...payload, geofence_id: geofenceId },
+    });
+  }
+
+  async destroyGeofence(geofenceId) {
+    return this.request('destroy_geofence', {
+      query: { geofence_id: geofenceId },
+    });
+  }
+
+  async changeActiveGeofence(geofenceId) {
+    return this.request('change_active_geofence', {
+      query: { geofence_id: geofenceId },
+    });
+  }
+
+  async pointInGeofences(latitude, longitude, params = {}) {
+    return this.request('point_in_geofences', {
+      query: { ...params, latitude, longitude },
+    });
+  }
+
+  async getGeofenceGroups(params = {}) {
+    return this.request('geofences_groups', { query: params });
+  }
+
+  async getEvents(params = {}) {
+    return this.request('get_events', { query: params });
+  }
+
+  async destroyEvents(deviceId, params = {}) {
+    return this.request('destroy_events', {
+      query: { ...params, device_id: deviceId },
+    });
+  }
 }
 
 module.exports = { GpswoxApiClient };
