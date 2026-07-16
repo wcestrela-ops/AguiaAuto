@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const EMPTY_CONTACT = { name: '', phone: '' };
@@ -33,7 +34,7 @@ export default function ClientEmergenciaPage() {
         setVehicleId(String(vehiclesRes.data[0].id));
       }
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,7 @@ export default function ClientEmergenciaPage() {
       setFeedback('Contatos de emergência salvos.');
       await load();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setSavingContacts(false);
     }
@@ -89,7 +90,7 @@ export default function ClientEmergenciaPage() {
       setFeedback(res.message || res.data?.message || 'Emergência acionada.');
       setMessage('');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setTriggering(false);
     }

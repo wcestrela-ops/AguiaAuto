@@ -182,7 +182,18 @@ class AuthService {
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
     const tokens = await this._issueTokens(user, { ip, forceAccess: true });
 
-    authNotifications.sendRegistrationWelcome({ user, password }).catch((err) => {
+    let plan = null;
+    if (plan_id) {
+      const { getPlanRepository } = require('../repositories/plan-repository');
+      plan = await getPlanRepository().findById(plan_id);
+    }
+
+    authNotifications.sendRegistrationWelcome({
+      user,
+      password,
+      plan,
+      referralCode: referral_code,
+    }).catch((err) => {
       logger.warn('Notificação de cadastro não enviada.', { userId: user.id, err: err.message });
     });
 
@@ -291,6 +302,14 @@ class AuthService {
   async updateProfile(userId, data) {
     const user = await this.users.updateProfile(userId, data);
     return sanitizeUser(user);
+  }
+
+  async establishSession(user, { ip, forceAccess = true } = {}) {
+    const dbUser = await this.users.findById(user.id);
+    if (!dbUser || !dbUser.active) {
+      throw new Error('Usuário não encontrado ou inativo.');
+    }
+    return this._issueTokens(dbUser, { ip, forceAccess });
   }
 
   async _issueTokens(user, { ip, forceAccess = false } = {}) {

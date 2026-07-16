@@ -54,6 +54,56 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  rastreamento: {
+    title: 'Plataforma de rastreamento',
+    summary: 'Escolha GPSWOX ou Traccar sem alterar código — só mudar aqui e recarregar integrações.',
+    steps: [
+      {
+        title: '1. Configure as duas (opcional)',
+        body: 'Cadastre credenciais em GPSWOX e/ou Traccar. Só a plataforma ativa será usada pela API e pelo gateway.',
+      },
+      {
+        title: '2. Selecione a ativa',
+        body: 'Em Plataforma ativa, escolha GPSWOX ou Traccar. Salve e use Integrações → Recarregar cache.',
+      },
+      {
+        title: '3. Provisionamento e sync',
+        body: 'Novos clientes e sync de veículos usam a plataforma selecionada. Veículos antigos mantêm IDs da plataforma original até migração.',
+      },
+    ],
+    links: [
+      { label: 'GPSWOX', to: '/admin/integracoes/gpswox' },
+      { label: 'Traccar', to: '/admin/integracoes/traccar' },
+    ],
+  },
+
+  traccar: {
+    title: 'Como conectar o Traccar',
+    summary: 'Servidor Traccar self-hosted ou cloud — API REST nativa, sem Playwright.',
+    steps: [
+      {
+        title: '1. URL e credenciais',
+        body: 'Informe a URL base (ex.: https://traccar.seudominio.com) e e-mail/senha de administrador, ou token API se configurado.',
+      },
+      {
+        title: '2. Teste a conexão',
+        body: 'Use Testar Conexão — verifica /api/health e autenticação em /api/devices.',
+      },
+      {
+        title: '3. Ative no roteamento',
+        body: 'Em Plataforma de Rastreamento, selecione Traccar como plataforma ativa e recarregue o cache.',
+      },
+      {
+        title: '4. Group ID',
+        body: 'Opcional: ID do grupo Traccar onde novos devices serão criados no provisionamento.',
+      },
+    ],
+    links: [
+      { label: 'Plataforma de Rastreamento', to: '/admin/integracoes/rastreamento' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+    ],
+  },
+
   gpswox: {
     title: 'Como conectar o GPSWOX',
     summary: 'Motor de rastreamento usado internamente — o cliente vê apenas o app Águia.',
@@ -383,7 +433,7 @@ export const ADMIN_GUIDES = {
       },
       {
         title: '2. Dados do veículo',
-        body: 'Placa obrigatória. Marca, modelo, cor e ano são opcionais para identificação no app.',
+        body: 'Placa opcional (veículos novos podem estar sem emplacamento). Marca, modelo, cor e ano ajudam na identificação no app.',
       },
       {
         title: '3. GPSWOX',
@@ -404,6 +454,14 @@ export const ADMIN_GUIDES = {
       {
         title: '7. Status',
         body: 'Aguardando instalação → Ativo após instalação confirmada. Inativo/Bloqueado conforme operação.',
+      },
+      {
+        title: '8. Filtros',
+        body: 'Busque por placa, cliente, Device ID, IMEI ou chip. Filtre por status, cliente, pendências (sem device/chip/IMEI/modelo) e exporte a lista filtrada.',
+      },
+      {
+        title: '9. Atribuição de instalador',
+        body: 'Veículos "Aguardando instalação" podem ficar no pool (qualquer instalador) ou ser atribuídos a um instalador específico, com data/hora opcional. O instalador recebe push na atribuição.',
       },
     ],
     links: [
@@ -506,6 +564,29 @@ export const ADMIN_GUIDES = {
     links: [{ label: 'Integração Alertas', to: '/admin/integracoes/alertas' }],
   },
 
+  admin_contratos: {
+    title: 'Contratos e aceites',
+    summary: 'Edite modelos HTML e consulte aceites assinados pelos clientes.',
+    steps: [
+      {
+        title: 'Modelos',
+        body: 'Contrato de Prestação de Serviços e Termo de Entrega/Instalação. Ao salvar, a versão incrementa — novos aceites usam o texto atualizado.',
+      },
+      {
+        title: 'Aceites',
+        body: 'Lista de assinaturas com data, cliente, tipo e placa. Baixe a cópia assinada (snapshot) quando disponível.',
+      },
+      {
+        title: 'Bloqueio no app',
+        body: 'Clientes sem contrato de serviço aceito recebem CONTRACT_REQUIRED e são redirecionados para /app/contratos.',
+      },
+    ],
+    links: [
+      { label: 'Instaladores', to: '/admin/instaladores' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+    ],
+  },
+
   instaladores: {
     title: 'Fluxo de instalação',
     summary: 'Cadastre instaladores, deixe veículos pendentes e o campo preenche IMEI, chip e modelo no checklist.',
@@ -516,18 +597,22 @@ export const ADMIN_GUIDES = {
       },
       {
         title: '2. Veículo pendente',
-        body: 'Em Veículos, cadastre com status "Aguardando instalação". Device ID pode ficar vazio — o instalador preenche na finalização.',
+        body: 'Em Veículos, cadastre com status "Aguardando instalação". Device ID pode ficar vazio — o instalador preenche na finalização. Atribua um instalador ou deixe no pool.',
       },
       {
-        title: '3. Checklist na instalação',
+        title: '3. Atribuição',
+        body: 'Na lista de veículos pendentes, selecione instalador e opcionalmente data/hora. Sem atribuição = pool visível para todos os instaladores.',
+      },
+      {
+        title: '4. Checklist na instalação',
         body: 'Instalador informa Device ID, IMEI (15 dígitos), chip SIM, modelo do rastreador, mínimo 1 foto e teste de comunicação.',
       },
       {
-        title: '4. Cliente aceita',
+        title: '5. Cliente aceita',
         body: 'Após finalizar, o cliente recebe push e aceita contrato + dados de instalação em /app/contratos.',
       },
       {
-        title: '5. Veículo ativo',
+        title: '6. Veículo ativo',
         body: 'IMEI, chip e modelo são gravados no veículo automaticamente — habilita comandos 4G/SMS no app cliente.',
       },
     ],
@@ -541,7 +626,7 @@ export const ADMIN_GUIDES = {
     title: 'Painel operacional',
     summary: 'Indicadores do que trava a operação no dia a dia — veículos, comandos, SMS e financeiro.',
     steps: [
-      { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação em campo — veja Instaladores e Veículos.' },
+      { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação — atribua instalador ou deixe no pool. Veja colunas Instalador e Agendamento.' },
       { title: 'Cobrança SMS fallback', body: 'Lembretes que foram para SMS porque WhatsApp falhou — veja Financeiro.' },
       { title: 'Lembretes falharam', body: 'Cobranças em que WhatsApp e SMS não entregaram o lembrete.' },
       { title: 'Veículos sem IMEI', body: 'Ativos/bloqueados sem tracker_imei — deveriam ser preenchidos no checklist do instalador.' },
@@ -551,9 +636,12 @@ export const ADMIN_GUIDES = {
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
       { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
       { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
-      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — configure em Integrações → Emergência.' },
+      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — veja em Emergência no menu admin.' },
+      { title: 'Clientes inativos', body: 'Contas ativas sem login no app há 30+ dias (ou nunca acessaram) — filtre em Clientes.' },
     ],
     links: [
+      { label: 'Clientes', to: '/admin/clientes' },
+      { label: 'Emergência (SOS)', to: '/admin/emergencia' },
       { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Financeiro', to: '/admin/financeiro' },
@@ -562,13 +650,44 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  admin_plans: {
+    title: 'Planos de assinatura',
+    summary: 'Cadastre e edite planos exibidos no cadastro online e na landing page.',
+    steps: [
+      { title: 'Criar plano', body: 'Informe nome, descrição, valor mensal e marque como ativo para aparecer em /cadastro e na home pública.' },
+      { title: 'Desativar', body: 'Planos inativos não aparecem para novos clientes, mas assinaturas existentes continuam.' },
+      { title: 'Landing', body: 'A seção de planos na landing usa automaticamente os planos ativos cadastrados aqui.' },
+    ],
+    links: [
+      { label: 'Landing page', to: '/admin/site' },
+      { label: 'Financeiro', to: '/admin/financeiro' },
+    ],
+  },
+
+  admin_landing: {
+    title: 'Landing page pública',
+    summary: 'Edite textos, recursos, contato e rodapé da página inicial (/) sem deploy.',
+    steps: [
+      { title: 'Hero', body: 'Título, subtítulo e botões principais (Cadastro / Login). Links relativos como /cadastro funcionam.' },
+      { title: 'Recursos', body: 'Cards de benefícios com ícone emoji, título e descrição — adicione ou remova quantos precisar.' },
+      { title: 'Planos', body: 'Ative a seção para listar planos ativos. Títulos editáveis; valores vêm de Planos.' },
+      { title: 'Contato', body: 'Telefone, WhatsApp e e-mail aparecem no rodapé da landing.' },
+      { title: 'Desativar', body: 'Com "Landing page ativa" desligada, visitantes em / são redirecionados para login.' },
+    ],
+    links: [
+      { label: 'Planos', to: '/admin/planos' },
+      { label: 'Ver site', to: '/' },
+    ],
+  },
+
   admin_frota: {
     title: 'Documentos e manutenção',
-    summary: 'Gestão de CRLV, seguro, IPVA e histórico de revisões por veículo.',
+    summary: 'Gestão de CRLV, seguro, IPVA, revisões e lembretes push automáticos.',
     steps: [
-      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
-      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
-      { title: 'Push automático', body: 'Configure em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia quando houver vencimentos próximos ou atrasados.' },
+      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Use Editar para alterar dados ou substituir o anexo; Ver anexo abre o arquivo em nova aba.' },
+      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM). Edite registros existentes pela tabela.' },
+      { title: 'Lembretes push', body: 'Aba "Lembretes push" mostra status, histórico por canal (push/WhatsApp/SMS) e botão "Executar agora".' },
+      { title: 'Push automático', body: 'Configure canais, intervalo e template em Integrações → Documentos e Manutenção.' },
       { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
     ],
     links: [
@@ -590,11 +709,11 @@ export const ADMIN_GUIDES = {
 
   admin_audit: {
     title: 'Auditoria administrativa',
-    summary: 'Histórico de ações sensíveis no painel e no app cliente.',
+    summary: 'Histórico ampliado de ações sensíveis no painel, financeiro, frota, integrações e app cliente.',
     steps: [
-      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), edição de clientes, comandos remotos (cliente), sync GPSWOX e failover SMS.' },
-      { title: 'Filtros', body: 'Filtre por ação, tipo de ator (admin/cliente/sistema), recurso ou ID do ator.' },
-      { title: 'Detalhes', body: 'Clique em JSON para ver metadados completos (placa, canal, totais do sync, etc.).' },
+      { title: 'O que é registrado', body: 'Veículos e clientes (admin), documentos/manutenção de frota, lembretes push, cobranças e provisionamento, integrações, comandos remotos e sync GPSWOX.' },
+      { title: 'Filtros', body: 'Filtre por ação, ator, recurso, ID do recurso, busca livre (placa, metadados) e intervalo de datas.' },
+      { title: 'Detalhes', body: 'Clique em JSON para metadados completos. Links levam à ficha do cliente ou integração quando aplicável.' },
     ],
     links: [
       { label: 'Clientes', to: '/admin/clientes' },
@@ -607,8 +726,8 @@ export const ADMIN_GUIDES = {
     title: 'Painel de clientes',
     summary: 'Ficha completa com cadastro, veículos, financeiro, provisionamento e indicações.',
     steps: [
-      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo e provisionamento.' },
-      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app.' },
+      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo, provisionamento e último acesso (7/30/60/90 dias ou nunca). Exporte a lista filtrada em Excel (.xlsx) ou PDF.' },
+      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app. Use Excel/PDF na ficha para exportar resumo, veículos e faturas.' },
       { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
       { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },
     ],
@@ -628,28 +747,65 @@ export const ADMIN_GUIDES = {
       { title: 'Canais', body: 'WhatsApp primeiro, SMS como fallback — igual cobrança.' },
       { title: 'Cooldown', body: 'Intervalo mínimo entre acionamentos evita spam acidental.' },
     ],
-    links: [{ label: 'Integrações', to: '/admin/integracoes' }],
+    links: [
+      { label: 'Painel SOS', to: '/admin/emergencia' },
+      { label: 'Integrações', to: '/admin/integracoes' },
+    ],
+  },
+
+  admin_emergencia: {
+    title: 'Painel de Emergência (SOS)',
+    summary: 'Monitore acionamentos do botão de pânico com cliente, veículo e mapa.',
+    steps: [
+      { title: '24 horas', body: 'O card superior mostra quantos SOS ocorreram nas últimas 24h — o mesmo dado do dashboard operacional.' },
+      { title: 'Localização', body: 'Endereço e coordenadas vêm do GPSWOX no momento do acionamento. Use "Abrir mapa" para Google Maps.' },
+      { title: 'Canais', body: 'Expanda "Detalhes" para ver WhatsApp/SMS por telefone e status de entrega.' },
+      { title: 'Cliente', body: 'Link "Ficha" abre o painel de clientes com cadastro e financeiro.' },
+    ],
+    links: [
+      { label: 'Configurar SOS', to: '/admin/integracoes/emergencia' },
+      { label: 'Clientes', to: '/admin/clientes' },
+    ],
+  },
+
+  cadastro: {
+    title: 'Notificações de cadastro',
+    summary: 'E-mail, push, WhatsApp/SMS ao cliente e alerta à central em cada novo cadastro.',
+    steps: [
+      { title: 'Cliente', body: 'Recebe e-mail com credenciais, WhatsApp/SMS de boas-vindas e push (se Firebase ativo e app com token).' },
+      { title: 'Central', body: 'Telefones e e-mails configurados recebem resumo: nome, plano, veículo, indicação.' },
+      { title: 'WhatsApp + SMS', body: 'WhatsApp primeiro; SMS como fallback quando habilitado (cliente e central).' },
+      { title: 'Template central', body: 'Personalize a mensagem com variáveis {{nome}}, {{plano}}, {{veiculo}}, etc.' },
+    ],
+    links: [
+      { label: 'Integrações', to: '/admin/integracoes/cadastro' },
+      { label: 'Clientes', to: '/admin/clientes' },
+    ],
   },
 
   frota: {
     title: 'Lembretes de documentos e manutenção',
-    summary: 'Push automático quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
+    summary: 'Push, WhatsApp e SMS automáticos quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
     steps: [
       {
         title: 'Consolidado por cliente',
-        body: 'No máximo um push por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+        body: 'No máximo um lembrete por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+      },
+      {
+        title: 'Canais',
+        body: 'Push (Firebase), WhatsApp no telefone cadastrado e SMS opcional (fallback ou exclusivo). Pelo menos um canal deve estar ativo.',
       },
       {
         title: 'Antecedência',
         body: 'Itens com vencimento dentro do prazo configurado (padrão 30 dias) entram no lembrete — inclui já vencidos.',
       },
       {
-        title: 'Firebase',
-        body: 'Requer integração Firebase ativa e o cliente com app/PWA registrado para push.',
+        title: 'Template',
+        body: 'Personalize a mensagem WhatsApp/SMS com variáveis como {{cliente}}, {{resumo}} e {{detalhe_itens}}.',
       },
       {
         title: 'Histórico admin',
-        body: 'GET /v1/admin/frota/lembretes lista envios recentes; POST .../lembretes/executar força uma rodada.',
+        body: 'Na aba Lembretes push em /admin/frota: status, rodadas recentes, histórico por canal e execução manual.',
       },
     ],
     links: [
@@ -661,6 +817,8 @@ export const ADMIN_GUIDES = {
 
 /** Guia por chave de integração (IntegrationEditPage) */
 export const INTEGRATION_GUIDE_KEYS = {
+  rastreamento: 'rastreamento',
+  traccar: 'traccar',
   gpswox: 'gpswox',
   asaas: 'asaas',
   mercadopago: 'mercadopago',
@@ -670,6 +828,7 @@ export const INTEGRATION_GUIDE_KEYS = {
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
   cobranca: 'cobranca',
+  cadastro: 'cadastro',
   frota: 'frota',
   emergencia: 'emergencia',
 };

@@ -17,6 +17,25 @@ export default function FieldInput({ field, value, onChange }) {
     );
   }
 
+  if (field.type === 'select') {
+    return (
+      <label htmlFor={id}>
+        {field.label}
+        {field.required && <span className="required">*</span>}
+        <select
+          id={id}
+          value={value ?? field.default ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {(field.options || []).map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {hint && <small className="hint">{hint}</small>}
+      </label>
+    );
+  }
+
   if (field.type === 'textarea') {
     return (
       <label htmlFor={id}>

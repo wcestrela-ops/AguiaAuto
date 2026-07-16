@@ -194,8 +194,8 @@ class FinanceiroService {
     };
   }
 
-  async listAllCharges() {
-    const rows = await this.invoices.listAll();
+  async listAllCharges(options = {}) {
+    const rows = await this.invoices.listAll({ limit: options.limit || 100 });
     const invoiceIds = rows.map((row) => row.id);
     const latestNotifications = await getBillingNotificationRepository()
       .mapLatestByInvoiceIds(invoiceIds);
@@ -238,6 +238,7 @@ class FinanceiroService {
 
     return {
       ...formatInvoice(updated),
+      user_id: updated.user_id,
       notification,
     };
   }

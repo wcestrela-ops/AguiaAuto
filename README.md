@@ -54,16 +54,51 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 
 | Tela | Caminho |
 |------|---------|
-| Dashboard | `/admin` |
-| Integrações (Firebase, GPSWOX, Asaas) | `/admin/integracoes` |
-| Firebase Push | `/admin/integracoes/firebase` |
-| WhatsApp Multi-Provedor | `/admin/whatsapp` |
+| Dashboard operacional | `/admin` |
+| Integrações (Firebase, GPSWOX, Asaas, SMTP…) | `/admin/integracoes` |
+| WhatsApp multi-provedor | `/admin/whatsapp` |
 | SMS Rastreador (comandos + gateways) | `/admin/sms` |
-| Veículos (GPSWOX + chip SIM + sync) | `/admin/veiculos` |
-| Financeiro (cobranças + provisionamento) | `/admin/financeiro` |
-| Alertas (motor + histórico) | `/admin/alertas` |
+| Veículos (GPSWOX, chip SIM, sync, filtros, instalador) | `/admin/veiculos` |
+| Clientes (painel, ficha, exportação) | `/admin/clientes` |
+| Financeiro (cobranças, provisionamento, lembretes) | `/admin/financeiro` |
+| Planos de assinatura | `/admin/planos` |
+| Landing page (conteúdo público) | `/admin/site` |
+| Alertas (motor + histórico + promoções) | `/admin/alertas` |
+| Emergência (SOS) | `/admin/emergencia` |
+| Instaladores | `/admin/instaladores` |
+| Contratos (templates + aceites) | `/admin/contratos` |
+| Documentos e manutenção (frota) | `/admin/frota` |
+| Indique e Ganhe | `/admin/indicacoes` |
+| Auditoria administrativa | `/admin/auditoria` |
+
+**Exportação:** nas telas de Clientes, Veículos, Financeiro, Frota, Emergência, SMS e Auditoria há botões **Excel/PDF** (`GET /v1/admin/export/:resource?format=xlsx|pdf`).
 
 **Firebase:** configure Project ID, Web API Key, Messaging Sender ID, App ID, VAPID Key e Service Account — tudo pelo painel, nunca no código.
+
+### PWA Cliente
+
+| Tela | Caminho |
+|------|---------|
+| Login / cadastro | `/login` · `/cadastro` |
+| Início | `/app` |
+| Meus veículos (mapa, comandos, âncora) | `/app/veiculos` |
+| Financeiro (PIX) | `/app/financeiro` |
+| Contratos e aceite de instalação | `/app/contratos` |
+| Documentos e manutenção | `/app/frota` |
+| Emergência (SOS) | `/app/emergencia` |
+| Alertas | `/app/alertas` |
+| Perfil e indicações | `/app/perfil` |
+
+**Bloqueio por contrato:** até aceitar o Contrato de Prestação de Serviços, só `/app/contratos` fica liberado. Demais rotas da API retornam `403 CONTRACT_REQUIRED`; o PWA intercepta globalmente e redireciona para Contratos.
+
+### Área do Instalador
+
+| Tela | Caminho |
+|------|---------|
+| Painel | `/instalador` |
+| Agendamentos | `/instalador/agendamentos` |
+| Checklist de instalação | `/instalador/instalacoes/:id` |
+| Histórico | `/instalador/historico` |
 
 ### Auth JWT (Clientes)
 
@@ -75,33 +110,42 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | `POST /v1/auth/logout` | Encerrar sessão |
 | `GET /v1/auth/me` | Dados do usuário logado |
 
-PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admin`
+PWA cliente: `http://localhost:8080/login` · Cadastro: `/cadastro` · Landing: `/` · Admin: `http://localhost:8080/admin`
 
-### Meu Veículo (Fase 1)
+### Meu Veículo
 
-1. Admin cadastra veículo em `/admin/veiculos` vinculando cliente + `gpswox_device_id`
-2. Cliente vê veículos em `/app/veiculos` — **mapa ao vivo** ou **link GPSWOX** para compartilhar
-3. Comandos: bloquear, desbloquear, ligar/desligar motor, localizar agora
-4. Histórico de rotas no mapa (24h ou 7 dias) via API GPSWOX
+1. Admin cadastra veículo em `/admin/veiculos` vinculando cliente — **placa opcional** (veículos novos sem emplacamento)
+2. Veículos `pending_installation` podem ficar no **pool** (qualquer instalador) ou ser **atribuídos** a um técnico com agendamento opcional
+3. Cliente vê veículos em `/app/veiculos` — **mapa ao vivo**, **link GPSWOX** para compartilhar, **âncora** e histórico de rotas
+4. Comandos: bloquear, desbloquear, ligar/desligar motor, localizar — com **failover 4G → SMS** quando o chip SIM está cadastrado
+5. Sync GPSWOX manual ou automático importa device_id, chip, IMEI e modelo
 
 | Rota | Descrição |
 |------|-----------|
 | `GET /v1/veiculos` | Lista veículos do usuário logado |
 | `GET /v1/veiculos/:id` | Detalhe do veículo (ownership verificado) |
 | `GET /v1/veiculos/:id/localizacao` | Localização via GPSWOX Gateway |
+| `GET /v1/veiculos/:id/ancora` | Status da âncora |
+| `POST /v1/veiculos/:id/ancora` | Ativar âncora (raio + bloqueio ao sair) |
+| `DELETE /v1/veiculos/:id/ancora` | Desativar âncora |
 | `POST /v1/veiculos/:id/bloqueio` | Bloquear rastreador |
 | `POST /v1/veiculos/:id/desbloqueio` | Desbloquear rastreador |
 | `POST /v1/veiculos/:id/comandos/:action` | Comandos: bloquear, desbloquear, ligar, desligar, localizar |
 | `GET /v1/veiculos/:id/historico` | Histórico de posições (`?hours=24`) |
 | `POST /v1/veiculos/:id/compartilhar` | Link temporário GPSWOX (60 min padrão) |
-| `GET /v1/admin/veiculos` | Listar todos (admin) |
+| `GET /v1/admin/veiculos` | Listar com filtros (`q`, `status`, `user_id`, `issue`, `sort`) + total |
 | `POST /v1/admin/veiculos` | Criar veículo para cliente |
 | `PUT /v1/admin/veiculos/:id` | Atualizar veículo |
+| `PATCH /v1/admin/veiculos/:id/instalador` | Atribuir instalador + agendamento |
+| `DELETE /v1/admin/veiculos/:id/instalador` | Remover atribuição (volta ao pool) |
+| `POST /v1/admin/veiculos/sync-gpswox` | Sync manual (ou prévia com `dry_run`) |
 | `GET /v1/admin/usuarios` | Listar clientes (admin) |
+| `GET /v1/admin/usuarios/painel` | Painel de clientes com filtros |
+| `GET /v1/admin/dashboard/operations` | Dashboard operacional (KPIs + drill-down) |
 
-Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>`.
+Rotas `/v1/dashboard`, `/v1/veiculos`, `/v1/perfil` etc. exigem `Authorization: Bearer <access_token>` **e** contrato de serviço aceito (exceto `/v1/contratos/*`).
 
-### Financeiro — Asaas + Mercado Pago (Fase 3)
+### Financeiro — Asaas + Mercado Pago
 
 **Dois gateways com failover automático:**
 
@@ -139,7 +183,7 @@ Se o gateway principal falhar, o backup é usado automaticamente. Configure em `
 | Mercado Pago | `POST /webhooks/mercadopago` |
 | GPSWOX (alertas) | `POST /webhooks/gpswox` |
 
-### Motor de Alertas (Fase 4)
+### Motor de Alertas
 
 GPSWOX envia eventos para `POST /webhooks/gpswox`. O motor identifica o veículo e dispara notificações.
 
@@ -193,9 +237,9 @@ Fluxo: `/recuperar-senha` → escolher canal → `/recuperar-senha/confirmar`
 
 ### Cadastro e credenciais
 
-- Cliente cria a senha no cadastro; recebe **e-mail com login e senha**
-- Com telefone, também recebe WhatsApp de boas-vindas
+- Cliente cria a senha no cadastro (`/cadastro` ou `POST /v1/onboarding/cadastro`) — recebe **e-mail** e, com telefone, **WhatsApp** de boas-vindas com credenciais
 - Instaladores criados pelo admin recebem credenciais por e-mail e WhatsApp
+- Cadastro online aceita plano, veículo (placa opcional), contrato e provisionamento automático (GPSWOX + Asaas/Mercado Pago)
 
 ```env
 SMTP_HOST=smtp.seudominio.com
@@ -203,57 +247,38 @@ SMTP_PORT=587
 SMTP_FROM=noreply@seudominio.com
 ```
 
-### Endpoints disponíveis
+### Endpoints principais
 
 **API Águia** (`http://localhost:3000`)
 
-| Módulo | Rota | Status |
-|--------|------|--------|
-| **Auth Cliente** | `POST /v1/auth/login` | ✅ |
-| **Auth Cliente** | `POST /v1/auth/register` | ✅ |
-| **Auth Cliente** | `POST /v1/auth/refresh` | ✅ |
-| **Auth Cliente** | `GET /v1/auth/me` | ✅ |
-| Dashboard | `GET /v1/dashboard` | ✅ |
-| Meu Veículo | `GET /v1/veiculos` | ✅ |
-| Meu Veículo | `GET /v1/veiculos/:id` | ✅ |
-| Meu Veículo | `GET /v1/veiculos/:id/localizacao` | ✅ |
-| Bloqueio | `POST /v1/veiculos/:id/bloqueio` | ✅ |
-| Desbloqueio | `POST /v1/veiculos/:id/desbloqueio` | ✅ |
-| Comandos | `POST /v1/veiculos/:id/comandos/:action` | ✅ |
-| Histórico | `GET /v1/veiculos/:id/historico` | ✅ |
-| Compartilhar GPSWOX | `POST /v1/veiculos/:id/compartilhar` | ✅ |
-| Financeiro | `GET /v1/financeiro/resumo` | ✅ |
-| Financeiro | `GET /v1/financeiro/faturas` | ✅ |
-| Financeiro | `POST /v1/financeiro/segunda-via` | ✅ |
-| Planos | `GET /v1/plans` | ✅ |
-| Alertas | `GET /v1/alertas` | ✅ |
-| Alertas | `PUT /v1/alertas/preferencias` | ✅ |
-| Webhooks | `POST /webhooks/asaas` | ✅ |
-| Webhooks | `POST /webhooks/mercadopago` | ✅ |
-| Webhooks | `POST /webhooks/gpswox` | ✅ |
-| **Admin — Integrações** | `GET /v1/admin/integracoes` | ✅ |
-| **Admin — Salvar API** | `PUT /v1/admin/integracoes/:key` | ✅ |
-| **Admin — Testar API** | `POST /v1/admin/integracoes/:key/test` | ✅ |
-| **Admin — Veículos** | `GET/POST/PUT /v1/admin/veiculos` | ✅ |
-| **Admin — Usuários** | `GET /v1/admin/usuarios` | ✅ |
-| **Admin — Financeiro** | `GET/POST /v1/admin/financeiro/cobrancas` | ✅ |
-| **Admin — Provisionar** | `POST /v1/admin/financeiro/reprovisionar/:userId` | ✅ |
-| **Admin — Planos** | `GET/POST/PUT /v1/admin/plans` | ✅ |
-| **Admin — Alertas** | `GET /v1/admin/alertas` | ✅ |
-| Emergência | `GET /v1/emergencia/contatos` | ✅ |
-| Emergência | `PUT /v1/emergencia/contatos` | ✅ |
-| Emergência | `POST /v1/emergencia/acionar` | ✅ |
-| Admin Emergência | `GET /v1/admin/emergencia/eventos` | ✅ |
-| Onboarding | `POST /v1/onboarding/cadastro` | 🚧 |
-| Instalador | `GET /v1/instalador/painel` | ✅ |
-| Instalador | `GET /v1/instalador/agendamentos` | ✅ |
-| Instalador | `POST /v1/instalador/instalacoes/:id/finalizar` | ✅ |
-| **Admin — Instaladores** | `GET/POST /v1/admin/instaladores` | ✅ |
-| Contratos | `GET /v1/contratos` | ✅ |
-| Contratos | `GET /v1/contratos/status` | ✅ |
-| Contratos | `POST /v1/contratos/servico/aceitar` | ✅ |
-| Contratos | `POST /v1/contratos/entrega/aceitar` | ✅ |
-| Contratos | `GET /v1/contratos/fotos/:id` | ✅ |
+| Módulo | Rotas | Status |
+|--------|-------|--------|
+| **Auth** | `POST /v1/auth/login`, `register`, `refresh`, `logout`, `GET /me` | ✅ |
+| **Auth** | `POST /v1/auth/recuperar-senha/solicitar`, `confirmar` | ✅ |
+| **Onboarding** | `GET /v1/onboarding`, `POST /v1/onboarding/cadastro` | ✅ |
+| **Planos (público)** | `GET /v1/plans` | ✅ |
+| **Site (público)** | `GET /v1/site/landing` | ✅ |
+| **Dashboard cliente** | `GET /v1/dashboard` | ✅ |
+| **Veículos** | CRUD cliente + comandos + âncora + histórico + compartilhar | ✅ |
+| **Financeiro** | `resumo`, `faturas`, `mensalidades`, `segunda-via` | ✅ |
+| **Alertas** | `GET /v1/alertas`, `PUT /preferencias` | ✅ |
+| **Frota** | documentos + manutenção (cliente edita os próprios registros) | ✅ |
+| **Emergência** | contatos + `POST /acionar` (SOS) | ✅ |
+| **Indicações** | `resumo`, `link` + validação pública do código | ✅ |
+| **Contratos** | overview, status, aceite serviço/entrega, fotos, download | ✅ |
+| **Notificações** | FCM token, dispositivos, teste push | ✅ |
+| **Instalador** | painel, agendamentos, histórico, finalizar instalação | ✅ |
+| **Admin — Integrações** | CRUD + teste + reload | ✅ |
+| **Admin — WhatsApp / SMS** | provedores, failover, comandos rastreador | ✅ |
+| **Admin — Veículos** | CRUD, filtros, sync GPSWOX, atribuição instalador | ✅ |
+| **Admin — Clientes** | painel, ficha, resumo | ✅ |
+| **Admin — Financeiro** | cobranças, baixa manual, provisionar, notificações | ✅ |
+| **Admin — Planos / Site** | CRUD planos + landing editável | ✅ |
+| **Admin — Frota** | documentos, manutenção, lembretes (push/WhatsApp/SMS) | ✅ |
+| **Admin — Dashboard** | `GET /v1/admin/dashboard/operations` | ✅ |
+| **Admin — Exportação** | `GET /v1/admin/export/:resource?format=xlsx\|pdf` | ✅ |
+| **Admin — Auditoria** | `GET /v1/admin/audit` | ✅ |
+| **Webhooks** | Asaas, Mercado Pago, GPSWOX, Meta WhatsApp | ✅ |
 
 ## Painel Admin — Configuração de APIs
 
@@ -384,7 +409,38 @@ Para adicionar uma nova API no futuro, basta registrar o schema em `packages/int
 | `POST /comandos` | Enviar comando |
 | `POST /historico` | Histórico de posições (`device_id`, `from`, `to`) |
 | `POST /compartilhar` | Link de compartilhamento GPSWOX |
-| `POST /cerca` | 🚧 Em desenvolvimento |
+| `POST /dispositivos` | Listar dispositivos GPSWOX |
+| `POST /cerca` | Cercas (`action`: list, create, create_circle, update, delete, toggle, point_in, groups) |
+| `POST /eventos` | Eventos (`action`: list, delete — `device_id`, opcional `from`/`to`) |
+
+Exemplo — cerca circular (útil para âncora):
+
+```bash
+curl -X POST http://localhost:3001/cerca \
+  -H "Authorization: Bearer SEU_GATEWAY_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create_circle",
+    "name": "Ancora Veiculo 42",
+    "latitude": -23.5505,
+    "longitude": -46.6333,
+    "radius_meters": 50
+  }'
+```
+
+Exemplo — listar eventos de um dispositivo:
+
+```bash
+curl -X POST http://localhost:3001/eventos \
+  -H "Authorization: Bearer SEU_GATEWAY_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "list",
+    "device_id": "123",
+    "from": "2026-07-01 00:00:00",
+    "to": "2026-07-16 23:59:59"
+  }'
+```
 
 ## Desenvolvimento local
 
@@ -395,71 +451,105 @@ npm run dev:gateway    # Gateway na porta 3001
 npm run diagnostico    # Descobrir seletores GPSWOX
 ```
 
+## Testes automatizados
+
+```bash
+npm test               # API + PWA + Gateway
+npm run test:api       # Apenas API (node:test)
+npm run test:web       # Apenas PWA (vitest + jsdom)
+npm run test:gateway   # Apenas Gateway GPSWOX
+```
+
+| Pacote | Runner | Cobertura inicial |
+|--------|--------|-------------------|
+| `@aguia/api` | Node.js `node:test` | IMEI/chip, export formatters, atribuição instalador (`formatPendingJob`), bloqueio `CONTRACT_REQUIRED` |
+| `@aguia/web` | Vitest | IMEI, status veículo, `CONTRACT_REQUIRED` no client API, `setClientPageError` |
+| `@aguia/gpswox-gateway` | Node.js `node:test` | Polígonos circulares, parsing de cercas/eventos GPSWOX |
+
+Testes ficam em `services/api/test/`, `services/gpswox-gateway/test/` e `apps/web/src/**/*.test.js`. Não exigem PostgreSQL — foco em regras de negócio e utilitários.
+
+## CI/CD (GitHub Actions)
+
+Workflows em `.github/workflows/`:
+
+| Workflow | Gatilho | O que faz |
+|----------|---------|-----------|
+| **CI** (`ci.yml`) | Push em `main` e pull requests | `npm ci` → `npm test` → `npm run build:web` + artefato `web-dist` |
+| **CD** (`cd.yml`) | Push em `main` ou manual | Build e push das imagens Docker para GHCR |
+
+Imagens publicadas:
+
+- `ghcr.io/wcestrela-ops/aguia-api:latest`
+- `ghcr.io/wcestrela-ops/aguia-web:latest`
+- `ghcr.io/wcestrela-ops/aguia-gateway:latest`
+
+Cada push em `main` também gera tag com o SHA do commit. Deploy manual:
+
+```bash
+docker login ghcr.io
+docker pull ghcr.io/wcestrela-ops/aguia-api:latest
+docker compose up -d
+```
+
+Ou dispare **CD** em Actions → **Run workflow** no GitHub.
+
 ## Roadmap de implementação
 
-### Fase 1 — Meu Veículo ✅ (atual)
-- Tabelas `vehicles`, `plans`, `subscriptions`
-- API com ownership (cliente só vê seus veículos)
-- Dashboard real com resumo de localização
-- Admin: cadastro e vínculo GPSWOX
-- PWA: mapa Leaflet, compartilhar GPSWOX, comandos e histórico de rotas
+Todas as fases abaixo estão **implementadas** na versão atual.
 
-### Fase 2 — Fundação (concluída)
-- Monorepo modular
-- Gateway GPSWOX (API oficial + Playwright fallback)
-- API com módulos estruturados
-- Docker Compose com PostgreSQL
-- PWA + Auth JWT + Admin + WhatsApp + FCM + Recuperação de senha
+### Fase 1 — Meu Veículo ✅
+- Veículos com ownership, placa opcional, sync GPSWOX (manual + automático)
+- PWA: mapa Leaflet, compartilhar GPSWOX, comandos 4G/SMS, histórico, âncora
 
-### Fase 3 — Financeiro ✅ (atual)
-- Integração Asaas + Mercado Pago com failover automático
-- PIX em ambos os gateways para mensalidades e adesão
-- Mercado Pago: cobrança inicial; Asaas: recorrência
-- Admin: gateways configuráveis + cobranças manuais
-- PWA: PIX copia e cola no painel do cliente
+### Fase 2 — Fundação ✅
+- Monorepo modular · Gateway GPSWOX (API + Playwright) · Docker Compose
+- Auth JWT · Admin · WhatsApp · FCM · Recuperação de senha · Auditoria admin
 
-### Fase 4 — Motor de Alertas ✅ (atual)
-- Webhook GPSWOX → **push** para alertas de veículo
-- WhatsApp bloqueado em alertas operacionais (anti-ban)
-- WhatsApp só: cadastro, cobrança, senha, promoções admin
-- Preferências e histórico no PWA
+### Fase 3 — Financeiro ✅
+- Asaas + Mercado Pago com failover · PIX · cobranças e provisionamento
+- Lembretes automáticos de cobrança (WhatsApp/SMS) · baixa manual no admin
 
-### Fase 5 — Instalador ✅ (atual)
-- PWA `/instalador` — painel, agendamentos, histórico e finalização
-- Relatório de instalação com até **3 fotos**, duração e descrição do técnico
-- Vincula `gpswox_device_id`, ativa veículo e notifica cliente via push
-- Admin: `/admin/instaladores` — criar contas com role `installer`
-- Tabela `installation_logs` + `installation_photos` para auditoria
+### Fase 4 — Motor de Alertas ✅
+- Webhook GPSWOX → push (alertas de veículo sem WhatsApp operacional)
+- Preferências e histórico no PWA · promoções manuais via admin
 
-### Fase 5b — Contratos e Aceite ✅ (atual)
-- PWA `/app/contratos` — contrato de serviço + termos de entrega por veículo
-- Cliente aceita que o veículo saiu com rastreador em funcionamento normal
-- Aceite registrado em `contract_acceptances` com IP e data
-- Fotos servidas com autenticação JWT
+### Fase 5 — Instalador ✅
+- PWA `/instalador` — checklist (IMEI, chip, modelo, fotos, relatório)
+- **Atribuição de instalador:** pool compartilhado ou técnico designado + agendamento
+- Push ao instalador na atribuição · admin em `/admin/instaladores`
 
-### Fase 6 — Extras ✅ (atual)
-- **Indique e Ganhe** — link no perfil, desconto automático na mensalidade, painel admin `/admin/indicacoes`
-- **Documentos e Manutenção** — CRLV, seguro, IPVA e revisões por veículo (`/app/frota` cliente, `/admin/frota` admin)
-- Alertas operacionais no dashboard admin para vencimentos e manutenções próximas
+### Fase 5b — Contratos e Aceite ✅
+- Contrato de serviço + termos de entrega (instalação unificada quando aplicável)
+- Bloqueio `CONTRACT_REQUIRED` na API + **tratamento global no PWA**
+- Snapshots assinados para download · fotos com JWT
+
+### Fase 6 — Extras ✅
+- **Indique e Ganhe** · **Documentos e manutenção** (cliente e admin editam)
+- **Lembretes de frota** (push + WhatsApp/SMS) · **Emergência SOS**
+- **Painel de clientes** · **Planos + landing editável** · **Exportação Excel/PDF**
+- **Dashboard operacional** com drill-down (instalações, faturas, frota, emergências…)
 
 ## Área do Instalador
 
 Fluxo operacional para técnicos de campo:
 
 1. Admin cria conta em `/admin/instaladores` (role `installer`)
-2. Instalador faz login em `/login` → redirecionado para `/instalador`
-3. Veículos com status `pending_installation` aparecem em **Agendamentos**
-4. Ao finalizar, informa `gpswox_device_id` → veículo fica `active` e cliente recebe push
-
-Rotas JWT (`role: installer` ou `admin`):
+2. Admin cadastra veículo `pending_installation` e opcionalmente **atribui instalador** + data/hora
+3. Instalador faz login em `/login` → redirecionado para `/instalador`
+4. **Agendamentos** lista veículos do pool (sem atribuição) + atribuídos ao instalador logado
+5. Checklist na finalização: Device ID, IMEI, chip SIM, modelo, fotos (máx. 3), relatório e teste de comunicação
+6. Veículo fica `active` · cliente recebe push para aceitar em Contratos
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/v1/instalador/painel` | Resumo e últimas instalações |
-| GET | `/v1/instalador/agendamentos` | Veículos pendentes |
+| GET | `/v1/instalador/painel` | Pendentes visíveis + últimas instalações |
+| GET | `/v1/instalador/agendamentos` | Veículos pendentes (pool + atribuídos) |
+| GET | `/v1/instalador/modelos-rastreador` | Biblioteca de modelos/comandos SMS |
 | GET | `/v1/instalador/historico` | Histórico do instalador logado |
 | GET | `/v1/instalador/instalacoes/:id` | Detalhe do agendamento |
-| POST | `/v1/instalador/instalacoes/:id/finalizar` | Ativa rastreador + relatório (multipart, máx. 3 fotos) |
+| POST | `/v1/instalador/instalacoes/:id/finalizar` | Ativa rastreador + relatório (multipart) |
+| PATCH | `/v1/admin/veiculos/:id/instalador` | Atribuir instalador (admin) |
+| DELETE | `/v1/admin/veiculos/:id/instalador` | Remover atribuição (admin) |
 
 ## Contratos e Termo de Entrega
 
@@ -470,16 +560,60 @@ O cliente acessa `/app/contratos` para:
 
 Ao aceitar o termo de entrega, o cliente declara que verificou o relatório e concorda que o veículo (carro ou moto) deixou a instalação com o rastreador em **funcionamento normal**.
 
-**Bloqueio obrigatório:** o cliente só acessa o restante do app (`/app/*`) após aceitar o Contrato de Prestação de Serviços. Até lá, apenas `/app/contratos` fica disponível (API retorna `403 CONTRACT_REQUIRED` nas demais rotas).
+**Bloqueio obrigatório:** o cliente só acessa o restante do app (`/app/*`) após aceitar o Contrato de Prestação de Serviços. Até lá, apenas `/app/contratos` fica disponível.
+
+- API: `403` com `error: "CONTRACT_REQUIRED"` nas rotas protegidas por `requireServiceContract`
+- PWA: interceptação global em `api/client.js` — invalida cache local, redireciona para `/app/contratos` e exibe banner explicativo
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
+| GET | `/v1/contratos/status` | Status do aceite (sem exigir contrato prévio) |
 | GET | `/v1/contratos` | Contrato + entregas pendentes/aceitas |
 | POST | `/v1/contratos/servico/aceitar` | Aceitar contrato de serviço |
 | POST | `/v1/contratos/entrega/aceitar` | Aceitar termo de entrega (`installation_log_id`) |
+| GET | `/v1/contratos/documento` | Download HTML assinado |
 | GET | `/v1/contratos/fotos/:id` | Foto do relatório (JWT) |
 
 Fotos ficam em `services/api/uploads/` (configurável via `UPLOAD_DIR`).
+
+## Documentos, manutenção e lembretes
+
+- **Cliente** (`/app/frota`): CRLV, seguro, IPVA, revisões — cadastro, edição e anexos
+- **Admin** (`/admin/frota`): visão global, edição, visualização de anexos, execução manual de lembretes
+- **Lembretes automáticos** (pollers): push + WhatsApp/SMS para documentos vencendo/vencidos e manutenções próximas/atrasadas
+- Indicadores aparecem no dashboard operacional admin
+
+## Exportação admin (Excel / PDF)
+
+`GET /v1/admin/export/:resource?format=xlsx|pdf`
+
+| Recurso | Descrição |
+|---------|-----------|
+| `clientes` | Lista de clientes (filtros do painel) |
+| `cliente` | Ficha completa (`user_id` obrigatório) |
+| `veiculos` | Veículos/dispositivos (filtros) |
+| `financeiro-cobrancas` | Cobranças |
+| `frota-documentos` | Documentos de frota |
+| `frota-manutencao` | Manutenções |
+| `emergencia` | Eventos SOS |
+| `sms-dispatches` | Envios SMS |
+| `auditoria` | Log administrativo |
+
+Cada download gera registro em auditoria (`export.download`).
+
+## Pollers em background
+
+Com `DATABASE_URL` configurado, a API inicia automaticamente:
+
+| Poller | Função |
+|--------|--------|
+| Âncora | Monitora veículos com âncora ativa |
+| Indicações | Qualifica indicados e aplica desconto |
+| Sync GPSWOX | Importação agendada de dispositivos |
+| Lembretes cobrança | WhatsApp/SMS de faturas |
+| Lembretes frota | Push/WhatsApp/SMS de documentos e manutenção |
+
+Intervalos configuráveis via variáveis de ambiente (`ANCORA_POLL_MS`, `GPSWOX_SYNC_CHECK_MS`, `BILLING_REMINDER_CHECK_MS`, `FLEET_REMINDER_CHECK_MS`, etc.).
 
 ## Filosofia
 

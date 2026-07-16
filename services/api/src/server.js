@@ -32,6 +32,10 @@ const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
 const { migrateFleetReminders } = require('./db/migrate-fleet-reminders');
 const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
+const { migrateVehiclePlateOptional } = require('./db/migrate-vehicle-plate-optional');
+const { migrateVehicleInstallerAssignment } = require('./db/migrate-vehicle-installer-assignment');
+const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-channels');
+const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
@@ -68,11 +72,13 @@ const adminAuditRoutes = require('./modules/admin/audit/routes');
 const adminFrotaRoutes = require('./modules/admin/frota/routes');
 const adminIndicacoesRoutes = require('./modules/admin/indicacoes/routes');
 const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
+const adminSiteRoutes = require('./modules/admin/site/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
-const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
+const adminExportRoutes = require('./modules/admin/export/routes');
 const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
+const siteRoutes = require('./modules/site/routes');
 const configRoutes = require('./modules/config/routes');
 
 const app = express();
@@ -95,8 +101,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Planos públicos (cadastro)
+// Planos públicos (cadastro) e landing page
 app.use('/v1/plans', plansRoutes);
+app.use('/v1/site', siteRoutes);
 
 // Indicações — validação pública do código (cadastro)
 app.use('/v1/indicacoes', indicacoesPublicRoutes);
@@ -132,6 +139,7 @@ app.use('/v1/contratos', jwtAuth, contratosRoutes);
 app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
 
 // Painel admin — ADMIN_SECRET
+app.use('/v1/admin/export', adminAuth, adminExportRoutes);
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
 app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);
@@ -149,6 +157,7 @@ app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
 app.use('/v1/admin/frota', adminAuth, adminFrotaRoutes);
 app.use('/v1/admin/indicacoes', adminAuth, adminIndicacoesRoutes);
 app.use('/v1/admin/emergencia', adminAuth, adminEmergenciaRoutes);
+app.use('/v1/admin/site', adminAuth, adminSiteRoutes);
 app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
@@ -205,6 +214,18 @@ async function bootstrap() {
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
+
+    await migrateVehiclePlateOptional();
+    logger.info('Veículos — placa opcional (veículos novos sem emplacamento) inicializado.');
+
+    await migrateVehicleInstallerAssignment();
+    logger.info('Veículos — atribuição de instalador inicializada.');
+
+    await migrateFleetReminderChannels();
+    logger.info('Lembretes de frota — canais WhatsApp/SMS inicializados.');
+
+    await migrateSiteContent();
+    logger.info('Conteúdo do site (landing page) inicializado.');
 
     await migrateTrackerLibrary();
     logger.info('Biblioteca de modelos e comandos SMS de rastreadores inicializada.');

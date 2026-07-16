@@ -45,6 +45,29 @@ class AuditRepository {
       conditions.push(`actor_id = $${idx++}`);
       params.push(String(filters.actor_id));
     }
+    if (filters.resource_id) {
+      conditions.push(`resource_id = $${idx++}`);
+      params.push(String(filters.resource_id));
+    }
+    if (filters.from) {
+      conditions.push(`created_at >= $${idx++}`);
+      params.push(filters.from);
+    }
+    if (filters.to) {
+      conditions.push(`created_at <= $${idx++}`);
+      params.push(filters.to);
+    }
+    if (filters.search) {
+      conditions.push(`(
+        action ILIKE $${idx}
+        OR resource_type ILIKE $${idx}
+        OR resource_id ILIKE $${idx}
+        OR actor_id ILIKE $${idx}
+        OR metadata::text ILIKE $${idx}
+      )`);
+      params.push(`%${filters.search}%`);
+      idx += 1;
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     return { where, params, nextIdx: idx };
@@ -80,6 +103,15 @@ class AuditRepository {
       `SELECT DISTINCT action FROM audit_logs ORDER BY action ASC`,
     );
     return rows.map((row) => row.action);
+  }
+
+  async listDistinctResourceTypes() {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT resource_type FROM audit_logs
+       WHERE resource_type IS NOT NULL
+       ORDER BY resource_type ASC`,
+    );
+    return rows.map((row) => row.resource_type);
   }
 
   async listRecent(limit = 50) {

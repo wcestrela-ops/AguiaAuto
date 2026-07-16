@@ -35,6 +35,10 @@ import AdminIndicacoesPage from './pages/admin/AdminIndicacoesPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
 import AdminClientesPage from './pages/admin/AdminClientesPage';
 import AdminClienteDetailPage from './pages/admin/AdminClienteDetailPage';
+import AdminEmergenciaPage from './pages/admin/AdminEmergenciaPage';
+import AdminPlansPage from './pages/admin/AdminPlansPage';
+import AdminLandingPage from './pages/admin/AdminLandingPage';
+import LandingPage from './pages/LandingPage';
 import SmsPage from './pages/admin/SmsPage';
 
 function AdminRoute({ children }) {
@@ -57,7 +61,7 @@ function InstallerRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<LandingPage />} />
 
       {/* Cliente */}
       <Route path="/login" element={<ClientLoginPage />} />
@@ -115,6 +119,8 @@ export default function App() {
         <Route path="sms" element={<SmsPage />} />
         <Route path="veiculos" element={<AdminVehiclesPage />} />
         <Route path="financeiro" element={<AdminFinanceiroPage />} />
+        <Route path="planos" element={<AdminPlansPage />} />
+        <Route path="site" element={<AdminLandingPage />} />
         <Route path="alertas" element={<AdminAlertsPage />} />
         <Route path="instaladores" element={<AdminInstaladoresPage />} />
         <Route path="contratos" element={<AdminContratosPage />} />
@@ -123,6 +129,7 @@ export default function App() {
         <Route path="auditoria" element={<AdminAuditPage />} />
         <Route path="clientes" element={<AdminClientesPage />} />
         <Route path="clientes/:id" element={<AdminClienteDetailPage />} />
+        <Route path="emergencia" element={<AdminEmergenciaPage />} />
       </Route>
     </Routes>
   );

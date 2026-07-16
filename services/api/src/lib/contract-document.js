@@ -25,7 +25,7 @@ function buildInstallationSection(delivery, deliveryTemplateHtml = '') {
     <section class="installation-block">
       <h3>Dados da instalação — ${escapeHtml(label)}</h3>
       <table class="meta-table">
-        <tr><th>Placa</th><td>${escapeHtml(delivery.plate)}</td></tr>
+        <tr><th>Placa</th><td>${escapeHtml(delivery.plate || 'Sem placa')}</td></tr>
         <tr><th>Instalador</th><td>${escapeHtml(delivery.installer_name || '—')}</td></tr>
         <tr><th>Device ID</th><td>${escapeHtml(delivery.gpswox_device_id || '—')}</td></tr>
         <tr><th>IMEI</th><td>${escapeHtml(delivery.imei || '—')}</td></tr>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
@@ -11,7 +12,7 @@ export default function ClientHomePage() {
   useEffect(() => {
     api.getDashboard()
       .then((res) => setDashboard(res.data))
-      .catch((err) => setError(err.message));
+      .catch((err) => setClientPageError(setError, err));
   }, []);
 
   return (
@@ -96,7 +97,7 @@ export default function ClientHomePage() {
                     <div className="vehicle-card-header">
                       <div>
                         <h3>{vehicle.label}</h3>
-                        <p className="muted">{vehicle.plate}</p>
+                        <p className="muted">{vehicle.plate || 'Sem placa'}</p>
                       </div>
                       <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
                         {vehicleStatusLabel(vehicle.status)}

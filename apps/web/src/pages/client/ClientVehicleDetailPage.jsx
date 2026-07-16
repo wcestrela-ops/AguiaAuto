@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import VehicleMap from '../../components/VehicleMap';
 import VehicleRouteMap from '../../components/VehicleRouteMap';
 import CommandFeedback, { CommandHistoryList } from '../../components/CommandFeedback';
@@ -45,7 +46,7 @@ export default function ClientVehicleDetailPage() {
       setLocation(res.data?.localizacao || null);
       if (res.data?.veiculo) setVehicle(res.data.veiculo);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setRefreshing(false);
     }
@@ -68,7 +69,7 @@ export default function ClientVehicleDetailPage() {
       const res = await api.getVehicleHistory(id, { hours: hours || preset?.hours || 24 });
       setHistory(res.data);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setHistoryLoading(false);
     }
@@ -96,7 +97,7 @@ export default function ClientVehicleDetailPage() {
           await loadCommandHistory();
         }
       } catch (err) {
-        setError(err.message);
+        setClientPageError(setError, err);
       } finally {
         setLoading(false);
       }
@@ -123,7 +124,7 @@ export default function ClientVehicleDetailPage() {
       }
       await loadCommandHistory();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setCommandLoading('');
     }
@@ -144,7 +145,7 @@ export default function ClientVehicleDetailPage() {
         setMessage(res.message || 'Âncora ativada.');
       }
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setAnchorLoading(false);
     }
@@ -160,7 +161,7 @@ export default function ClientVehicleDetailPage() {
       setShareLink(link || null);
       setMessage(res.message || 'Link gerado.');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setShareLoading(false);
     }
@@ -210,7 +211,7 @@ export default function ClientVehicleDetailPage() {
         <div className="form-card vehicle-info-card">
           <h3>Dados do veículo</h3>
           <dl className="detail-list">
-            <div><dt>Placa</dt><dd>{vehicle.plate}</dd></div>
+            <div><dt>Placa</dt><dd>{vehicle.plate || 'Sem placa'}</dd></div>
             {vehicle.brand && <div><dt>Marca</dt><dd>{vehicle.brand}</dd></div>}
             {vehicle.model && <div><dt>Modelo</dt><dd>{vehicle.model}</dd></div>}
             {vehicle.color && <div><dt>Cor</dt><dd>{vehicle.color}</dd></div>}

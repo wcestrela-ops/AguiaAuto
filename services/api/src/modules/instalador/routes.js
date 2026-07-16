@@ -24,7 +24,7 @@ router.get('/painel', async (req, res) => {
 
 router.get('/agendamentos', async (req, res) => {
   try {
-    const data = await getInstallerService().listPending();
+    const data = await getInstallerService().listPending(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -42,10 +42,12 @@ router.get('/historico', async (req, res) => {
 
 router.get('/instalacoes/:id', async (req, res) => {
   try {
-    const data = await getInstallerService().getJob(req.params.id);
+    const data = await getInstallerService().getJob(req.params.id, req.user.id, req.user.role);
     res.json({ success: true, data });
   } catch (err) {
-    const status = err.message.includes('não encontrad') ? 404 : 500;
+    const status = err.message.includes('não encontrad') || err.message.includes('atribuída')
+      ? 404
+      : 500;
     res.status(status).json({ success: false, error: err.message });
   }
 });
@@ -59,7 +61,8 @@ router.post(
         req.user.id,
         req.params.id,
         req.body,
-        req.files || []
+        req.files || [],
+        req.user.role,
       );
       res.json({
         success: true,
@@ -67,7 +70,9 @@ router.post(
         message: 'Instalação finalizada. Relatório enviado ao cliente para aceite.',
       });
     } catch (err) {
-      const status = err.message.includes('não encontrad') ? 404 : 400;
+      const status = err.message.includes('não encontrad') || err.message.includes('atribuída')
+        ? 404
+        : 400;
       res.status(status).json({ success: false, error: err.message });
     }
   }

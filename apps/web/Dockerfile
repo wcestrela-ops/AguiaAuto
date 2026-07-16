@@ -2,10 +2,10 @@ FROM node:20-slim AS build
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY apps/web apps/web
 
-RUN npm install -w @aguia/web
+RUN npm ci -w @aguia/web
 RUN npm run build -w @aguia/web
 
 FROM nginx:alpine

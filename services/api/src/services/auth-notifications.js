@@ -1,44 +1,36 @@
-const email = require('./email');
-const whatsapp = require('./whatsapp');
-const firebase = require('./firebase');
-const { normalizePhone } = require('../lib/phone');
-const {
-  resolvePasswordResetChannels,
-  isWhatsAppAllowedForAuth,
-} = require('../lib/notification-policy');
+const { sendRegistrationNotifications } = require('./registration-notification-service');
 const logger = require('../logger');
 
-async function sendRegistrationWelcome({ user, password }) {
-  const results = { channels: [] };
-
+async function sendRegistrationWelcome({ user, password, plan, vehicle, referralCode }) {
   try {
-    const mail = await email.sendRegistrationWelcome({
-      to: user.email,
-      name: user.name,
-      email: user.email,
+    const result = await sendRegistrationNotifications({
+      user,
       password,
+      plan,
+      vehicle,
+      referralCode,
     });
-    if (mail.sent) results.channels.push('email');
+    return {
+      channels: result.client?.channels || [],
+      central: result.central,
+    };
   } catch (err) {
-    logger.warn('Falha ao enviar e-mail de cadastro.', { email: user.email, err: err.message });
+    logger.warn('Notificações de cadastro falharam.', { userId: user.id, err: err.message });
+    return { channels: [] };
   }
-
-  if (user.phone && isWhatsAppAllowedForAuth('cadastro')) {
-    try {
-      await whatsapp.sendWelcome(normalizePhone(user.phone), user.name, {
-        user: user.email,
-        type: 'cadastro',
-      });
-      results.channels.push('whatsapp');
-    } catch (err) {
-      logger.warn('Falha ao enviar WhatsApp de cadastro.', { email: user.email, err: err.message });
-    }
-  }
-
-  return results;
 }
 
 async function sendAccountCredentials({ user, password, roleLabel }) {
+  const { sendRegistrationNotifications: notify } = require('./registration-notification-service');
+  const result = await notify({ user, password });
+  if (result.client?.channels?.length) {
+    return { channels: result.client.channels };
+  }
+
+  const email = require('./email');
+  const whatsapp = require('./whatsapp');
+  const { normalizePhone } = require('../lib/phone');
+  const { isWhatsAppAllowedForAuth } = require('../lib/notification-policy');
   const results = { channels: [] };
 
   try {
@@ -81,6 +73,15 @@ async function deliverPasswordResetCode({
   expiresMin,
   channel = 'both',
 }) {
+  const {
+    resolvePasswordResetChannels,
+    isWhatsAppAllowedForAuth,
+  } = require('../lib/notification-policy');
+  const email = require('./email');
+  const whatsapp = require('./whatsapp');
+  const firebase = require('./firebase');
+  const { normalizePhone } = require('../lib/phone');
+
   const planned = resolvePasswordResetChannels({ channel, hasPhone: Boolean(user.phone) });
   const delivered = [];
 

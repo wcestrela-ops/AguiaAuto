@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
+import TablePagination from '../../components/TablePagination';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
-  financialStatusBadge,
-  financialStatusLabel,
+  INACTIVE_ACCESS_DAYS_DEFAULT,
+  accessInactiveHint,
+  isAccessInactive,
   provisioningStatusBadge,
   provisioningStatusLabel,
 } from '../../utils/clients';
@@ -25,6 +28,30 @@ const ACTIVE_FILTERS = [
   { value: 'false', label: 'Somente inativos' },
 ];
 
+const ACCESS_FILTERS = [
+  { value: '', label: 'Qualquer último acesso' },
+  { value: 'never', label: 'Nunca acessou' },
+  { value: '7', label: 'Sem acesso há 7+ dias' },
+  { value: '30', label: 'Sem acesso há 30+ dias' },
+  { value: '60', label: 'Sem acesso há 60+ dias' },
+  { value: '90', label: 'Sem acesso há 90+ dias' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'created_desc', label: 'Cadastro (mais recente)' },
+  { value: 'last_access_asc', label: 'Último acesso (mais antigo)' },
+  { value: 'last_access_desc', label: 'Último acesso (mais recente)' },
+  { value: 'name_asc', label: 'Nome (A–Z)' },
+];
+
+const EMPTY_APPLIED = {
+  q: '',
+  active: '',
+  provisioning_status: '',
+  access: '',
+  sort: 'created_desc',
+};
+
 function formatDate(value) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('pt-BR');
@@ -35,7 +62,54 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function buildApiParams(applied, offset) {
+  const params = {
+    limit: PAGE_SIZE,
+    offset,
+    sort: applied.sort || 'created_desc',
+  };
+  if (applied.q) params.q = applied.q;
+  if (applied.active) params.active = applied.active;
+  if (applied.provisioning_status) params.provisioning_status = applied.provisioning_status;
+  if (applied.access === 'never') {
+    params.never_accessed = 'true';
+  } else if (applied.access) {
+    params.access_inactive_days = applied.access;
+  }
+  return params;
+}
+
+function readFiltersFromSearchParams(searchParams) {
+  const accessInactiveDays = searchParams.get('access_inactive_days');
+  const neverAccessed = searchParams.get('never_accessed') === 'true';
+  const sort = searchParams.get('sort');
+
+  if (!accessInactiveDays && !neverAccessed && !sort) {
+    return null;
+  }
+
+  return {
+    ...EMPTY_APPLIED,
+    access: neverAccessed ? 'never' : (accessInactiveDays || ''),
+    sort: sort || (neverAccessed || accessInactiveDays ? 'last_access_asc' : 'created_desc'),
+  };
+}
+
+function buildExportParams(applied) {
+  const params = { sort: applied.sort || 'created_desc' };
+  if (applied.q) params.q = applied.q;
+  if (applied.active) params.active = applied.active;
+  if (applied.provisioning_status) params.provisioning_status = applied.provisioning_status;
+  if (applied.access === 'never') {
+    params.never_accessed = 'true';
+  } else if (applied.access) {
+    params.access_inactive_days = applied.access;
+  }
+  return params;
+}
+
 export default function AdminClientesPage() {
+  const [searchParams] = useSearchParams();
   const [summary, setSummary] = useState(null);
   const [clients, setClients] = useState([]);
   const [total, setTotal] = useState(0);
@@ -43,7 +117,9 @@ export default function AdminClientesPage() {
   const [draftQuery, setDraftQuery] = useState('');
   const [draftActive, setDraftActive] = useState('');
   const [draftProvisioning, setDraftProvisioning] = useState('');
-  const [applied, setApplied] = useState({ q: '', active: '', provisioning_status: '' });
+  const [draftAccess, setDraftAccess] = useState('');
+  const [draftSort, setDraftSort] = useState('created_desc');
+  const [applied, setApplied] = useState(EMPTY_APPLIED);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -54,18 +130,23 @@ export default function AdminClientesPage() {
   }, []);
 
   useEffect(() => {
+    const fromUrl = readFiltersFromSearchParams(searchParams);
+    if (!fromUrl) return;
+
+    setDraftAccess(fromUrl.access);
+    setDraftSort(fromUrl.sort);
+    setApplied(fromUrl);
+    setOffset(0);
+  }, [searchParams]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       setError('');
       try {
-        const params = { limit: PAGE_SIZE, offset };
-        if (applied.q) params.q = applied.q;
-        if (applied.active) params.active = applied.active;
-        if (applied.provisioning_status) params.provisioning_status = applied.provisioning_status;
-
-        const res = await api.getAdminClientsPanel(params);
+        const res = await api.getAdminClientsPanel(buildApiParams(applied, offset));
         if (cancelled) return;
         setClients(res.data?.clients || []);
         setTotal(res.data?.total || 0);
@@ -87,6 +168,8 @@ export default function AdminClientesPage() {
       q: draftQuery.trim(),
       active: draftActive,
       provisioning_status: draftProvisioning,
+      access: draftAccess,
+      sort: draftSort,
     });
   }
 
@@ -94,10 +177,20 @@ export default function AdminClientesPage() {
     setDraftQuery('');
     setDraftActive('');
     setDraftProvisioning('');
+    setDraftAccess('');
+    setDraftSort('created_desc');
     setOffset(0);
-    setApplied({ q: '', active: '', provisioning_status: '' });
+    setApplied(EMPTY_APPLIED);
   }
 
+  function applyQuickAccessFilter(access, sort = 'last_access_asc') {
+    setDraftAccess(access);
+    setDraftSort(sort);
+    setOffset(0);
+    setApplied((prev) => ({ ...prev, access, sort }));
+  }
+
+  const inactiveDays = summary?.inactive_access_days || INACTIVE_ACCESS_DAYS_DEFAULT;
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -105,7 +198,7 @@ export default function AdminClientesPage() {
     <div>
       <PageHeaderWithHelp
         title="Clientes"
-        subtitle="Visão consolidada de cadastro, veículos, financeiro e provisionamento"
+        subtitle="Visão consolidada de cadastro, veículos, financeiro e último acesso ao app"
         guideId="admin_clientes"
       />
 
@@ -121,10 +214,22 @@ export default function AdminClientesPage() {
             <h3>Ativos</h3>
             <p className="client-summary-value">{summary.active}</p>
           </div>
-          <div className="card">
-            <h3>Provisionamento pendente</h3>
-            <p className="client-summary-value">{summary.provisioning_pending}</p>
-          </div>
+          <Link
+            to={`/admin/clientes?access_inactive_days=${inactiveDays}&sort=last_access_asc`}
+            className="card card-link client-inactive-card"
+            onClick={(event) => {
+              event.preventDefault();
+              applyQuickAccessFilter(String(inactiveDays));
+            }}
+          >
+            <h3>Sem acesso há {inactiveDays}+ dias</h3>
+            <p className="client-summary-value">{summary.inactive_access}</p>
+            {summary.never_accessed > 0 && (
+              <p className="muted" style={{ margin: '0.35rem 0 0', fontSize: '0.875rem' }}>
+                {summary.never_accessed} nunca acessou
+              </p>
+            )}
+          </Link>
           <div className="card">
             <h3>Com faturas em aberto</h3>
             <p className="client-summary-value">{summary.with_open_invoices}</p>
@@ -145,10 +250,28 @@ export default function AdminClientesPage() {
           </label>
 
           <label>
-            Status
+            Status da conta
             <select value={draftActive} onChange={(e) => setDraftActive(e.target.value)}>
               {ACTIVE_FILTERS.map((item) => (
                 <option key={item.value || 'all'} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Último acesso
+            <select value={draftAccess} onChange={(e) => setDraftAccess(e.target.value)}>
+              {ACCESS_FILTERS.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Ordenar por
+            <select value={draftSort} onChange={(e) => setDraftSort(e.target.value)}>
+              {SORT_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </select>
           </label>
@@ -177,6 +300,7 @@ export default function AdminClientesPage() {
             <div className="audit-table-meta">
               <span>{total} cliente(s)</span>
               <span>Página {page} de {totalPages}</span>
+              <ExportButtons resource="clientes" params={buildExportParams(applied)} disabled={loading} />
             </div>
             <table>
               <thead>
@@ -195,61 +319,74 @@ export default function AdminClientesPage() {
                 {clients.length === 0 ? (
                   <tr><td colSpan={8} className="muted">Nenhum cliente encontrado.</td></tr>
                 ) : (
-                  clients.map((client) => (
-                    <tr key={client.id}>
-                      <td>
-                        <strong>{client.name || '—'}</strong>
-                        <div className="muted audit-actor-id">{client.email}</div>
-                        {!client.active && (
-                          <span className="badge error" style={{ marginTop: '0.35rem' }}>Inativo</span>
-                        )}
-                      </td>
-                      <td>
-                        <div>{client.phone || '—'}</div>
-                        <div className="muted audit-actor-id">{client.cpf_cnpj || '—'}</div>
-                      </td>
-                      <td>
-                        {client.vehicles_active || 0} ativo(s)
-                        <div className="muted audit-actor-id">{client.vehicles_count || 0} total</div>
-                      </td>
-                      <td>
-                        {client.open_invoices > 0 ? (
-                          <span className="badge warning">{client.open_invoices}</span>
-                        ) : (
-                          <span className="muted">0</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge ${provisioningStatusBadge(client.provisioning_status)}`}>
-                          {provisioningStatusLabel(client.provisioning_status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div>{formatDateTime(client.last_access_at)}</div>
-                        {client.last_access_ip && (
-                          <div className="muted audit-actor-id">{client.last_access_ip}</div>
-                        )}
-                      </td>
-                      <td>{formatDate(client.created_at)}</td>
-                      <td>
-                        <Link to={`/admin/clientes/${client.id}`} className="btn-ghost btn-sm">
-                          Ver ficha
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                  clients.map((client) => {
+                    const inactiveHint = client.active
+                      ? accessInactiveHint(client.last_access_at, inactiveDays)
+                      : null;
+
+                    return (
+                      <tr
+                        key={client.id}
+                        className={inactiveHint ? 'client-row-inactive-access' : undefined}
+                      >
+                        <td>
+                          <strong>{client.name || '—'}</strong>
+                          <div className="muted audit-actor-id">{client.email}</div>
+                          {!client.active && (
+                            <span className="badge error" style={{ marginTop: '0.35rem' }}>Conta inativa</span>
+                          )}
+                          {inactiveHint && (
+                            <span className="badge warning" style={{ marginTop: '0.35rem' }}>{inactiveHint}</span>
+                          )}
+                        </td>
+                        <td>
+                          <div>{client.phone || '—'}</div>
+                          <div className="muted audit-actor-id">{client.cpf_cnpj || '—'}</div>
+                        </td>
+                        <td>
+                          {client.vehicles_active || 0} ativo(s)
+                          <div className="muted audit-actor-id">{client.vehicles_count || 0} total</div>
+                        </td>
+                        <td>
+                          {client.open_invoices > 0 ? (
+                            <span className="badge warning">{client.open_invoices}</span>
+                          ) : (
+                            <span className="muted">0</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge ${provisioningStatusBadge(client.provisioning_status)}`}>
+                            {provisioningStatusLabel(client.provisioning_status)}
+                          </span>
+                        </td>
+                        <td>
+                          <div>{formatDateTime(client.last_access_at)}</div>
+                          {client.last_access_ip && (
+                            <div className="muted audit-actor-id">{client.last_access_ip}</div>
+                          )}
+                          {client.active && isAccessInactive(client.last_access_at, 7) && !inactiveHint && (
+                            <div className="muted audit-actor-id">7+ dias</div>
+                          )}
+                        </td>
+                        <td>{formatDate(client.created_at)}</td>
+                        <td>
+                          <Link to={`/admin/clientes/${client.id}`} className="btn-ghost btn-sm">
+                            Ver ficha
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
 
-            <div className="audit-pagination">
-              <button type="button" className="btn-secondary" disabled={offset <= 0} onClick={() => setOffset(offset - PAGE_SIZE)}>
-                Anterior
-              </button>
-              <button type="button" className="btn-secondary" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                Próxima
-              </button>
-            </div>
+            <TablePagination
+              offset={offset}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setOffset}
+            />
           </>
         )}
       </div>

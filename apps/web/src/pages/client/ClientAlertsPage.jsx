@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import { ALERT_TYPE_LABELS, CHANNEL_LABELS } from '../../utils/alerts';
 
@@ -30,7 +31,7 @@ export default function ClientAlertsPage() {
       setPreferences(prefsRes.data || []);
       setTypes(typesRes.data || { tipos: [], canais: [] });
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ export default function ClientAlertsPage() {
       await api.markAlertRead(id);
       setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -53,7 +54,7 @@ export default function ClientAlertsPage() {
       setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
       setMessage('Todos os alertas marcados como lidos.');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -71,7 +72,7 @@ export default function ClientAlertsPage() {
       setMessage('Preferências salvas.');
       setShowPrefs(false);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 

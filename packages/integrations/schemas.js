@@ -1,4 +1,35 @@
 const INTEGRATIONS = {
+  rastreamento: {
+    label: 'Plataforma de Rastreamento',
+    description: 'Escolha GPSWOX ou Traccar. Credenciais ficam nos cards de cada plataforma.',
+    fields: [
+      {
+        key: 'provider',
+        label: 'Plataforma ativa',
+        type: 'select',
+        default: 'gpswox',
+        options: [
+          { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
+          { value: 'traccar', label: 'Traccar' },
+        ],
+        hint: 'Altere aqui para trocar de plataforma — sem deploy. Depois use Recarregar integrações.',
+      },
+    ],
+  },
+  traccar: {
+    label: 'Traccar',
+    description: 'Motor de rastreamento alternativo (API REST — sem Playwright)',
+    fields: [
+      { key: 'url', label: 'URL do servidor Traccar', type: 'url', required: true, env: 'TRACCAR_URL', hint: 'Ex.: https://traccar.seudominio.com' },
+      { key: 'email', label: 'E-mail admin', type: 'text', env: 'TRACCAR_EMAIL', hint: 'Usuário administrador (autenticação Basic)' },
+      { key: 'password', label: 'Senha admin', type: 'password', secret: true, env: 'TRACCAR_PASSWORD' },
+      { key: 'api_token', label: 'Token API (alternativa)', type: 'password', secret: true, env: 'TRACCAR_API_TOKEN', hint: 'Opcional — use em vez de e-mail/senha se configurado no Traccar' },
+      { key: 'default_group_id', label: 'Group ID padrão (novos devices)', type: 'number', env: 'TRACCAR_DEFAULT_GROUP_ID' },
+      { key: 'auto_sync_enabled', label: 'Sync automático de veículos', type: 'boolean', default: true, hint: 'Importa/atualiza veículos do Traccar periodicamente' },
+      { key: 'auto_sync_interval_hours', label: 'Intervalo do sync (horas)', type: 'number', default: 24, env: 'TRACCAR_AUTO_SYNC_INTERVAL_HOURS' },
+      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Fase 2 — notificador HTTP no Traccar' },
+    ],
+  },
   gpswox: {
     label: 'GPSWOX',
     description: 'Motor de rastreamento (invisível ao cliente)',
@@ -99,6 +130,38 @@ const INTEGRATIONS = {
       { key: 'from_name', label: 'Nome do remetente', type: 'text', default: 'Águia Gestão Veicular', env: 'SMTP_FROM_NAME' },
     ],
   },
+  cadastro: {
+    label: 'Notificações de cadastro',
+    description: 'Avisos ao cliente e à central quando um novo cadastro é concluído',
+    fields: [
+      { key: 'client_email_enabled', label: 'E-mail para o cliente', type: 'boolean', default: true },
+      { key: 'client_push_enabled', label: 'Push para o cliente', type: 'boolean', default: true, hint: 'Requer Firebase; pode falhar se o app ainda não registrou token' },
+      { key: 'client_whatsapp_enabled', label: 'WhatsApp para o cliente', type: 'boolean', default: true },
+      { key: 'client_sms_enabled', label: 'SMS para o cliente (fallback)', type: 'boolean', default: true, hint: 'Usado se WhatsApp falhar' },
+      { key: 'central_notify_enabled', label: 'Notificar a central', type: 'boolean', default: true },
+      { key: 'central_whatsapp_enabled', label: 'Central — WhatsApp', type: 'boolean', default: true },
+      { key: 'central_sms_enabled', label: 'Central — SMS (fallback)', type: 'boolean', default: true },
+      {
+        key: 'central_phones',
+        label: 'Telefones da central',
+        type: 'textarea',
+        hint: 'Um por linha ou separados por vírgula — recebem alerta de novo cadastro',
+      },
+      {
+        key: 'central_emails',
+        label: 'E-mails da central',
+        type: 'textarea',
+        hint: 'Um por linha — recebem alerta de novo cadastro',
+      },
+      {
+        key: 'template_central',
+        label: 'Mensagem — alerta à central',
+        type: 'textarea',
+        default: '🆕 Novo cadastro Águia\n\nCliente: {{nome}}\nE-mail: {{email}}\nTel: {{telefone}}\nCPF/CNPJ: {{cpf_cnpj}}\nPlano: {{plano}} — R$ {{plano_valor}}/mês\nVeículo: {{veiculo}}\nIndicação: {{indicacao}}\n\n{{data}}',
+        hint: 'Variáveis: {{nome}}, {{email}}, {{telefone}}, {{cpf_cnpj}}, {{plano}}, {{plano_valor}}, {{veiculo}}, {{placa}}, {{indicacao}}, {{data}}',
+      },
+    ],
+  },
   sms_gpswox_gateway: {
     label: 'Gateway SMS GPSWOX (entrada)',
     description: 'URL que o painel GPSWOX chama para enviar SMS via Águia (%NUMBER%, %MESSAGE%)',
@@ -157,12 +220,22 @@ const INTEGRATIONS = {
   },
   frota: {
     label: 'Documentos e Manutenção',
-    description: 'Lembretes push automáticos de vencimento de documentos e revisões programadas',
+    description: 'Lembretes automáticos de vencimento via push, WhatsApp e SMS',
     fields: [
-      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos', type: 'boolean', default: true, hint: 'Envia um push consolidado por cliente por dia' },
+      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos', type: 'boolean', default: true, hint: 'Envia um lembrete consolidado por cliente por dia' },
       { key: 'reminder_check_interval_hours', label: 'Verificar lembretes a cada (horas)', type: 'number', default: 6, env: 'FLEET_REMINDER_CHECK_HOURS' },
       { key: 'warning_days', label: 'Antecedência do alerta (dias)', type: 'number', default: 30, hint: 'Documentos e manutenções com vencimento neste prazo entram no lembrete' },
       { key: 'reminder_push_enabled', label: 'Enviar notificação push', type: 'boolean', default: true, hint: 'Requer Firebase configurado e app com token FCM registrado' },
+      { key: 'reminder_whatsapp_enabled', label: 'Enviar WhatsApp', type: 'boolean', default: true, hint: 'Mensagem no telefone cadastrado do cliente' },
+      { key: 'reminder_sms_enabled', label: 'Permitir SMS nos lembretes', type: 'boolean', default: false, hint: 'Fallback quando WhatsApp falhar, ou canal exclusivo se "somente SMS"' },
+      { key: 'reminder_sms_only', label: 'Lembretes somente via SMS', type: 'boolean', default: false, hint: 'Quando ativo, lembretes de frota não usam WhatsApp' },
+      {
+        key: 'template_fleet_reminder',
+        label: 'Mensagem — lembrete de documentos/manutenção',
+        type: 'textarea',
+        default: '📋 Lembrete Águia — documentos e manutenção\n\nOlá {{cliente}},\n\n{{resumo}}\n\n{{detalhe_itens}}\n\nAcesse o app em Documentos e Manutenção para atualizar.',
+        hint: 'Variáveis: {{cliente}}, {{resumo}}, {{detalhe_itens}}, {{documentos_vencidos}}, {{documentos_vencendo}}, {{manutencao_atrasada}}, {{manutencao_proxima}}, {{total_itens}}',
+      },
     ],
   },
   emergencia: {

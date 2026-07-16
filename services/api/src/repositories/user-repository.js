@@ -3,6 +3,19 @@ const { getPool } = require('../db/pool');
 
 const SALT_ROUNDS = 12;
 
+const CLIENT_SORT_SQL = {
+  created_desc: 'u.created_at DESC',
+  last_access_desc: 'u.last_access_at DESC NULLS LAST',
+  last_access_asc: 'u.last_access_at ASC NULLS FIRST',
+  name_asc: 'u.name ASC NULLS LAST',
+};
+
+const INACTIVE_ACCESS_DAYS_DEFAULT = 30;
+
+function resolveClientSort(sort) {
+  return CLIENT_SORT_SQL[sort] || CLIENT_SORT_SQL.created_desc;
+}
+
 class UserRepository {
   constructor() {
     this.pool = getPool();
@@ -12,6 +25,18 @@ class UserRepository {
     const { rows } = await this.pool.query(
       'SELECT * FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
+    );
+    return rows[0] || null;
+  }
+
+  async findByCpfCnpj(cpfCnpj) {
+    const digits = String(cpfCnpj || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, cpf_cnpj FROM users
+       WHERE regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') = $1
+       LIMIT 1`,
+      [digits],
     );
     return rows[0] || null;
   }
@@ -146,6 +171,20 @@ class UserRepository {
       params.push(filters.provisioning_status);
     }
 
+    if (filters.never_accessed === 'true' || filters.never_accessed === true) {
+      conditions.push('u.last_access_at IS NULL');
+      conditions.push('u.active = true');
+    } else if (filters.access_inactive_days) {
+      const days = Math.max(parseInt(filters.access_inactive_days, 10), 1);
+      conditions.push(`(
+        u.last_access_at IS NULL
+        OR u.last_access_at < NOW() - ($${idx} || ' days')::interval
+      )`);
+      params.push(String(days));
+      idx += 1;
+      conditions.push('u.active = true');
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     return { where, params, nextIdx: idx };
   }
@@ -154,6 +193,7 @@ class UserRepository {
     const limit = Math.min(Math.max(parseInt(filters.limit || '50', 10), 1), 200);
     const offset = Math.max(parseInt(filters.offset || '0', 10), 0);
     const { where, params, nextIdx } = this._buildClientListQuery(filters);
+    const orderBy = resolveClientSort(filters.sort);
 
     params.push(limit, offset);
     const { rows } = await this.pool.query(
@@ -170,7 +210,7 @@ class UserRepository {
        LEFT JOIN invoices i ON i.user_id = u.id
        ${where}
        GROUP BY u.id
-       ORDER BY u.created_at DESC
+       ORDER BY ${orderBy}
        LIMIT $${nextIdx} OFFSET $${nextIdx + 1}`,
       params,
     );
@@ -186,7 +226,8 @@ class UserRepository {
     return rows[0]?.count || 0;
   }
 
-  async getClientPanelStats() {
+  async getClientPanelStats(days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+    const inactiveDays = String(Math.max(parseInt(days, 10), 1));
     const { rows } = await this.pool.query(
       `SELECT
          COUNT(*) FILTER (WHERE role = 'client')::int AS total,
@@ -201,10 +242,61 @@ class UserRepository {
              AND id IN (
                SELECT DISTINCT user_id FROM invoices WHERE status IN ('pending', 'overdue')
              )
-         )::int AS with_open_invoices
+         )::int AS with_open_invoices,
+         COUNT(*) FILTER (
+           WHERE role = 'client'
+             AND active = true
+             AND last_access_at IS NULL
+         )::int AS never_accessed,
+         COUNT(*) FILTER (
+           WHERE role = 'client'
+             AND active = true
+             AND (
+               last_access_at IS NULL
+               OR last_access_at < NOW() - ($1 || ' days')::interval
+             )
+         )::int AS inactive_access
        FROM users`,
+      [inactiveDays],
     );
-    return rows[0];
+    return {
+      ...rows[0],
+      inactive_access_days: Number(inactiveDays),
+    };
+  }
+
+  async listInactiveAccessClients(days = INACTIVE_ACCESS_DAYS_DEFAULT, limit = 15) {
+    const inactiveDays = String(Math.max(parseInt(days, 10), 1));
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, phone, last_access_at, last_access_ip, created_at
+       FROM users
+       WHERE role = 'client'
+         AND active = true
+         AND (
+           last_access_at IS NULL
+           OR last_access_at < NOW() - ($1 || ' days')::interval
+         )
+       ORDER BY last_access_at ASC NULLS FIRST, created_at DESC
+       LIMIT $2`,
+      [inactiveDays, Math.min(limit, 50)],
+    );
+    return rows;
+  }
+
+  async countInactiveAccessClients(days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+    const inactiveDays = String(Math.max(parseInt(days, 10), 1));
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM users
+       WHERE role = 'client'
+         AND active = true
+         AND (
+           last_access_at IS NULL
+           OR last_access_at < NOW() - ($1 || ' days')::interval
+         )`,
+      [inactiveDays],
+    );
+    return rows[0]?.count || 0;
   }
 
   async updateAdminProfile(userId, { name, phone, active }) {
@@ -292,4 +384,4 @@ function getUserRepository() {
   return instance;
 }
 
-module.exports = { UserRepository, getUserRepository };
+module.exports = { UserRepository, getUserRepository, INACTIVE_ACCESS_DAYS_DEFAULT };

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import FieldInput from '../../components/FieldInput';
-import { HelpButton, InlineGuide } from '../../components/HelpGuide';
+import PageAlerts from '../../components/PageAlerts';
+import { HelpButton, PageHeaderWithHelp } from '../../components/HelpGuide';
 import { getIntegrationGuide, INTEGRATION_GUIDE_KEYS } from '../../content/admin-guides';
 
 export default function IntegrationEditPage() {
@@ -65,60 +66,60 @@ export default function IntegrationEditPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-  if (!data) return <div className="alert error">{error || 'Integração não encontrada.'}</div>;
-
   return (
     <div>
-      <header className="page-header">
-        <Link to="/admin/integracoes" className="back-link">← Integrações</Link>
-        <div className="page-title-row">
-          <h1>{data.label}</h1>
-          {guideId && <HelpButton guideId={guideId} label={`Como configurar ${data.label}`} />}
-        </div>
-        <p>{data.description}</p>
-        {guide && <InlineGuide text={guide.summary} />}
-      </header>
+      <Link to="/admin/integracoes" className="back-link">← Integrações</Link>
 
-      {guide && (
-        <div className="integration-guide-box">
-          <HelpButton guideId={guideId} size="sm" />
-          <p>
-            Clique em <strong>?</strong> para ver o passo a passo completo de configuração.
-            {key === 'payment_gateways' && ' Configure Asaas e Mercado Pago antes de definir o failover.'}
-            {key === 'sms_gpswox_gateway' && ' Depois copie a URL em SMS Rastreador e cole no painel GPSWOX.'}
-          </p>
-        </div>
+      <PageHeaderWithHelp
+        title={data?.label || 'Integração'}
+        subtitle={data?.description || 'Configure credenciais e teste a conexão.'}
+        guideId={guideId}
+      />
+
+      <PageAlerts error={error} message={message} />
+
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : !data ? (
+        <div className="alert error">{error || 'Integração não encontrada.'}</div>
+      ) : (
+        <>
+          {guide && (
+            <div className="integration-guide-box">
+              <HelpButton guideId={guideId} size="sm" />
+              <p>
+                Clique em <strong>?</strong> para ver o passo a passo completo de configuração.
+                {key === 'payment_gateways' && ' Configure Asaas e Mercado Pago antes de definir o failover.'}
+                {key === 'sms_gpswox_gateway' && ' Depois copie a URL em SMS Rastreador e cole no painel GPSWOX.'}
+              </p>
+            </div>
+          )}
+
+          <form className="form-card" onSubmit={handleSave}>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+              Integração habilitada
+            </label>
+            <p className="guide-inline">Desmarque para pausar a integração sem apagar as credenciais salvas.</p>
+
+            {(data.fields || []).map((field) => (
+              <FieldInput
+                key={field.key}
+                field={field}
+                value={settings[field.key] ?? ''}
+                onChange={(v) => updateField(field.key, v)}
+              />
+            ))}
+
+            <div className="form-actions">
+              <button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button type="button" className="btn-secondary" onClick={handleTest} disabled={testing}>
+                {testing ? 'Testando...' : 'Testar conexão'}
+              </button>
+            </div>
+          </form>
+        </>
       )}
-
-      <form className="form-card" onSubmit={handleSave}>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          Integração habilitada
-        </label>
-        <p className="guide-inline">Desmarque para pausar a integração sem apagar as credenciais salvas.</p>
-
-        {data.fields?.map((field) => (
-          <FieldInput
-            key={field.key}
-            field={field}
-            value={settings[field.key] ?? ''}
-            onChange={(v) => updateField(field.key, v)}
-          />
-        ))}
-
-        {message && <div className="alert success">{message}</div>}
-        {error && <div className="alert error">{error}</div>}
-
-        <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={handleTest} disabled={testing}>
-            {testing ? 'Testando...' : 'Testar Conexão'}
-          </button>
-          <button type="submit" disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
-      </form>
     </div>
   );
 }

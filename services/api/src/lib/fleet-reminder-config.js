@@ -33,9 +33,32 @@ function isPushEnabled(settings) {
     && settings.reminder_push_enabled !== 'false';
 }
 
+function isWhatsappEnabled(settings) {
+  return settings.reminder_whatsapp_enabled !== false
+    && settings.reminder_whatsapp_enabled !== 'false';
+}
+
+function isSmsEnabled(settings) {
+  return settings.reminder_sms_enabled === true
+    || settings.reminder_sms_enabled === 'true';
+}
+
+function isSmsOnly(settings) {
+  return settings.reminder_sms_only === true
+    || settings.reminder_sms_only === 'true';
+}
+
+function isAnyDeliveryChannelEnabled(settings) {
+  return isPushEnabled(settings) || isWhatsappEnabled(settings) || isSmsEnabled(settings);
+}
+
 module.exports = {
   DEFAULT_WARNING_DAYS,
   getFleetReminderConfig,
   isAutoRemindersEnabled,
   isPushEnabled,
+  isWhatsappEnabled,
+  isSmsEnabled,
+  isSmsOnly,
+  isAnyDeliveryChannelEnabled,
 };

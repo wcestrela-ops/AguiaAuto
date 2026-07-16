@@ -9,8 +9,8 @@ class FleetReminderNotificationRepository {
     const { rows } = await this.pool.query(
       `INSERT INTO fleet_reminder_notifications (
         user_id, trigger, channel, status, documents_count, maintenance_count,
-        items_snapshot, error_message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        items_snapshot, error_message, phone, used_fallback, provider_type, external_ref
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         data.user_id,
@@ -21,6 +21,10 @@ class FleetReminderNotificationRepository {
         data.maintenance_count || 0,
         JSON.stringify(data.items_snapshot || []),
         data.error_message || null,
+        data.phone || null,
+        data.used_fallback === true,
+        data.provider_type || null,
+        data.external_ref || null,
       ],
     );
     return rows[0];
@@ -38,6 +42,18 @@ class FleetReminderNotificationRepository {
       [userId, trigger],
     );
     return rows.length > 0;
+  }
+
+  async listRecentRuns({ limit = 10 } = {}) {
+    const cappedLimit = Math.min(limit, 50);
+    const { rows } = await this.pool.query(
+      `SELECT id, started_at, finished_at, reminders_sent, errors_count, created_at
+       FROM fleet_reminder_runs
+       ORDER BY started_at DESC
+       LIMIT $1`,
+      [cappedLimit],
+    );
+    return rows;
   }
 
   async listRecent({ limit = 50, userId } = {}) {

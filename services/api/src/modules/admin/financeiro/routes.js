@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { getFinanceiroService } = require('../../../services/financeiro-service');
 const { getProvisioningService } = require('../../../services/provisioning-service');
 const { getUserRepository } = require('../../../repositories/user-repository');
+const { getAuditService } = require('../../../services/audit-service');
 
 const router = Router();
 
@@ -21,6 +22,16 @@ router.post('/cobrancas/:id/baixa-manual', async (req, res) => {
     const data = await getFinanceiroService().markManualPayment(req.params.id, {
       notes,
       send_notification: send_notification !== false,
+    });
+    await getAuditService().adminAction('billing.manual_payment', {
+      resourceType: 'user',
+      resourceId: data.user_id,
+      metadata: {
+        invoice_id: req.params.id,
+        value: data.amount,
+        send_notification: send_notification !== false,
+      },
+      req,
     });
     res.json({
       success: true,
@@ -72,6 +83,13 @@ router.post('/cobrancas', async (req, res) => {
       description,
       plan_id,
       charge_type: charge_type || 'monthly',
+    });
+
+    await getAuditService().adminAction('billing.charge.create', {
+      resourceType: 'user',
+      resourceId: user_id,
+      metadata: { invoice_id: data.id, value: data.amount, due_date, billing_type: billing_type || 'PIX' },
+      req,
     });
 
     res.status(201).json({ success: true, data });
@@ -135,6 +153,12 @@ router.post('/provisionar/:userId', async (req, res) => {
       plan_id,
       billing_type,
     });
+    await getAuditService().adminAction('provisioning.run', {
+      resourceType: 'user',
+      resourceId: req.params.userId,
+      metadata: { plan_id, billing_type, status: data.status },
+      req,
+    });
     res.json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -144,6 +168,12 @@ router.post('/provisionar/:userId', async (req, res) => {
 router.post('/reprovisionar/:userId', async (req, res) => {
   try {
     const data = await getProvisioningService().retryProvisioning(req.params.userId);
+    await getAuditService().adminAction('provisioning.retry', {
+      resourceType: 'user',
+      resourceId: req.params.userId,
+      metadata: { status: data.status },
+      req,
+    });
     res.json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

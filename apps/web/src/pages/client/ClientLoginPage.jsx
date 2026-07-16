@@ -61,6 +61,9 @@ export default function ClientLoginPage() {
           Não tem conta? <Link to="/cadastro">Cadastre-se</Link>
         </p>
         <p className="text-center muted">
+          <Link to="/">Voltar ao site</Link>
+        </p>
+        <p className="text-center muted">
           <Link to="/admin/login">Acesso administrativo</Link>
         </p>
       </form>

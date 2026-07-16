@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const logger = require('./logger');
 const { closeBrowser } = require('./browser');
-const { getGatewayConfig } = require('./config/provider');
+const { getGatewayConfig, getActiveProviderName } = require('./config/provider');
 const { getStore } = require('@aguia/integrations');
 const {
   getLocation,
@@ -19,6 +19,8 @@ const {
   createSmsTemplate,
   updateSmsTemplate,
   getSmsTemplateMessage,
+  manageGeofence,
+  manageEvents,
 } = require('./services/tracking');
 
 const app = express();
@@ -48,10 +50,18 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let provider = 'gpswox';
+  try {
+    provider = await getActiveProviderName();
+  } catch {
+    provider = 'gpswox';
+  }
+
   res.json({
     status: 'ok',
-    service: 'gpswox-gateway',
+    service: 'tracking-gateway',
+    provider,
     timestamp: new Date().toISOString(),
   });
 });
@@ -232,12 +242,29 @@ app.post('/alertas', (req, res) => {
   res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
 });
 
-app.post('/cerca', (req, res) => {
-  res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
+app.post('/cerca', async (req, res) => {
+  try {
+    const resultado = await manageGeofence(req.body || {});
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    const status = err.message.includes('obrigatório') || err.message.includes('inválid') ? 400 : 500;
+    return res.status(status).json({ success: false, error: err.message });
+  }
 });
 
-app.post('/eventos', (req, res) => {
-  res.status(501).json({ success: false, error: 'Endpoint em desenvolvimento.' });
+app.post('/eventos', async (req, res) => {
+  const { device_id: deviceId, deviceId: camelDeviceId } = req.body || {};
+  if (!deviceId && !camelDeviceId) {
+    return res.status(400).json({ success: false, error: 'device_id é obrigatório.' });
+  }
+
+  try {
+    const resultado = await manageEvents(req.body || {});
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    const status = err.message.includes('obrigatório') || err.message.includes('inválid') ? 400 : 500;
+    return res.status(status).json({ success: false, error: err.message });
+  }
 });
 
 process.on('SIGTERM', async () => {
@@ -265,7 +292,7 @@ async function bootstrap() {
   const PORT = gatewayConfig.port || process.env.GATEWAY_PORT || 3001;
 
   app.listen(PORT, () => {
-    logger.info(`Gateway GPSWOX rodando na porta ${PORT}`);
+    logger.info(`Gateway de rastreamento rodando na porta ${PORT}`);
   });
 }
 

@@ -1,0 +1,15 @@
+.git
+.github
+**/.git
+**/node_modules
+**/dist
+**/logs
+**/*.log
+.env
+.env.*
+!.env.example
+**/coverage
+**/.cursor
+**/terminals
+README.md
+apps/sms-hub-web

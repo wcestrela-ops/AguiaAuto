@@ -310,7 +310,7 @@ class VehicleFleetService {
     const existing = await this.documents.findById(documentId);
     if (!existing) throw new Error('Documento não encontrado.');
     await this.documents.delete(documentId);
-    return { deleted: true };
+    return formatDocument(existing);
   }
 
   async adminGetDocumentFile(documentId) {
@@ -367,7 +367,7 @@ class VehicleFleetService {
     const existing = await this.maintenance.findById(recordId);
     if (!existing) throw new Error('Registro de manutenção não encontrado.');
     await this.maintenance.delete(recordId);
-    return { deleted: true };
+    return formatMaintenance(existing);
   }
 
   async getOperationalSummary() {

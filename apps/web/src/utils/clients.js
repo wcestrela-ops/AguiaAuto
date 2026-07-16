@@ -24,6 +24,8 @@ export const FINANCIAL_STATUS_BADGE = {
   atrasado: 'error',
 };
 
+export const INACTIVE_ACCESS_DAYS_DEFAULT = 30;
+
 export function provisioningStatusLabel(status) {
   return PROVISIONING_STATUS_LABELS[status || 'pending'] || status || 'Pendente';
 }
@@ -38,4 +40,27 @@ export function financialStatusLabel(status) {
 
 export function financialStatusBadge(status) {
   return FINANCIAL_STATUS_BADGE[status] || 'info';
+}
+
+export function daysSinceAccess(lastAccessAt) {
+  if (!lastAccessAt) return null;
+  const date = new Date(lastAccessAt);
+  date.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+export function isAccessInactive(lastAccessAt, days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+  if (!lastAccessAt) return true;
+  const elapsed = daysSinceAccess(lastAccessAt);
+  return elapsed != null && elapsed >= days;
+}
+
+export function accessInactiveHint(lastAccessAt, days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+  if (!lastAccessAt) return 'Nunca acessou';
+  const elapsed = daysSinceAccess(lastAccessAt);
+  if (elapsed == null) return null;
+  if (elapsed >= days) return `${elapsed} dias sem acesso`;
+  return null;
 }

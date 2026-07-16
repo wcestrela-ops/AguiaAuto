@@ -73,6 +73,42 @@ class ApiClient {
     return role === 'installer' || role === 'admin';
   }
 
+  setContractRequiredHandler(handler) {
+    this._contractRequiredHandler = handler || null;
+  }
+
+  _emitContractRequired(message) {
+    this.setServiceContractAccepted(false);
+    if (this._contractRequiredHandler) {
+      this._contractRequiredHandler(message);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname || '';
+      if (path.startsWith('/app') && path !== '/app/contratos') {
+        const params = new URLSearchParams({ required: '1' });
+        window.location.assign(`/app/contratos?${params.toString()}`);
+      }
+    }
+  }
+
+  _throwClientError(response, data, { useClient = false } = {}) {
+    const code = data?.error;
+    const message = data?.message || code || `Erro ${response.status}`;
+
+    if (useClient && response.status === 403 && code === 'CONTRACT_REQUIRED') {
+      this._emitContractRequired(message);
+      const err = new Error(message);
+      err.code = 'CONTRACT_REQUIRED';
+      err.contractRequired = true;
+      throw err;
+    }
+
+    const err = new Error(message);
+    err.code = code;
+    throw err;
+  }
+
   async request(path, options = {}, { useAdmin = false, useClient = false, retry = true } = {}) {
     const token = useAdmin ? this.adminToken : useClient ? this.accessToken : this.adminToken;
 
@@ -91,9 +127,7 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const err = new Error(data?.message || data?.error || `Erro ${response.status}`);
-      err.code = data?.error;
-      throw err;
+      this._throwClientError(response, data, { useClient });
     }
     return data;
   }
@@ -133,6 +167,24 @@ class ApiClient {
     }).then((res) => {
       this.setClientTokens(res.data);
       localStorage.setItem('user', JSON.stringify(res.data.user));
+      return res;
+    });
+  }
+
+  getOnboardingInfo() {
+    return this.request('/v1/onboarding');
+  }
+
+  onboardingRegister(payload) {
+    return this.request('/v1/onboarding/cadastro', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then((res) => {
+      this.setClientTokens(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      if (res.data?.onboarding?.contract) {
+        this.setServiceContractAccepted(true);
+      }
       return res;
     });
   }
@@ -488,8 +540,15 @@ class ApiClient {
     return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
   }
 
-  getAdminVehicles() {
-    return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
+  getAdminVehicles(params = {}) {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.status) query.set('status', params.status);
+    if (params.user_id) query.set('user_id', String(params.user_id));
+    if (params.issue) query.set('issue', params.issue);
+    if (params.sort) query.set('sort', params.sort);
+    const qs = query.toString();
+    return this.request(`/v1/admin/veiculos${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
   createAdminVehicle(data) {
@@ -503,6 +562,19 @@ class ApiClient {
     return this.request(`/v1/admin/veiculos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  assignVehicleInstaller(id, data) {
+    return this.request(`/v1/admin/veiculos/${id}/instalador`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  unassignVehicleInstaller(id) {
+    return this.request(`/v1/admin/veiculos/${id}/instalador`, {
+      method: 'DELETE',
     }, { useAdmin: true });
   }
 
@@ -521,6 +593,9 @@ class ApiClient {
     if (params.q) query.set('q', params.q);
     if (params.active) query.set('active', params.active);
     if (params.provisioning_status) query.set('provisioning_status', params.provisioning_status);
+    if (params.never_accessed) query.set('never_accessed', params.never_accessed);
+    if (params.access_inactive_days) query.set('access_inactive_days', params.access_inactive_days);
+    if (params.sort) query.set('sort', params.sort);
     const qs = query.toString();
     return this.request(`/v1/admin/usuarios/painel${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
@@ -572,6 +647,35 @@ class ApiClient {
 
   getAdminPlans() {
     return this.request('/v1/admin/plans', {}, { useAdmin: true });
+  }
+
+  createAdminPlan(data) {
+    return this.request('/v1/admin/plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateAdminPlan(id, data) {
+    return this.request(`/v1/admin/plans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getPublicLanding() {
+    return this.request('/v1/site/landing');
+  }
+
+  getAdminLanding() {
+    return this.request('/v1/admin/site/landing', {}, { useAdmin: true });
+  }
+
+  updateAdminLanding(content) {
+    return this.request('/v1/admin/site/landing', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }, { useAdmin: true });
   }
 
   getPaymentGateways() {
@@ -797,7 +901,7 @@ class ApiClient {
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      throw new Error(data?.error || `Erro ${response.status}`);
+      this._throwClientError(response, data, { useClient: true });
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -832,7 +936,7 @@ class ApiClient {
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(data?.error || `Erro ${response.status}`);
+      this._throwClientError(response, data, { useClient: true });
     }
     return data;
   }
@@ -845,8 +949,27 @@ class ApiClient {
     return this.uploadAdminForm(`/v1/admin/frota/documentos/veiculos/${vehicleId}`, formData);
   }
 
+  updateAdminFrotaDocument(id, formData) {
+    return this.uploadAdminForm(`/v1/admin/frota/documentos/${id}`, formData, 'PUT');
+  }
+
   deleteAdminFrotaDocument(id) {
     return this.request(`/v1/admin/frota/documentos/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  async openAdminFrotaDocumentFile(id) {
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}/v1/admin/frota/documentos/${id}/arquivo`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   getAdminFrotaMaintenance() {
@@ -860,8 +983,54 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
+  updateAdminFrotaMaintenance(id, data) {
+    return this.request(`/v1/admin/frota/manutencao/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   deleteAdminFrotaMaintenance(id) {
     return this.request(`/v1/admin/frota/manutencao/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  getAdminFrotaLembretes(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.user_id != null) query.set('user_id', String(params.user_id));
+    const qs = query.toString();
+    return this.request(`/v1/admin/frota/lembretes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  executarAdminFrotaLembretes() {
+    return this.request('/v1/admin/frota/lembretes/executar', { method: 'POST' }, { useAdmin: true });
+  }
+
+  async downloadAdminExport(resource, format, params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value != null && value !== '') query.set(key, String(value));
+    });
+    query.set('format', format);
+
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}/v1/admin/export/${resource}?${query}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || `${resource}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async uploadAdminForm(path, formData, method = 'POST') {
@@ -908,6 +1077,10 @@ class ApiClient {
     return this.request(`/v1/admin/emergencia/eventos?limit=${limit}`, {}, { useAdmin: true });
   }
 
+  getAdminEmergencySummary() {
+    return this.request('/v1/admin/emergencia/resumo', {}, { useAdmin: true });
+  }
+
   getAdminAuditLogs(params = {}) {
     const query = new URLSearchParams();
     if (params.limit != null) query.set('limit', String(params.limit));
@@ -916,6 +1089,10 @@ class ApiClient {
     if (params.actor_type) query.set('actor_type', params.actor_type);
     if (params.resource_type) query.set('resource_type', params.resource_type);
     if (params.actor_id) query.set('actor_id', params.actor_id);
+    if (params.resource_id) query.set('resource_id', params.resource_id);
+    if (params.search) query.set('search', params.search);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
     const qs = query.toString();
     return this.request(`/v1/admin/audit${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
@@ -923,6 +1100,14 @@ class ApiClient {
   getAdminAuditActions() {
     return this.request('/v1/admin/audit/acoes', {}, { useAdmin: true });
   }
+
+  getAdminAuditResourceTypes() {
+    return this.request('/v1/admin/audit/recursos', {}, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();
+
+export function isContractRequiredError(err) {
+  return err?.code === 'CONTRACT_REQUIRED' || err?.contractRequired === true;
+}

@@ -1,19 +1,15 @@
 const { getContractRepository } = require('../repositories/contract-repository');
+const { checkServiceContractAccess } = require('../lib/service-contract-guard');
 
 async function requireServiceContract(req, res, next) {
-  if (!req.user || req.user.role !== 'client') {
-    return next();
-  }
-
   try {
-    const accepted = await getContractRepository().hasServiceAcceptance(req.user.id);
-    if (accepted) return next();
+    const result = await checkServiceContractAccess(
+      req.user,
+      (userId) => getContractRepository().hasServiceAcceptance(userId),
+    );
 
-    return res.status(403).json({
-      success: false,
-      error: 'CONTRACT_REQUIRED',
-      message: 'Aceite o Contrato de Prestação de Serviços em /app/contratos para continuar.',
-    });
+    if (result.allowed) return next();
+    return res.status(result.status).json(result.body);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

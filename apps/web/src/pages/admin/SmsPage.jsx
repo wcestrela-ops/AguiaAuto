@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import FieldInput from '../../components/FieldInput';
+import PageAlerts from '../../components/PageAlerts';
 import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const PROVIDER_LABELS = {
@@ -242,8 +244,6 @@ export default function SmsPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
@@ -251,11 +251,17 @@ export default function SmsPage() {
         subtitle="Gateway Android (celular com chip), biblioteca de comandos por modelo e envio manual."
         guideId="sms"
       >
-        <button type="button" onClick={() => setShowForm(!showForm)}>
+        <button type="button" onClick={() => setShowForm(!showForm)} disabled={loading}>
           {showForm ? 'Cancelar' : '+ Novo Gateway'}
         </button>
       </PageHeaderWithHelp>
 
+      <PageAlerts error={error} message={message} />
+
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       <div className="info-box">
         <strong>Gateway Android:</strong> instale o agente no smartphone com chip SMS, informe URL + chave + device_id.
         {' '}Principal: {data.primary ? PROVIDER_LABELS[data.primary.provider] || data.primary.name : '—'}
@@ -285,8 +291,6 @@ export default function SmsPage() {
         </div>
       )}
 
-      {message && <div className="alert success">{message}</div>}
-      {error && <div className="alert error">{error}</div>}
 
       <form className="form-card" onSubmit={handleSendSms}>
         <SectionTitleWithHelp title="Enviar SMS" guideId="sms" />
@@ -583,7 +587,14 @@ export default function SmsPage() {
       <div className="table-card" style={{ marginTop: '1.5rem' }}>
         <div className="section-header">
           <h3>Últimos envios SMS</h3>
-          <div className="history-presets">
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <ExportButtons
+              resource="sms-dispatches"
+              params={{
+                action: dispatchFilter === 'billing' ? 'billing.reminder' : dispatchFilter === 'tracker' ? 'tracker.command' : undefined,
+              }}
+            />
+            <div className="history-presets">
             {[
               { id: 'all', label: 'Todos' },
               { id: 'billing', label: 'Cobrança' },
@@ -598,6 +609,7 @@ export default function SmsPage() {
                 {opt.label}
               </button>
             ))}
+            </div>
           </div>
         </div>
         <p className="guide-inline muted">
@@ -629,6 +641,8 @@ export default function SmsPage() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

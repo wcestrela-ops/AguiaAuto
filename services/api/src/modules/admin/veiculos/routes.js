@@ -10,8 +10,27 @@ const VALID_STATUSES = Object.values(VEHICLE_STATUS);
 
 router.get('/', async (req, res) => {
   try {
-    const data = await getVehicleService().listAll();
-    res.json({ success: true, data });
+    const filters = {
+      q: req.query.q?.trim() || undefined,
+      status: req.query.status || undefined,
+      user_id: req.query.user_id || undefined,
+      issue: req.query.issue || undefined,
+      sort: req.query.sort || undefined,
+    };
+
+    const service = getVehicleService();
+    const [vehicles, total] = await Promise.all([
+      service.listForAdmin(filters),
+      service.countForAdmin(filters),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        vehicles,
+        total,
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -21,8 +40,8 @@ router.post('/', async (req, res) => {
   try {
     const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei } = req.body;
 
-    if (!user_id || !plate) {
-      return res.status(400).json({ success: false, error: 'user_id e plate são obrigatórios.' });
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: 'user_id é obrigatório.' });
     }
 
     const user = await getUserRepository().findById(user_id);
@@ -115,6 +134,51 @@ router.post('/sync-gpswox', async (req, res) => {
     res.json({ success: true, data: summary });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.patch('/:id/instalador', async (req, res) => {
+  try {
+    const { installer_id, installation_scheduled_at } = req.body;
+
+    const data = await getVehicleService().assignInstaller(req.params.id, {
+      installer_id,
+      installation_scheduled_at,
+    });
+
+    await getAuditService().adminAction('vehicle.assign_installer', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: {
+        installer_id: data.assigned_installer_id,
+        installation_scheduled_at: data.installation_scheduled_at,
+        plate: data.plate,
+      },
+      req,
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/:id/instalador', async (req, res) => {
+  try {
+    const data = await getVehicleService().unassignInstaller(req.params.id);
+
+    await getAuditService().adminAction('vehicle.unassign_installer', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: { plate: data.plate },
+      req,
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
