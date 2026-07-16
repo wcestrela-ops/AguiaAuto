@@ -12,6 +12,8 @@ const logger = require('../logger');
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || '1h';
 const REFRESH_EXPIRES_DAYS = parseInt(process.env.JWT_REFRESH_DAYS || '7', 10);
+const SESSION_REFRESH_DAYS = parseInt(process.env.JWT_SESSION_REFRESH_DAYS || '1', 10);
+const REMEMBER_REFRESH_DAYS = parseInt(process.env.JWT_REMEMBER_REFRESH_DAYS || '90', 10);
 const RESET_CODE_EXPIRES_MIN = parseInt(process.env.RESET_CODE_EXPIRES_MIN || '10', 10);
 const RESET_MAX_REQUESTS = parseInt(process.env.RESET_MAX_REQUESTS || '3', 10);
 
@@ -46,10 +48,17 @@ function verifyAccessToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
 
-function refreshExpiresAt() {
+function refreshExpiresAt({ rememberMe = false } = {}) {
+  const days = rememberMe ? REMEMBER_REFRESH_DAYS : SESSION_REFRESH_DAYS;
   const date = new Date();
-  date.setDate(date.getDate() + REFRESH_EXPIRES_DAYS);
+  date.setDate(date.getDate() + days);
   return date;
+}
+
+function isRememberRefreshToken(stored) {
+  if (!stored?.expires_at || !stored?.created_at) return false;
+  const ttlMs = new Date(stored.expires_at).getTime() - new Date(stored.created_at).getTime();
+  return ttlMs > 14 * 24 * 60 * 60 * 1000;
 }
 
 function sanitizeUser(user) {
@@ -180,7 +189,7 @@ class AuthService {
     }
 
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
-    const tokens = await this._issueTokens(user, { ip, forceAccess: true });
+    const tokens = await this._issueTokens(user, { ip, forceAccess: true, rememberMe: true });
 
     try {
       const { getProvisioningService } = require('./provisioning-service');
@@ -236,7 +245,7 @@ class AuthService {
     return { ...tokens, provisioning, referral: referral ? { registered: true } : null };
   }
 
-  async login({ email, password }, { ip } = {}) {
+  async login({ email, password, remember_me }, { ip } = {}) {
     if (!email || !password) {
       throw new Error('Email e senha são obrigatórios.');
     }
@@ -251,7 +260,11 @@ class AuthService {
       throw new Error('Credenciais inválidas.');
     }
 
-    return this._issueTokens(user, { ip, forceAccess: true });
+    return this._issueTokens(user, {
+      ip,
+      forceAccess: true,
+      rememberMe: remember_me !== false && remember_me !== 'false',
+    });
   }
 
   async refresh(refreshToken, { ip } = {}) {
@@ -272,7 +285,8 @@ class AuthService {
     }
 
     await this.users.revokeRefreshToken(tokenHash);
-    return this._issueTokens(user, { ip, forceAccess: false });
+    const rememberMe = isRememberRefreshToken(stored);
+    return this._issueTokens(user, { ip, forceAccess: false, rememberMe });
   }
 
   async logout(refreshToken) {
@@ -311,20 +325,20 @@ class AuthService {
     return sanitizeUser(user);
   }
 
-  async establishSession(user, { ip, forceAccess = true } = {}) {
+  async establishSession(user, { ip, forceAccess = true, rememberMe = true } = {}) {
     const dbUser = await this.users.findById(user.id);
     if (!dbUser || !dbUser.active) {
       throw new Error('Usuário não encontrado ou inativo.');
     }
-    return this._issueTokens(dbUser, { ip, forceAccess });
+    return this._issueTokens(dbUser, { ip, forceAccess, rememberMe });
   }
 
-  async _issueTokens(user, { ip, forceAccess = false } = {}) {
+  async _issueTokens(user, { ip, forceAccess = false, rememberMe = false } = {}) {
     const accessToken = signAccessToken(user);
     const refreshToken = generateRefreshToken();
     const tokenHash = hashToken(refreshToken);
 
-    await this.users.saveRefreshToken(user.id, tokenHash, refreshExpiresAt());
+    await this.users.saveRefreshToken(user.id, tokenHash, refreshExpiresAt({ rememberMe }));
 
     if (user.role === 'client') {
       await this.users.recordClientAccess(user.id, { ip, force: forceAccess });
@@ -341,6 +355,8 @@ class AuthService {
       access_token: accessToken,
       refresh_token: refreshToken,
       expires_in: ACCESS_EXPIRES,
+      remember_me: rememberMe,
+      refresh_expires_days: rememberMe ? REMEMBER_REFRESH_DAYS : SESSION_REFRESH_DAYS,
       user: sanitizeUser(user),
     };
   }

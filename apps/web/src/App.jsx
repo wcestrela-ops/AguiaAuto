@@ -40,6 +40,7 @@ import AdminPlansPage from './pages/admin/AdminPlansPage';
 import AdminLandingPage from './pages/admin/AdminLandingPage';
 import LandingPage from './pages/LandingPage';
 import SmsPage from './pages/admin/SmsPage';
+import ClientSessionGate from './components/ClientSessionGate';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -48,14 +49,11 @@ function AdminRoute({ children }) {
 }
 
 function ClientRoute({ children }) {
-  if (!api.isClientLoggedIn()) return <Navigate to="/login" replace />;
-  if (api.getStoredUser().role === 'installer') return <Navigate to="/instalador" replace />;
-  return children;
+  return <ClientSessionGate>{children}</ClientSessionGate>;
 }
 
 function InstallerRoute({ children }) {
-  if (!api.isInstallerLoggedIn()) return <Navigate to="/login" replace />;
-  return children;
+  return <ClientSessionGate installer>{children}</ClientSessionGate>;
 }
 
 export default function App() {

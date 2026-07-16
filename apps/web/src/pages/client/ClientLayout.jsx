@@ -73,6 +73,18 @@ export default function ClientLayout() {
     }
   }, [location.state]);
 
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') return;
+      if (!api.hasClientSession()) return;
+      if (api.isAccessTokenValid()) return;
+      api.ensureClientSession().catch(() => {});
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   async function logout() {
     await api.logout();
     navigate('/login');
