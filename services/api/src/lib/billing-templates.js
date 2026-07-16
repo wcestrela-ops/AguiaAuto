@@ -36,18 +36,130 @@ function formatDateTimeBr(value) {
 }
 
 function buildInvoiceMessageVars({ invoice, user, daysOverdue = 0, link = null }) {
-  const paymentLink = link
-    || invoice.invoice_url
-    || (invoice.pix_copy_paste ? 'Use o código PIX no app Águia' : '');
+  return buildAggregatedBillingVars({
+    user,
+    openInvoices: [invoice],
+    daysOverdue,
+    linkOverride: link,
+  });
+}
+
+function buildAggregatedBillingVars({
+  user,
+  openInvoices = [],
+  daysOverdue = 0,
+  linkOverride = null,
+}) {
+  if (!openInvoices.length) {
+    return {
+      cliente: user?.name || user?.email || 'Cliente',
+      valor: '0,00',
+      total_valor: '0,00',
+      vencimento: '—',
+      link: '',
+      pix: '',
+      descricao: '',
+      dias_atraso: String(daysOverdue),
+      faturas_pendentes: '0',
+      meses_atraso: '0',
+      meses_em_aberto: '0',
+      lista_faturas: '',
+      detalhe_faturas: '',
+      resumo_valor: '',
+      resumo_vencimento: '',
+      resumo_atraso: '',
+      pix_ou_link: '',
+      data_pagamento: formatDateTimeBr(new Date()),
+    };
+  }
+
+  const sorted = [...openInvoices].sort(
+    (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
+  );
+  const total = sorted.reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
+  const count = sorted.length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const overdueCount = sorted.filter((inv) => {
+    if (inv.status === 'overdue') return true;
+    if (!inv.due_date) return false;
+    const due = new Date(inv.due_date);
+    due.setHours(0, 0, 0, 0);
+    return inv.status === 'pending' && due < today;
+  }).length;
+
+  const listaLinhas = sorted.map((inv) => {
+    const parts = [
+      formatDateBr(inv.due_date),
+      inv.description || 'Mensalidade',
+      `R$ ${formatMoney(inv.amount)}`,
+    ];
+    if (inv.pix_copy_paste) {
+      parts.push(`PIX: ${inv.pix_copy_paste}`);
+    } else if (inv.invoice_url) {
+      parts.push(`Link: ${inv.invoice_url}`);
+    }
+    return `• ${parts.join(' · ')}`;
+  });
+
+  const primary = sorted[0];
+  const primaryPix = primary.pix_copy_paste
+    || sorted.find((inv) => inv.pix_copy_paste)?.pix_copy_paste
+    || '';
+  const primaryLink = linkOverride
+    || primary.invoice_url
+    || sorted.find((inv) => inv.invoice_url)?.invoice_url
+    || '';
+
+  let pixOuLink = '';
+  if (primaryPix) {
+    pixOuLink = count > 1
+      ? `PIX Copia e Cola (fatura mais antiga — pague as ${count} em sequência ou pelo app):\n${primaryPix}`
+      : `PIX Copia e Cola:\n${primaryPix}`;
+  } else if (primaryLink) {
+    pixOuLink = count > 1
+      ? `Link de pagamento (fatura mais antiga):\n${primaryLink}\n\nDemais faturas disponíveis no app Águia.`
+      : `Pague aqui: ${primaryLink}`;
+  }
+
+  const detalheFaturas = count > 1
+    ? `\n📋 Faturas em aberto (${count}):\n${listaLinhas.join('\n')}\n`
+    : '';
+
+  const resumoValor = count > 1
+    ? `Você possui ${count} fatura(s) em aberto totalizando R$ ${formatMoney(total)}.`
+    : `Valor: R$ ${formatMoney(primary.amount)}\nVencimento: ${formatDateBr(primary.due_date)}`;
+
+  const resumoVencimento = count > 1
+    ? `Total em aberto: R$ ${formatMoney(total)} (${count} fatura(s)).`
+    : `Valor: R$ ${formatMoney(primary.amount)} · Vencimento: ${formatDateBr(primary.due_date)}`;
+
+  const resumoAtraso = count > 1
+    ? `Você possui ${count} fatura(s) em atraso totalizando R$ ${formatMoney(total)} (${overdueCount} mês(es)).`
+    : `Sua fatura está ${daysOverdue} dia(s) em atraso.\nValor: R$ ${formatMoney(primary.amount)}`;
 
   return {
     cliente: user?.name || user?.email || 'Cliente',
-    valor: formatMoney(invoice.amount),
-    vencimento: formatDateBr(invoice.due_date),
-    link: paymentLink,
-    descricao: invoice.description || 'Mensalidade',
+    valor: formatMoney(count === 1 ? primary.amount : total),
+    total_valor: formatMoney(total),
+    vencimento: formatDateBr(primary.due_date),
+    link: primaryLink,
+    pix: primaryPix,
+    descricao: count === 1
+      ? (primary.description || 'Mensalidade')
+      : `${count} faturas pendentes`,
     dias_atraso: String(daysOverdue),
-    data_pagamento: formatDateTimeBr(invoice.paid_at || new Date()),
+    faturas_pendentes: String(count),
+    meses_atraso: String(overdueCount),
+    meses_em_aberto: String(count),
+    lista_faturas: listaLinhas.join('\n'),
+    detalhe_faturas: detalheFaturas,
+    resumo_valor: resumoValor,
+    resumo_vencimento: resumoVencimento,
+    resumo_atraso: resumoAtraso,
+    pix_ou_link: pixOuLink,
+    data_pagamento: formatDateTimeBr(new Date()),
   };
 }
 
@@ -82,6 +194,7 @@ module.exports = {
   formatDateBr,
   formatDateTimeBr,
   buildInvoiceMessageVars,
+  buildAggregatedBillingVars,
   getBillingConfig,
   getEnabledReminderOffsets,
 };

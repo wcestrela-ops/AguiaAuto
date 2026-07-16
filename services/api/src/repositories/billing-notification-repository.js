@@ -30,8 +30,9 @@ class BillingNotificationRepository {
     const { rows } = await this.pool.query(
       `INSERT INTO billing_notifications (
         invoice_id, user_id, phone, channel, used_fallback, status,
-        trigger, provider_type, external_ref, error_message, reminder_offset_days
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        trigger, provider_type, external_ref, error_message, reminder_offset_days,
+        consolidated_invoice_ids
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         data.invoice_id || null,
@@ -45,9 +46,24 @@ class BillingNotificationRepository {
         data.external_ref || null,
         data.error_message || null,
         data.reminder_offset_days ?? null,
+        data.consolidated_invoice_ids ? JSON.stringify(data.consolidated_invoice_ids) : null,
       ],
     );
     return rows[0];
+  }
+
+  async hasSentForUserTriggerToday(userId, trigger) {
+    if (!userId || !trigger) return false;
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM billing_notifications
+       WHERE user_id = $1
+         AND trigger = $2
+         AND status = 'sent'
+         AND created_at::date = CURRENT_DATE
+       LIMIT 1`,
+      [userId, trigger],
+    );
+    return rows.length > 0;
   }
 
   async hasSentForTrigger(invoiceId, trigger) {
@@ -94,14 +110,23 @@ class BillingNotificationRepository {
     if (!invoiceIds.length) return new Map();
 
     const { rows } = await this.pool.query(
-      `SELECT DISTINCT ON (invoice_id) *
-       FROM billing_notifications
-       WHERE invoice_id = ANY($1::int[])
-       ORDER BY invoice_id, created_at DESC`,
+      `SELECT DISTINCT ON (matched_invoice_id) *
+       FROM (
+         SELECT bn.*, bn.invoice_id AS matched_invoice_id
+         FROM billing_notifications bn
+         WHERE bn.invoice_id = ANY($1::int[])
+         UNION ALL
+         SELECT bn.*, cid::int AS matched_invoice_id
+         FROM billing_notifications bn,
+              jsonb_array_elements_text(bn.consolidated_invoice_ids) AS cid
+         WHERE bn.consolidated_invoice_ids IS NOT NULL
+           AND cid::int = ANY($1::int[])
+       ) matched
+       ORDER BY matched_invoice_id, created_at DESC`,
       [invoiceIds],
     );
 
-    return new Map(rows.map((row) => [row.invoice_id, formatNotification(row)]));
+    return new Map(rows.map((row) => [row.matched_invoice_id, formatNotification(row)]));
   }
 
   async countSince(hours, { channel, usedFallback, status } = {}) {

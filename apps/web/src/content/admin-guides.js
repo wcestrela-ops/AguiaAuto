@@ -480,8 +480,12 @@ export const ADMIN_GUIDES = {
         body: 'Desative "Permitir SMS nos lembretes" se você envia cobrança por outro canal. Ative "somente SMS" para lembretes agendados sem WhatsApp.',
       },
       {
+        title: 'Mensagem consolidada por cliente',
+        body: 'Se o cliente tiver várias faturas em aberto, o sistema envia uma única mensagem por dia (não uma por fatura). {{resumo_valor}}, {{resumo_vencimento}} e {{resumo_atraso}} adaptam o texto automaticamente; {{detalhe_faturas}} lista cada fatura quando há 2 ou mais; {{total_valor}} é sempre a soma. O PIX/link é atualizado no gateway antes do envio.',
+      },
+      {
         title: 'Templates',
-        body: 'Personalize mensagens com {{cliente}}, {{valor}}, {{vencimento}}, {{link}}, {{descricao}}, {{dias_atraso}}, {{data_pagamento}}.',
+        body: 'Variáveis: {{cliente}}, {{valor}}, {{total_valor}}, {{vencimento}}, {{resumo_valor}}, {{resumo_vencimento}}, {{resumo_atraso}}, {{detalhe_faturas}}, {{lista_faturas}}, {{faturas_pendentes}}, {{meses_atraso}}, {{pix}}, {{link}}, {{pix_ou_link}}, {{dias_atraso}}, {{data_pagamento}}.',
       },
       {
         title: 'Pagamento recebido',

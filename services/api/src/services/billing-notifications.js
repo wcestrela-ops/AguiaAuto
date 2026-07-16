@@ -8,17 +8,6 @@ const {
   buildInvoiceMessageVars,
 } = require('../lib/billing-templates');
 
-function resolveMetaIds(meta = {}) {
-  const userId = meta.userId || meta.user_id || null;
-  const userRef = userId || meta.user || meta.userEmail || null;
-  return {
-    invoiceId: meta.invoiceId || meta.invoice_id || null,
-    userId,
-    userRef,
-    trigger: meta.trigger || 'billing.reminder',
-  };
-}
-
 async function recordNotification(base, fields) {
   const repo = getBillingNotificationRepository();
   const row = await repo.create({ ...base, ...fields });
@@ -30,8 +19,28 @@ async function recordNotification(base, fields) {
   };
 }
 
+function resolveMetaIds(meta = {}) {
+  const userId = meta.userId || meta.user_id || null;
+  const userRef = userId || meta.user || meta.userEmail || null;
+  return {
+    invoiceId: meta.invoiceId || meta.invoice_id || null,
+    userId,
+    userRef,
+    trigger: meta.trigger || 'billing.reminder',
+    consolidatedInvoiceIds: meta.consolidatedInvoiceIds || meta.consolidated_invoice_ids || null,
+    reminderOffsetDays: meta.reminderOffsetDays ?? null,
+  };
+}
+
 async function sendBillingMessage(phone, text, meta = {}, channelOptions = {}) {
-  const { invoiceId, userId, userRef, trigger } = resolveMetaIds(meta);
+  const {
+    invoiceId,
+    userId,
+    userRef,
+    trigger,
+    consolidatedInvoiceIds,
+    reminderOffsetDays,
+  } = resolveMetaIds(meta);
   const {
     smsEnabled = false,
     smsOnly = false,
@@ -42,7 +51,8 @@ async function sendBillingMessage(phone, text, meta = {}, channelOptions = {}) {
     user_id: userId,
     phone,
     trigger,
-    reminder_offset_days: meta.reminderOffsetDays ?? null,
+    reminder_offset_days: reminderOffsetDays,
+    consolidated_invoice_ids: consolidatedInvoiceIds,
   };
 
   if (smsOnly && smsEnabled) {
@@ -139,13 +149,47 @@ async function sendTemplatedBillingMessage(phone, templateKey, vars, meta = {}, 
 
 async function sendBillingReminder(phone, payload, meta = {}) {
   const settings = await getBillingConfig();
+  const { prepareConsolidatedBillingContext } = require('./billing-consolidation-service');
+
+  if (meta.userId && !meta.forceSingleInvoice) {
+    const context = await prepareConsolidatedBillingContext(meta.userId, {
+      daysOverdue: Number(payload.dias_atraso || 0),
+    });
+    if (context?.hasPayment && context.openInvoices.length > 0) {
+      return sendTemplatedBillingMessage(
+        phone,
+        meta.templateKey || 'template_new_charge',
+        context.vars,
+        {
+          ...meta,
+          invoiceId: context.primaryInvoice.id,
+          consolidatedInvoiceIds: context.openInvoices.map((inv) => inv.id),
+        },
+        {
+          smsEnabled: settings.reminder_sms_enabled === true || settings.reminder_sms_enabled === 'true',
+          smsOnly: settings.reminder_sms_only === true || settings.reminder_sms_only === 'true',
+        },
+      );
+    }
+  }
+
   const vars = {
     cliente: meta.clientName || meta.cliente || 'Cliente',
     valor: payload.valor,
+    total_valor: payload.valor,
     vencimento: payload.vencimento,
     link: payload.link || '',
+    pix: payload.pix || '',
+    pix_ou_link: payload.pix
+      ? `PIX Copia e Cola:\n${payload.pix}`
+      : (payload.link ? `Pague aqui: ${payload.link}` : ''),
     descricao: payload.descricao || 'Mensalidade',
     dias_atraso: payload.dias_atraso || '0',
+    faturas_pendentes: '1',
+    meses_atraso: payload.dias_atraso && Number(payload.dias_atraso) > 0 ? '1' : '0',
+    meses_em_aberto: '1',
+    lista_faturas: '',
+    detalhe_faturas: '',
     data_pagamento: payload.data_pagamento || '',
   };
 

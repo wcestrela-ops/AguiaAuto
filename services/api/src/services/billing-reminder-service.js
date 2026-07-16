@@ -1,15 +1,14 @@
 const { getPool } = require('../db/pool');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
-const { getUserRepository } = require('../repositories/user-repository');
 const { getBillingNotificationRepository } = require('../repositories/billing-notification-repository');
 const {
   sendTemplatedBillingMessage,
   sendPaymentReceivedNotification,
 } = require('./billing-notifications');
+const { prepareConsolidatedBillingContext } = require('./billing-consolidation-service');
 const {
   getBillingConfig,
   getEnabledReminderOffsets,
-  buildInvoiceMessageVars,
 } = require('../lib/billing-templates');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
@@ -18,7 +17,6 @@ class BillingReminderService {
   constructor() {
     this.pool = getPool();
     this.invoices = getInvoiceRepository();
-    this.users = getUserRepository();
     this.notifications = getBillingNotificationRepository();
     this.runInProgress = false;
     this.lastRun = null;
@@ -33,6 +31,7 @@ class BillingReminderService {
       enabled_offsets: getEnabledReminderOffsets(settings).map((o) => o.days),
       reminder_sms_enabled: settings.reminder_sms_enabled,
       reminder_sms_only: settings.reminder_sms_only,
+      consolidated_reminders: true,
       last_run: this.lastRun,
     };
   }
@@ -54,18 +53,28 @@ class BillingReminderService {
 
     try {
       for (const offset of offsets) {
-        const invoices = await this.invoices.listForReminderOffset(offset.days);
-        for (const row of invoices) {
+        const userIds = await this.invoices.listUserIdsForReminderOffset(offset.days);
+        for (const userId of userIds) {
           try {
-            const sent = await this._sendOffsetReminder(row, offset, settings);
+            const sent = await this._sendConsolidatedReminder(userId, offset, settings);
             if (sent) {
               remindersSent += 1;
-              details.push({ invoice_id: row.id, trigger: offset.trigger, status: 'sent' });
+              details.push({
+                user_id: userId,
+                trigger: offset.trigger,
+                status: 'sent',
+                invoices: sent.invoiceIds,
+              });
             }
           } catch (err) {
             errorsCount += 1;
-            details.push({ invoice_id: row.id, trigger: offset.trigger, status: 'failed', error: err.message });
-            logger.warn('Lembrete automático falhou.', { invoiceId: row.id, err: err.message });
+            details.push({
+              user_id: userId,
+              trigger: offset.trigger,
+              status: 'failed',
+              error: err.message,
+            });
+            logger.warn('Lembrete automático consolidado falhou.', { userId, err: err.message });
           }
         }
       }
@@ -90,36 +99,31 @@ class BillingReminderService {
     }
   }
 
-  async _sendOffsetReminder(invoiceRow, offset, settings) {
-    if (await this.notifications.hasSentForTrigger(invoiceRow.id, offset.trigger)) {
+  async _sendConsolidatedReminder(userId, offset, settings) {
+    if (await this.notifications.hasSentForUserTriggerToday(userId, offset.trigger)) {
       return false;
     }
 
-    const user = await this.users.findById(invoiceRow.user_id);
-    if (!user?.phone) return false;
-
-    const link = invoiceRow.invoice_url
-      || (invoiceRow.pix_copy_paste ? 'Use o código PIX no app Águia' : null);
-    if (!link) return false;
-
-    const vars = buildInvoiceMessageVars({
-      invoice: invoiceRow,
-      user,
+    const context = await prepareConsolidatedBillingContext(userId, {
       daysOverdue: offset.days,
-      link,
     });
+    if (!context?.hasPayment) return false;
+
+    const { user, vars, openInvoices, primaryInvoice } = context;
+    if (!user?.phone) return false;
 
     await sendTemplatedBillingMessage(
       normalizePhone(user.phone),
       offset.templateKey,
       vars,
       {
-        invoiceId: invoiceRow.id,
+        invoiceId: primaryInvoice.id,
         userId: user.id,
         user: user.email,
         clientName: user.name,
         trigger: offset.trigger,
         reminderOffsetDays: offset.days,
+        consolidatedInvoiceIds: openInvoices.map((inv) => inv.id),
       },
       {
         smsEnabled: settings.reminder_sms_enabled === true || settings.reminder_sms_enabled === 'true',
@@ -127,7 +131,9 @@ class BillingReminderService {
       },
     );
 
-    return true;
+    return {
+      invoiceIds: openInvoices.map((inv) => inv.id),
+    };
   }
 
   async notifyPaymentReceived(invoice, user, { trigger = 'billing.payment_received' } = {}) {

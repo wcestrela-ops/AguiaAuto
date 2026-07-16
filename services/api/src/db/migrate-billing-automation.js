@@ -9,11 +9,16 @@ async function migrateBillingAutomation() {
       ADD COLUMN IF NOT EXISTS paid_via VARCHAR(30);
 
     ALTER TABLE billing_notifications
-      ADD COLUMN IF NOT EXISTS reminder_offset_days INTEGER;
+      ADD COLUMN IF NOT EXISTS reminder_offset_days INTEGER,
+      ADD COLUMN IF NOT EXISTS consolidated_invoice_ids JSONB;
 
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_notifications_invoice_trigger
-      ON billing_notifications (invoice_id, trigger)
-      WHERE invoice_id IS NOT NULL AND trigger LIKE 'billing.reminder.d%';
+    DROP INDEX IF EXISTS idx_billing_notifications_invoice_trigger;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_notifications_user_trigger_day
+      ON billing_notifications (user_id, trigger, ((created_at AT TIME ZONE 'UTC')::date))
+      WHERE user_id IS NOT NULL
+        AND trigger LIKE 'billing.reminder.d%'
+        AND status = 'sent';
 
     CREATE TABLE IF NOT EXISTS billing_reminder_runs (
       id                SERIAL PRIMARY KEY,

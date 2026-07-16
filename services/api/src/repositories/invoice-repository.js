@@ -226,6 +226,33 @@ class InvoiceRepository {
     return rows;
   }
 
+  async listUserIdsForReminderOffset(daysAfterDue) {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT i.user_id
+       FROM invoices i
+       JOIN users u ON u.id = i.user_id
+       WHERE i.status IN ('pending', 'overdue')
+         AND i.due_date IS NOT NULL
+         AND u.phone IS NOT NULL
+         AND TRIM(u.phone) <> ''
+         AND (i.due_date + ($1 || ' days')::interval)::date = CURRENT_DATE
+       ORDER BY i.user_id`,
+      [String(daysAfterDue)],
+    );
+    return rows.map((row) => row.user_id);
+  }
+
+  async listOpenInvoicesForUser(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM invoices
+       WHERE user_id = $1
+         AND status IN ('pending', 'overdue')
+       ORDER BY due_date ASC NULLS LAST, created_at ASC`,
+      [userId],
+    );
+    return rows;
+  }
+
   async markPaidManually(id, { notes } = {}) {
     const { rows } = await this.pool.query(
       `UPDATE invoices SET
