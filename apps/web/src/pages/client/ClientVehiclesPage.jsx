@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
@@ -12,7 +13,7 @@ export default function ClientVehiclesPage() {
   useEffect(() => {
     api.getVehicles()
       .then((res) => setVehicles(res.data || []))
-      .catch((err) => setError(err.message))
+      .catch((err) => setClientPageError(setError, err))
       .finally(() => setLoading(false));
   }, []);
 

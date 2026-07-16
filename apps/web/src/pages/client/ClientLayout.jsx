@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 
@@ -22,8 +22,30 @@ export default function ClientLayout() {
   const location = useLocation();
   const user = api.getStoredUser();
   const [serviceAccepted, setServiceAccepted] = useState(
-    api.isServiceContractAccepted() ? true : null
+    api.isServiceContractAccepted() ? true : null,
   );
+  const [contractNotice, setContractNotice] = useState('');
+
+  const redirectToContracts = useCallback((message) => {
+    setServiceAccepted(false);
+    api.setServiceContractAccepted(false);
+    if (message) setContractNotice(message);
+
+    if (location.pathname !== '/app/contratos') {
+      navigate('/app/contratos', {
+        replace: true,
+        state: {
+          contractRequired: true,
+          message: message || 'Aceite o Contrato de Prestação de Serviços para continuar.',
+        },
+      });
+    }
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    api.setContractRequiredHandler(redirectToContracts);
+    return () => api.setContractRequiredHandler(null);
+  }, [redirectToContracts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +57,7 @@ export default function ClientLayout() {
         api.setServiceContractAccepted(accepted);
         setServiceAccepted(accepted);
         if (!accepted && location.pathname !== '/app/contratos') {
-          navigate('/app/contratos', { replace: true });
+          redirectToContracts('Aceite o Contrato de Prestação de Serviços para liberar o aplicativo.');
         }
       })
       .catch(() => {
@@ -43,7 +65,13 @@ export default function ClientLayout() {
       });
 
     return () => { cancelled = true; };
-  }, [location.pathname, navigate]);
+  }, [location.pathname, redirectToContracts]);
+
+  useEffect(() => {
+    if (location.state?.contractRequired && location.state?.message) {
+      setContractNotice(location.state.message);
+    }
+  }, [location.state]);
 
   async function logout() {
     await api.logout();
@@ -84,7 +112,7 @@ export default function ClientLayout() {
         {serviceAccepted === null && location.pathname !== '/app/contratos' ? (
           <p className="muted">Verificando contrato...</p>
         ) : (
-          <Outlet context={{ serviceAccepted, setServiceAccepted }} />
+          <Outlet context={{ serviceAccepted, setServiceAccepted, contractNotice }} />
         )}
       </main>
     </div>

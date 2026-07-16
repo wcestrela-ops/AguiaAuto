@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 const STATUS_LABELS = {
@@ -80,7 +81,7 @@ export default function ClientFinanceiroPage() {
       setFaturas(faturasRes.data || []);
       setMensalidades(mensRes.data);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ export default function ClientFinanceiroPage() {
       setMessage('Link de pagamento atualizado.');
       setFaturas((prev) => prev.map((f) => (f.id === invoiceId ? res.data : f)));
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 

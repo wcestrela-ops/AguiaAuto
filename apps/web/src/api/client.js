@@ -73,6 +73,42 @@ class ApiClient {
     return role === 'installer' || role === 'admin';
   }
 
+  setContractRequiredHandler(handler) {
+    this._contractRequiredHandler = handler || null;
+  }
+
+  _emitContractRequired(message) {
+    this.setServiceContractAccepted(false);
+    if (this._contractRequiredHandler) {
+      this._contractRequiredHandler(message);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname || '';
+      if (path.startsWith('/app') && path !== '/app/contratos') {
+        const params = new URLSearchParams({ required: '1' });
+        window.location.assign(`/app/contratos?${params.toString()}`);
+      }
+    }
+  }
+
+  _throwClientError(response, data, { useClient = false } = {}) {
+    const code = data?.error;
+    const message = data?.message || code || `Erro ${response.status}`;
+
+    if (useClient && response.status === 403 && code === 'CONTRACT_REQUIRED') {
+      this._emitContractRequired(message);
+      const err = new Error(message);
+      err.code = 'CONTRACT_REQUIRED';
+      err.contractRequired = true;
+      throw err;
+    }
+
+    const err = new Error(message);
+    err.code = code;
+    throw err;
+  }
+
   async request(path, options = {}, { useAdmin = false, useClient = false, retry = true } = {}) {
     const token = useAdmin ? this.adminToken : useClient ? this.accessToken : this.adminToken;
 
@@ -91,9 +127,7 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const err = new Error(data?.message || data?.error || `Erro ${response.status}`);
-      err.code = data?.error;
-      throw err;
+      this._throwClientError(response, data, { useClient });
     }
     return data;
   }
@@ -867,7 +901,7 @@ class ApiClient {
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      throw new Error(data?.error || `Erro ${response.status}`);
+      this._throwClientError(response, data, { useClient: true });
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -902,7 +936,7 @@ class ApiClient {
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(data?.error || `Erro ${response.status}`);
+      this._throwClientError(response, data, { useClient: true });
     }
     return data;
   }
@@ -1073,3 +1107,7 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
+export function isContractRequiredError(err) {
+  return err?.code === 'CONTRACT_REQUIRED' || err?.contractRequired === true;
+}

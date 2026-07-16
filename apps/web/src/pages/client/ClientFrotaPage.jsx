@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { fleetStatusBadgeClass, fleetStatusLabel } from '../../utils/fleet';
 
@@ -78,7 +79,7 @@ export default function ClientFrotaPage() {
       const res = await api.getFrotaOverview();
       setOverview(res.data);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setLoading(false);
     }
@@ -136,7 +137,7 @@ export default function ClientFrotaPage() {
     try {
       await api.openFrotaDocumentFile(id);
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -166,7 +167,7 @@ export default function ClientFrotaPage() {
       closeDocumentForm();
       await load();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setSubmitting(false);
     }
@@ -201,7 +202,7 @@ export default function ClientFrotaPage() {
       closeMaintenanceForm();
       await load();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     } finally {
       setSubmitting(false);
     }
@@ -216,7 +217,7 @@ export default function ClientFrotaPage() {
       if (editingDocId === id) closeDocumentForm();
       await load();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -229,7 +230,7 @@ export default function ClientFrotaPage() {
       if (editingMaintId === id) closeMaintenanceForm();
       await load();
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 

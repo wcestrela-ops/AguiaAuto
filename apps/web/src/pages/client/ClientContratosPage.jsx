@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import AuthenticatedImage from '../../components/AuthenticatedImage';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
@@ -66,6 +66,8 @@ function AcceptedDeliveryCard({ delivery, onDownload }) {
 
 export default function ClientContratosPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const outlet = useOutletContext() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +133,12 @@ export default function ClientContratosPage() {
     }
   }
 
+  const redirectNotice = location.state?.contractRequired
+    ? (location.state.message || outlet.contractNotice)
+    : (searchParams.get('required') === '1'
+      ? (outlet.contractNotice || 'Aceite o Contrato de Prestação de Serviços para continuar.')
+      : '');
+
   if (loading) return <p className="muted">Carregando contratos...</p>;
 
   const pendingInstallations = data?.instalacoes_incluidas || data?.entregas_pendentes || [];
@@ -145,6 +153,12 @@ export default function ClientContratosPage() {
         scope="client"
         className="page-header"
       />
+
+      {redirectNotice && (
+        <div className="alert warning contract-block-banner">
+          {redirectNotice}
+        </div>
+      )}
 
       {data?.contrato_servico && !data.contrato_servico.accepted && (
         <div className="alert warning contract-block-banner">

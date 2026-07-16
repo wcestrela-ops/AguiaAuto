@@ -163,7 +163,7 @@ export const CLIENT_GUIDES = {
       },
       {
         title: 'Bloqueio do app',
-        body: 'Enquanto o contrato não for aceito, as outras áreas do app ficam redirecionadas para esta página.',
+        body: 'Enquanto o contrato não for aceito, qualquer tentativa de usar veículos, financeiro ou outras áreas redireciona automaticamente para Contratos (API retorna CONTRACT_REQUIRED).',
       },
       {
         title: 'Nova instalação',

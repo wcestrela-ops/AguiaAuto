@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { setClientPageError } from '../../utils/client-api-error';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
@@ -15,11 +16,11 @@ export default function ClientProfilePage() {
   useEffect(() => {
     api.getPerfil()
       .then((res) => setProfile(res.data))
-      .catch((err) => setError(err.message));
+      .catch((err) => setClientPageError(setError, err));
 
     api.getReferralSummary()
       .then((res) => setReferral(res.data))
-      .catch((err) => setError(err.message))
+      .catch((err) => setClientPageError(setError, err))
       .finally(() => setReferralLoading(false));
   }, []);
 
@@ -33,7 +34,7 @@ export default function ClientProfilePage() {
       localStorage.setItem('user', JSON.stringify(res.data));
       setMessage('Perfil atualizado.');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -46,7 +47,7 @@ export default function ClientProfilePage() {
       setMessage('Senha alterada. Faça login novamente.');
       setPasswords({ current_password: '', new_password: '' });
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -57,7 +58,7 @@ export default function ClientProfilePage() {
       await push.enablePush();
       setMessage('Notificações push ativadas neste dispositivo.');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -68,7 +69,7 @@ export default function ClientProfilePage() {
       await push.disablePush();
       setMessage('Notificações push desativadas.');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
@@ -79,7 +80,7 @@ export default function ClientProfilePage() {
       await push.sendTestPush();
       setMessage('Notificação de teste enviada!');
     } catch (err) {
-      setError(err.message);
+      setClientPageError(setError, err);
     }
   }
 
