@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Post,
   Req,
   UseGuards,
@@ -20,9 +21,16 @@ import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../../shared/auth/jwt-payload.interface';
 
 @ApiTags('auth')
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('bridge')
+  @ApiOperation({ summary: 'Bridge — emite JWT SMS a partir do token admin Águia' })
+  async bridge(@Headers('x-aguia-admin-token') aguiaToken: string) {
+    const data = await this.authService.bridgeAguiaAdmin(aguiaToken || '');
+    return { success: true, data, meta: null };
+  }
 
   @Post('login')
   @ApiOperation({ summary: 'Login' })

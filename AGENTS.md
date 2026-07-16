@@ -154,4 +154,4 @@ Senhas sobrescritas por `SMS_HUB_ADMIN_PASSWORD` e `SMS_HUB_OPERATOR_PASSWORD`.
 
 ## Integração futura com Águia
 
-O AG SMS Hub é um produto separado neste monorepo. Integração com `@aguia/api` (failover 4G→SMS) será feita em fase posterior, sem misturar regras de negócio entre os dois sistemas.
+O AG SMS Hub está **integrado ao painel Águia** em `/admin/sms` e também disponível como app standalone (`apps/sms-hub-web`). Integração com veículos Águia (failover 4G→SMS) será feita em fase posterior.

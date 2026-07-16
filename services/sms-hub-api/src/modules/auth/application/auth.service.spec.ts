@@ -71,4 +71,20 @@ describe('AuthService', () => {
       service.login({ email: 'admin@test.local', password: 'wrong' }, {}),
     ).rejects.toThrow('Credenciais inválidas');
   });
+
+  it('should bridge aguia admin token', async () => {
+    process.env.AGUIA_ADMIN_SECRET = 'aguia-secret';
+    usersRepo.findOne.mockResolvedValue(mockUser);
+    const result = await service.bridgeAguiaAdmin('aguia-secret');
+    expect(result.access_token).toBe('access-token');
+    delete process.env.AGUIA_ADMIN_SECRET;
+  });
+
+  it('should reject invalid aguia bridge token', async () => {
+    process.env.AGUIA_ADMIN_SECRET = 'aguia-secret';
+    await expect(service.bridgeAguiaAdmin('wrong')).rejects.toThrow(
+      'Token administrativo Águia inválido',
+    );
+    delete process.env.AGUIA_ADMIN_SECRET;
+  });
 });

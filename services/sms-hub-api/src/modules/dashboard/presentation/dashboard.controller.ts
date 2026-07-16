@@ -7,7 +7,7 @@ import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { UserRole } from '../../users/domain/user-role.enum';
 
 @ApiTags('dashboard')
-@Controller('api/v1/dashboard')
+@Controller('dashboard')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @ApiBearerAuth()
 export class DashboardController {

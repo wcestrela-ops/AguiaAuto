@@ -92,17 +92,27 @@ Documentação interativa disponível em:
 http://localhost:4000/api/docs
 ```
 
-Endpoints implementados na Fase 1:
+Endpoints implementados na Fase 1 (prefixo **`/api/v1/sms`**):
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `POST /api/v1/auth/logout-all`
-- `GET /api/v1/auth/me`
-- `POST /api/v1/auth/forgot-password` (501 — não implementado)
-- `POST /api/v1/auth/reset-password` (501 — não implementado)
-- `GET /api/v1/dashboard`
-- `GET /api/v1/health`
+- `POST /api/v1/sms/auth/bridge` — emite JWT SMS a partir do token admin Águia
+- `POST /api/v1/sms/auth/login`
+- `POST /api/v1/sms/auth/refresh`
+- `POST /api/v1/sms/auth/logout`
+- `POST /api/v1/sms/auth/logout-all`
+- `GET /api/v1/sms/auth/me`
+- `POST /api/v1/sms/auth/forgot-password` (501 — não implementado)
+- `POST /api/v1/sms/auth/reset-password` (501 — não implementado)
+- `GET /api/v1/sms/dashboard`
+- `GET /api/v1/sms/health`
+
+## Integração com Águia (painel unificado)
+
+O módulo AG SMS está embutido em **`apps/web`** em `/admin/sms`, com item **AG SMS** no menu admin.
+
+- Proxy dev: `/api/v1/sms` → SMS Hub API (`:4000`)
+- Proxy prod (nginx): mesma regra em `apps/web/nginx.conf`
+- Auth bridge: admin logado na Águia conecta automaticamente via `POST /api/v1/sms/auth/bridge`
+- Configure `AGUIA_ADMIN_SECRET` no `.env.sms-hub` igual ao `ADMIN_SECRET` da Águia
 
 ## PWA
 

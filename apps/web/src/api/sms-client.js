@@ -1,26 +1,12 @@
-const BASE = import.meta.env.VITE_SMS_API_URL || '/api/v1/sms';
+const SMS_BASE = import.meta.env.VITE_SMS_API_URL || '/api/v1/sms';
 
-export interface ApiUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'SUPER_ADMIN' | 'COMPANY_USER';
-  company_id: string | null;
-  status: string;
-}
+class SmsApiClient {
+  constructor() {
+    this.accessToken = localStorage.getItem('sms_hub_access') || '';
+    this.refreshToken = localStorage.getItem('sms_hub_refresh') || '';
+  }
 
-export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: string;
-  user: ApiUser;
-}
-
-class ApiClient {
-  accessToken = localStorage.getItem('sms_hub_access') || '';
-  refreshToken = localStorage.getItem('sms_hub_refresh') || '';
-
-  setTokens(data: AuthTokens) {
+  setTokens(data) {
     this.accessToken = data.access_token;
     this.refreshToken = data.refresh_token;
     localStorage.setItem('sms_hub_access', data.access_token);
@@ -36,7 +22,7 @@ class ApiClient {
     localStorage.removeItem('sms_hub_user');
   }
 
-  getUser(): ApiUser | null {
+  getUser() {
     try {
       return JSON.parse(localStorage.getItem('sms_hub_user') || 'null');
     } catch {
@@ -44,14 +30,18 @@ class ApiClient {
     }
   }
 
-  async request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
-    const headers: Record<string, string> = {
+  isAuthenticated() {
+    return Boolean(this.accessToken || localStorage.getItem('sms_hub_access'));
+  }
+
+  async request(path, options = {}, retry = true) {
+    const headers = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...(options.headers || {}),
     };
     if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
 
-    const response = await fetch(`${BASE}${path}`, { ...options, headers });
+    const response = await fetch(`${SMS_BASE}${path}`, { ...options, headers });
     const json = await response.json().catch(() => null);
 
     if (response.status === 401 && retry && this.refreshToken && path !== '/auth/refresh') {
@@ -63,11 +53,11 @@ class ApiClient {
       throw new Error(json?.error?.message || json?.message || `Erro ${response.status}`);
     }
 
-    return json as T;
+    return json;
   }
 
   async refreshAccessToken() {
-    const response = await fetch(`${BASE}/auth/refresh`, {
+    const response = await fetch(`${SMS_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: this.refreshToken }),
@@ -75,13 +65,29 @@ class ApiClient {
     const json = await response.json();
     if (!response.ok) {
       this.clearTokens();
-      throw new Error(json?.error?.message || 'Sessão expirada');
+      throw new Error(json?.error?.message || 'Sessão SMS expirada');
     }
     this.setTokens(json.data);
   }
 
-  login(email: string, password: string) {
-    return this.request<{ success: boolean; data: AuthTokens }>('/auth/login', {
+  async bridgeFromAguiaAdmin(aguiaAdminToken) {
+    const response = await fetch(`${SMS_BASE}/auth/bridge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Aguia-Admin-Token': aguiaAdminToken,
+      },
+    });
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json?.error?.message || 'Falha ao conectar módulo AG SMS');
+    }
+    this.setTokens(json.data);
+    return json.data;
+  }
+
+  login(email, password) {
+    return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }).then((res) => {
@@ -97,13 +103,9 @@ class ApiClient {
     }).finally(() => this.clearTokens());
   }
 
-  me() {
-    return this.request<{ success: boolean; data: ApiUser }>('/auth/me');
-  }
-
   dashboard() {
-    return this.request<{ success: boolean; data: Record<string, unknown> }>('/dashboard');
+    return this.request('/dashboard');
   }
 }
 
-export const api = new ApiClient();
+export const smsApi = new SmsApiClient();

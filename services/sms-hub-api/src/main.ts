@@ -14,8 +14,14 @@ async function bootstrap() {
     }),
   );
 
+  app.setGlobalPrefix('api/v1/sms');
+
   app.enableCors({
-    origin: process.env.SMS_HUB_CORS_ORIGIN?.split(',') || ['http://localhost:5174'],
+    origin: process.env.SMS_HUB_CORS_ORIGIN?.split(',') || [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:8080',
+    ],
     credentials: true,
   });
 

@@ -10,6 +10,7 @@ const NAV = [
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/instaladores', label: 'Instaladores' },
   { to: '/admin/contratos', label: 'Contratos' },
+  { to: '/admin/sms', label: 'AG SMS' },
 ];
 
 export default function AdminLayout() {

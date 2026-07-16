@@ -28,7 +28,7 @@ describe('Auth (e2e)', () => {
   it('/api/v1/auth/login (POST) rejects invalid body', async () => {
     if (!app) return;
     await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/api/v1/sms/auth/login')
       .send({ email: 'not-an-email' })
       .expect(400);
   });

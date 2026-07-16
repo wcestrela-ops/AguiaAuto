@@ -28,6 +28,13 @@ import InstallerHistoryPage from './pages/instalador/InstallerHistoryPage';
 import InstallerJobPage from './pages/instalador/InstallerJobPage';
 import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
 import AdminContratosPage from './pages/admin/AdminContratosPage';
+import SmsLayout from './pages/admin/sms/SmsLayout';
+import SmsHomePage from './pages/admin/sms/SmsHomePage';
+import SmsDevicesPage from './pages/admin/sms/SmsDevicesPage';
+import SmsSendPage from './pages/admin/sms/SmsSendPage';
+import SmsHistoryPage from './pages/admin/sms/SmsHistoryPage';
+import SmsMorePage from './pages/admin/sms/SmsMorePage';
+import SmsLibraryPage from './pages/admin/sms/SmsLibraryPage';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -107,6 +114,14 @@ export default function App() {
         <Route path="alertas" element={<AdminAlertsPage />} />
         <Route path="instaladores" element={<AdminInstaladoresPage />} />
         <Route path="contratos" element={<AdminContratosPage />} />
+        <Route path="sms" element={<SmsLayout />}>
+          <Route index element={<SmsHomePage />} />
+          <Route path="devices" element={<SmsDevicesPage />} />
+          <Route path="send" element={<SmsSendPage />} />
+          <Route path="history" element={<SmsHistoryPage />} />
+          <Route path="more" element={<SmsMorePage />} />
+          <Route path="library" element={<SmsLibraryPage />} />
+        </Route>
       </Route>
     </Routes>
   );

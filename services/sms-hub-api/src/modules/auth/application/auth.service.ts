@@ -11,7 +11,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { UserEntity } from '../../users/infrastructure/user.entity';
 import { UserSessionEntity } from '../../users/infrastructure/user-session.entity';
-import { UserStatus } from '../../users/domain/user-role.enum';
+import { UserRole, UserStatus } from '../../users/domain/user-role.enum';
 import { JwtPayload } from '../../../shared/auth/jwt-payload.interface';
 import { LoginDto, RefreshDto } from '../presentation/dto/auth.dto';
 
@@ -26,6 +26,28 @@ export class AuthService {
     @InjectRepository(UserSessionEntity) private readonly sessions: Repository<UserSessionEntity>,
     private readonly jwt: JwtService,
   ) {}
+
+  async bridgeAguiaAdmin(aguiaToken: string) {
+    const bridgeSecret =
+      process.env.AGUIA_ADMIN_SECRET ||
+      process.env.SMS_HUB_AGUIA_BRIDGE_SECRET ||
+      '';
+
+    if (!bridgeSecret || aguiaToken !== bridgeSecret) {
+      throw new UnauthorizedException('Token administrativo Águia inválido.');
+    }
+
+    const adminEmail = process.env.SMS_HUB_ADMIN_EMAIL || 'admin@agsmshub.local';
+    const user = await this.users.findOne({
+      where: { email: adminEmail, role: UserRole.SUPER_ADMIN },
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Administrador SMS Hub não configurado.');
+    }
+
+    return this.issueTokens(user, {});
+  }
 
   async login(dto: LoginDto, meta: { userAgent?: string; ip?: string }) {
     const user = await this.users.findOne({ where: { email: dto.email.toLowerCase().trim() } });
