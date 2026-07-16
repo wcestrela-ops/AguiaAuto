@@ -12,9 +12,19 @@
     "dev:api": "npm run dev -w @aguia/api",
     "dev:gateway": "npm run dev -w @aguia/gpswox-gateway",
     "dev:web": "npm run dev -w @aguia/web",
+    "dev:sms-hub-api": "npm run dev -w @ag-sms-hub/api",
+    "dev:sms-hub-web": "npm run dev -w @ag-sms-hub/web",
     "start:api": "npm run start -w @aguia/api",
     "start:gateway": "npm run start -w @aguia/gpswox-gateway",
     "build:web": "npm run build -w @aguia/web",
+    "build:sms-hub-api": "npm run build -w @ag-sms-hub/api",
+    "build:sms-hub-web": "npm run build -w @ag-sms-hub/web",
+    "sms-hub:migration:run": "npm run migration:run -w @ag-sms-hub/api",
+    "sms-hub:migration:revert": "npm run migration:revert -w @ag-sms-hub/api",
+    "sms-hub:seed": "npm run seed -w @ag-sms-hub/api",
+    "test:sms-hub-api": "npm run test -w @ag-sms-hub/api",
+    "test:sms-hub-api:e2e": "npm run test:e2e -w @ag-sms-hub/api",
+    "test:sms-hub-web": "npm run test -w @ag-sms-hub/web",
     "diagnostico": "npm run diagnostico -w @aguia/gpswox-gateway"
   }
 }

@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  sms-hub-postgres:
+    image: postgres:16-alpine
+    container_name: ag-smshub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ag_smshub
+      POSTGRES_PASSWORD: ag_smshub
+      POSTGRES_DB: ag_smshub
+    volumes:
+      - sms_hub_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - sms_hub_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ag_smshub -d ag_smshub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  sms-hub-redis:
+    image: redis:7-alpine
+    container_name: ag-smshub-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    networks:
+      - sms_hub_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sms-hub-api:
+    build:
+      context: .
+      dockerfile: services/sms-hub-api/Dockerfile
+    container_name: ag-smshub-api
+    restart: unless-stopped
+    env_file:
+      - .env.sms-hub
+    environment:
+      SMS_HUB_DATABASE_URL: postgresql://ag_smshub:ag_smshub@sms-hub-postgres:5432/ag_smshub
+      SMS_HUB_REDIS_URL: redis://sms-hub-redis:6379
+      SMS_HUB_API_PORT: 4000
+      SMS_HUB_CORS_ORIGIN: http://localhost:5174
+    ports:
+      - "4000:4000"
+    depends_on:
+      sms-hub-postgres:
+        condition: service_healthy
+      sms-hub-redis:
+        condition: service_healthy
+    networks:
+      - sms_hub_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/v1/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  sms-hub-web:
+    build:
+      context: .
+      dockerfile: apps/sms-hub-web/Dockerfile
+    container_name: ag-smshub-web
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    depends_on:
+      sms-hub-api:
+        condition: service_healthy
+    networks:
+      - sms_hub_network
+
+networks:
+  sms_hub_network:
+    driver: bridge
+
+volumes:
+  sms_hub_postgres_data:
