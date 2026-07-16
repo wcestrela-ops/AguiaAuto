@@ -9,6 +9,7 @@ const { requireServiceContract } = require('./middleware/require-service-contrac
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
+const { migrateUserAccess } = require('./db/migrate-user-access');
 const { migrateFcmTokens } = require('./db/migrate-fcm');
 const { migratePasswordReset } = require('./db/migrate-password-reset');
 const { migrateVehicles } = require('./db/migrate-vehicles');
@@ -162,6 +163,9 @@ async function bootstrap() {
 
     await migrateUsers();
     logger.info('Autenticação JWT (clientes) inicializada.');
+
+    await migrateUserAccess();
+    logger.info('Último acesso de clientes inicializado.');
 
     await migrateFcmTokens();
     logger.info('FCM tokens (push notifications) inicializado.');

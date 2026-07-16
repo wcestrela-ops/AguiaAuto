@@ -30,6 +30,11 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('pt-BR');
 }
 
+function formatDateTime(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('pt-BR');
+}
+
 export default function AdminClientesPage() {
   const [summary, setSummary] = useState(null);
   const [clients, setClients] = useState([]);
@@ -181,13 +186,14 @@ export default function AdminClientesPage() {
                   <th>Veículos</th>
                   <th>Faturas abertas</th>
                   <th>Provisionamento</th>
+                  <th>Último acesso</th>
                   <th>Cadastro</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {clients.length === 0 ? (
-                  <tr><td colSpan={7} className="muted">Nenhum cliente encontrado.</td></tr>
+                  <tr><td colSpan={8} className="muted">Nenhum cliente encontrado.</td></tr>
                 ) : (
                   clients.map((client) => (
                     <tr key={client.id}>
@@ -217,6 +223,12 @@ export default function AdminClientesPage() {
                         <span className={`badge ${provisioningStatusBadge(client.provisioning_status)}`}>
                           {provisioningStatusLabel(client.provisioning_status)}
                         </span>
+                      </td>
+                      <td>
+                        <div>{formatDateTime(client.last_access_at)}</div>
+                        {client.last_access_ip && (
+                          <div className="muted audit-actor-id">{client.last_access_ip}</div>
+                        )}
                       </td>
                       <td>{formatDate(client.created_at)}</td>
                       <td>

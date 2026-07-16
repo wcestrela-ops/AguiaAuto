@@ -107,6 +107,8 @@ class AdminClientService {
         provisioning_status: user.provisioning_status,
         provisioning_errors: user.provisioning_errors,
         referral_code: referralCode,
+        last_access_at: user.last_access_at,
+        last_access_ip: user.last_access_ip,
         created_at: user.created_at,
         updated_at: user.updated_at,
       },

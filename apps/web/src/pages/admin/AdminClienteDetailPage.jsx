@@ -147,6 +147,8 @@ export default function AdminClienteDetailPage() {
           <div className="info-box" style={{ marginTop: '1rem' }}>
             <div>CPF/CNPJ: <strong>{user.cpf_cnpj || '—'}</strong></div>
             <div>Cadastro: {formatDateTime(user.created_at)}</div>
+            <div>Último acesso: {formatDateTime(user.last_access_at)}</div>
+            {user.last_access_ip && <div>IP do último acesso: {user.last_access_ip}</div>}
             <div>Push: {pushDevices} dispositivo(s)</div>
             {indicacoes.codigo && <div>Código indicação: <strong>{indicacoes.codigo}</strong></div>}
           </div>

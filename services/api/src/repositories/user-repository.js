@@ -18,7 +18,9 @@ class UserRepository {
 
   async findById(id) {
     const { rows } = await this.pool.query(
-      'SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified, created_at, updated_at FROM users WHERE id = $1',
+      `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,
+              last_access_at, last_access_ip, created_at, updated_at
+       FROM users WHERE id = $1`,
       [id]
     );
     return rows[0] || null;
@@ -109,7 +111,8 @@ class UserRepository {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
               asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
-              provisioning_status, provisioning_errors, created_at
+              provisioning_status, provisioning_errors,
+              last_access_at, last_access_ip, created_at
        FROM users
        ORDER BY name NULLS LAST, email`
     );
@@ -157,7 +160,8 @@ class UserRepository {
       `SELECT
          u.id, u.email, u.name, u.phone, u.cpf_cnpj, u.role, u.active,
          u.asaas_customer_id, u.mercadopago_payer_id, u.gpswox_user_id,
-         u.provisioning_status, u.provisioning_errors, u.referral_code, u.created_at,
+         u.provisioning_status, u.provisioning_errors, u.referral_code,
+         u.last_access_at, u.last_access_ip, u.created_at,
          COUNT(DISTINCT v.id)::int AS vehicles_count,
          COUNT(DISTINCT v.id) FILTER (WHERE v.status = 'active')::int AS vehicles_active,
          COUNT(DISTINCT i.id) FILTER (WHERE i.status IN ('pending', 'overdue'))::int AS open_invoices
@@ -249,9 +253,33 @@ class UserRepository {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active,
               asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
-              provisioning_status, provisioning_errors, created_at, updated_at
+              provisioning_status, provisioning_errors,
+              last_access_at, last_access_ip, created_at, updated_at
        FROM users WHERE id = $1`,
       [id]
+    );
+    return rows[0] || null;
+  }
+
+  async recordClientAccess(userId, { ip, force = false } = {}) {
+    if (!userId) return null;
+
+    const sets = ['last_access_at = NOW()', 'updated_at = NOW()'];
+    const params = [userId];
+    if (ip) {
+      params.push(ip);
+      sets.push(`last_access_ip = $${params.length}`);
+    }
+
+    const throttle = force
+      ? ''
+      : `AND (last_access_at IS NULL OR last_access_at < NOW() - INTERVAL '15 minutes')`;
+
+    const { rows } = await this.pool.query(
+      `UPDATE users SET ${sets.join(', ')}
+       WHERE id = $1 AND role = 'client' ${throttle}
+       RETURNING id, last_access_at, last_access_ip`,
+      params,
     );
     return rows[0] || null;
   }

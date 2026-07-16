@@ -62,6 +62,7 @@ function sanitizeUser(user) {
     role: user.role,
     active: user.active,
     email_verified: user.email_verified,
+    last_access_at: user.last_access_at || null,
     created_at: user.created_at,
     updated_at: user.updated_at,
   };
@@ -157,7 +158,7 @@ class AuthService {
     };
   }
 
-  async register({ email, password, name, phone, cpf_cnpj, plan_id, billing_type, referral_code }) {
+  async register({ email, password, name, phone, cpf_cnpj, plan_id, billing_type, referral_code }, { ip } = {}) {
     if (!email || !password) {
       throw new Error('Email e senha são obrigatórios.');
     }
@@ -179,7 +180,7 @@ class AuthService {
     }
 
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
-    const tokens = await this._issueTokens(user);
+    const tokens = await this._issueTokens(user, { ip, forceAccess: true });
 
     authNotifications.sendRegistrationWelcome({ user, password }).catch((err) => {
       logger.warn('Notificação de cadastro não enviada.', { userId: user.id, err: err.message });
@@ -217,7 +218,7 @@ class AuthService {
     return { ...tokens, provisioning, referral: referral ? { registered: true } : null };
   }
 
-  async login({ email, password }) {
+  async login({ email, password }, { ip } = {}) {
     if (!email || !password) {
       throw new Error('Email e senha são obrigatórios.');
     }
@@ -232,10 +233,10 @@ class AuthService {
       throw new Error('Credenciais inválidas.');
     }
 
-    return this._issueTokens(user);
+    return this._issueTokens(user, { ip, forceAccess: true });
   }
 
-  async refresh(refreshToken) {
+  async refresh(refreshToken, { ip } = {}) {
     if (!refreshToken) {
       throw new Error('Refresh token obrigatório.');
     }
@@ -253,7 +254,7 @@ class AuthService {
     }
 
     await this.users.revokeRefreshToken(tokenHash);
-    return this._issueTokens(user);
+    return this._issueTokens(user, { ip, forceAccess: false });
   }
 
   async logout(refreshToken) {
@@ -292,12 +293,23 @@ class AuthService {
     return sanitizeUser(user);
   }
 
-  async _issueTokens(user) {
+  async _issueTokens(user, { ip, forceAccess = false } = {}) {
     const accessToken = signAccessToken(user);
     const refreshToken = generateRefreshToken();
     const tokenHash = hashToken(refreshToken);
 
     await this.users.saveRefreshToken(user.id, tokenHash, refreshExpiresAt());
+
+    if (user.role === 'client') {
+      await this.users.recordClientAccess(user.id, { ip, force: forceAccess });
+      if (forceAccess) {
+        const refreshed = await this.users.findById(user.id);
+        if (refreshed) {
+          user.last_access_at = refreshed.last_access_at;
+          user.last_access_ip = refreshed.last_access_ip;
+        }
+      }
+    }
 
     return {
       access_token: accessToken,

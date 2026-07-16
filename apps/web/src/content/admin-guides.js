@@ -608,7 +608,7 @@ export const ADMIN_GUIDES = {
     summary: 'Ficha completa com cadastro, veículos, financeiro, provisionamento e indicações.',
     steps: [
       { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo e provisionamento.' },
-      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos e faturas recentes.' },
+      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app.' },
       { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
       { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },
     ],

@@ -2,12 +2,13 @@ const { Router } = require('express');
 const { getAuthService } = require('../../services/auth-service');
 const { jwtAuth } = require('../../middleware/jwt-auth');
 const { authLoginLimiter } = require('../../middleware/rate-limit');
+const { getClientIp } = require('../../lib/client-ip');
 
 const router = Router();
 
 router.post('/register', async (req, res) => {
   try {
-    const data = await getAuthService().register(req.body);
+    const data = await getAuthService().register(req.body, { ip: getClientIp(req) });
     res.status(201).json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -16,7 +17,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', authLoginLimiter, async (req, res) => {
   try {
-    const data = await getAuthService().login(req.body);
+    const data = await getAuthService().login(req.body, { ip: getClientIp(req) });
     res.json({ success: true, data });
   } catch (err) {
     res.status(401).json({ success: false, error: err.message });
@@ -26,7 +27,7 @@ router.post('/login', authLoginLimiter, async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refresh_token: refreshToken } = req.body;
-    const data = await getAuthService().refresh(refreshToken);
+    const data = await getAuthService().refresh(refreshToken, { ip: getClientIp(req) });
     res.json({ success: true, data });
   } catch (err) {
     res.status(401).json({ success: false, error: err.message });
