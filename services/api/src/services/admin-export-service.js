@@ -51,7 +51,7 @@ class AdminExportService {
       case 'cliente':
         return this._exportClienteDetail(format, query, generatedAt);
       case 'veiculos':
-        return this._exportVeiculos(format, generatedAt);
+        return this._exportVeiculos(format, query, generatedAt);
       case 'financeiro-cobrancas':
         return this._exportCobrancas(format, generatedAt);
       case 'frota-documentos':
@@ -149,8 +149,15 @@ class AdminExportService {
     return { buffer, format, filename: exportFilename(`cliente-${slug}`, format) };
   }
 
-  async _exportVeiculos(format, generatedAt) {
-    const rows = await getVehicleService().listAll();
+  async _exportVeiculos(format, query, generatedAt) {
+    const filters = {
+      q: query.q?.trim() || undefined,
+      status: query.status || undefined,
+      user_id: query.user_id || undefined,
+      issue: query.issue || undefined,
+      sort: query.sort || undefined,
+    };
+    const rows = await getVehicleService().listForAdmin(filters);
     const buffer = await buildExportBuffer({
       format,
       title: 'Veículos e dispositivos',

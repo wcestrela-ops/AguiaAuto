@@ -506,8 +506,15 @@ class ApiClient {
     return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
   }
 
-  getAdminVehicles() {
-    return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
+  getAdminVehicles(params = {}) {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.status) query.set('status', params.status);
+    if (params.user_id) query.set('user_id', String(params.user_id));
+    if (params.issue) query.set('issue', params.issue);
+    if (params.sort) query.set('sort', params.sort);
+    const qs = query.toString();
+    return this.request(`/v1/admin/veiculos${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
   createAdminVehicle(data) {

@@ -108,13 +108,92 @@ class VehicleRepository {
   }
 
   async listAll() {
+    return this.listForAdmin({});
+  }
+
+  _buildAdminListQuery(filters = {}) {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+
+    if (filters.q?.trim()) {
+      conditions.push(`(
+        v.plate ILIKE $${idx}
+        OR v.brand ILIKE $${idx}
+        OR v.model ILIKE $${idx}
+        OR v.gpswox_device_id ILIKE $${idx}
+        OR v.gpswox_name ILIKE $${idx}
+        OR v.tracker_phone ILIKE $${idx}
+        OR v.tracker_imei ILIKE $${idx}
+        OR u.name ILIKE $${idx}
+        OR u.email ILIKE $${idx}
+      )`);
+      params.push(`%${filters.q.trim()}%`);
+      idx += 1;
+    }
+
+    if (filters.status) {
+      conditions.push(`v.status = $${idx++}`);
+      params.push(filters.status);
+    }
+
+    if (filters.user_id) {
+      conditions.push(`v.user_id = $${idx++}`);
+      params.push(Number(filters.user_id));
+    }
+
+    if (filters.issue === 'missing_device') {
+      conditions.push(`(v.gpswox_device_id IS NULL OR TRIM(v.gpswox_device_id) = '')`);
+    } else if (filters.issue === 'missing_chip') {
+      conditions.push(`v.status IN ('active', 'blocked')`);
+      conditions.push(`(v.tracker_phone IS NULL OR TRIM(v.tracker_phone) = '')`);
+    } else if (filters.issue === 'missing_imei') {
+      conditions.push(`v.status IN ('active', 'blocked')`);
+      conditions.push(`(v.tracker_imei IS NULL OR TRIM(v.tracker_imei) = '')`);
+    } else if (filters.issue === 'missing_model') {
+      conditions.push(`v.status IN ('active', 'blocked')`);
+      conditions.push(`v.tracker_model_id IS NULL`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    return { where, params };
+  }
+
+  _resolveAdminSort(sort) {
+    const map = {
+      created_desc: 'v.created_at DESC',
+      created_asc: 'v.created_at ASC',
+      plate_asc: 'v.plate ASC NULLS LAST, v.created_at DESC',
+      client_asc: 'u.name ASC NULLS LAST, u.email ASC, v.created_at DESC',
+      status_asc: 'v.status ASC, v.created_at DESC',
+    };
+    return map[sort] || map.created_desc;
+  }
+
+  async listForAdmin(filters = {}) {
+    const { where, params } = this._buildAdminListQuery(filters);
+    const orderBy = this._resolveAdminSort(filters.sort);
     const { rows } = await this.pool.query(
       `SELECT v.*, u.email AS user_email, u.name AS user_name
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
-       ORDER BY v.created_at DESC`
+       ${where}
+       ORDER BY ${orderBy}`,
+      params,
     );
     return rows;
+  }
+
+  async countForAdmin(filters = {}) {
+    const { where, params } = this._buildAdminListQuery(filters);
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       ${where}`,
+      params,
+    );
+    return rows[0]?.count || 0;
   }
 
   async listPendingInstallations() {

@@ -145,7 +145,7 @@ export default function AdminFrotaPage() {
       ]);
       setDocuments(docsRes.data || []);
       setMaintenance(maintRes.data || []);
-      setVehicles(vehiclesRes.data || []);
+      setVehicles(vehiclesRes.data?.vehicles || []);
     } catch (err) {
       setError(err.message);
     } finally {

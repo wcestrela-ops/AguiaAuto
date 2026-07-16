@@ -10,8 +10,27 @@ const VALID_STATUSES = Object.values(VEHICLE_STATUS);
 
 router.get('/', async (req, res) => {
   try {
-    const data = await getVehicleService().listAll();
-    res.json({ success: true, data });
+    const filters = {
+      q: req.query.q?.trim() || undefined,
+      status: req.query.status || undefined,
+      user_id: req.query.user_id || undefined,
+      issue: req.query.issue || undefined,
+      sort: req.query.sort || undefined,
+    };
+
+    const service = getVehicleService();
+    const [vehicles, total] = await Promise.all([
+      service.listForAdmin(filters),
+      service.countForAdmin(filters),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        vehicles,
+        total,
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

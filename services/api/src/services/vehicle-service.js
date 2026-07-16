@@ -347,7 +347,10 @@ class VehicleService {
     return formatVehicle(vehicle);
   }
 
-  async listAll() {
+  async listAll(filters) {
+    if (filters && Object.keys(filters).some((key) => filters[key])) {
+      return this.listForAdmin(filters);
+    }
     const vehicles = await this.repo.listAll();
     return vehicles.map(v => ({
       ...formatVehicle(v),
@@ -355,6 +358,20 @@ class VehicleService {
       user_email: v.user_email,
       user_name: v.user_name,
     }));
+  }
+
+  async listForAdmin(filters = {}) {
+    const vehicles = await this.repo.listForAdmin(filters);
+    return vehicles.map(v => ({
+      ...formatVehicle(v),
+      user_id: v.user_id,
+      user_email: v.user_email,
+      user_name: v.user_name,
+    }));
+  }
+
+  async countForAdmin(filters = {}) {
+    return this.repo.countForAdmin(filters);
   }
 
   async _requireDevice(vehicleId, userId) {

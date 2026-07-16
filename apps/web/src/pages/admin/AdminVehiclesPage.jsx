@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 import ExportButtons from '../../components/ExportButtons';
@@ -11,6 +11,35 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'Inativo' },
   { value: 'blocked', label: 'Bloqueado' },
 ];
+
+const STATUS_FILTERS = [
+  { value: '', label: 'Todos os status' },
+  ...STATUS_OPTIONS,
+];
+
+const ISSUE_FILTERS = [
+  { value: '', label: 'Qualquer pendência' },
+  { value: 'missing_device', label: 'Sem Device ID GPSWOX' },
+  { value: 'missing_chip', label: 'Sem chip SIM (ativos/bloqueados)' },
+  { value: 'missing_imei', label: 'Sem IMEI (ativos/bloqueados)' },
+  { value: 'missing_model', label: 'Sem modelo rastreador (ativos/bloqueados)' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'created_desc', label: 'Cadastro (mais recente)' },
+  { value: 'created_asc', label: 'Cadastro (mais antigo)' },
+  { value: 'plate_asc', label: 'Placa (A–Z)' },
+  { value: 'client_asc', label: 'Cliente (A–Z)' },
+  { value: 'status_asc', label: 'Status' },
+];
+
+const EMPTY_FILTERS = {
+  q: '',
+  status: '',
+  user_id: '',
+  issue: '',
+  sort: 'created_desc',
+};
 
 const EMPTY_FORM = {
   user_id: '',
@@ -28,42 +57,127 @@ const EMPTY_FORM = {
   status: 'pending_installation',
 };
 
+function buildApiParams(applied) {
+  const params = { sort: applied.sort || 'created_desc' };
+  if (applied.q) params.q = applied.q;
+  if (applied.status) params.status = applied.status;
+  if (applied.user_id) params.user_id = applied.user_id;
+  if (applied.issue) params.issue = applied.issue;
+  return params;
+}
+
+function readFiltersFromSearchParams(searchParams) {
+  const issue = searchParams.get('issue');
+  const status = searchParams.get('status');
+  if (!issue && !status) return null;
+  return {
+    ...EMPTY_FILTERS,
+    issue: issue || '',
+    status: status || '',
+  };
+}
+
 export default function AdminVehiclesPage() {
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
+  const [total, setTotal] = useState(0);
   const [users, setUsers] = useState([]);
   const [trackerModels, setTrackerModels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [syncStatus, setSyncStatus] = useState(null);
+  const [draftQuery, setDraftQuery] = useState('');
+  const [draftStatus, setDraftStatus] = useState('');
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftIssue, setDraftIssue] = useState('');
+  const [draftSort, setDraftSort] = useState('created_desc');
+  const [applied, setApplied] = useState(EMPTY_FILTERS);
 
-  async function load() {
-    setLoading(true);
+  const loadVehicles = useCallback(async () => {
+    setListLoading(true);
+    setError('');
     try {
-      const [vehiclesRes, usersRes, modelsRes, syncRes] = await Promise.all([
-        api.getAdminVehicles(),
-        api.getAdminUsers(),
-        api.getTrackerModels(),
-        api.getGpswoxSyncStatus().catch(() => ({ data: null })),
-      ]);
-      setVehicles(vehiclesRes.data || []);
-      setUsers(usersRes.data || []);
-      setTrackerModels(modelsRes.data || []);
-      setSyncStatus(syncRes.data || null);
+      const res = await api.getAdminVehicles(buildApiParams(applied));
+      setVehicles(res.data?.vehicles || []);
+      setTotal(res.data?.total || 0);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
-  }
+  }, [applied]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMeta() {
+      setMetaLoading(true);
+      try {
+        const [usersRes, modelsRes, syncRes] = await Promise.all([
+          api.getAdminUsers(),
+          api.getTrackerModels(),
+          api.getGpswoxSyncStatus().catch(() => ({ data: null })),
+        ]);
+        if (cancelled) return;
+        setUsers(usersRes.data || []);
+        setTrackerModels(modelsRes.data || []);
+        setSyncStatus(syncRes.data || null);
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    }
+
+    loadMeta();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const fromUrl = readFiltersFromSearchParams(searchParams);
+    if (!fromUrl) return;
+
+    setDraftIssue(fromUrl.issue);
+    setDraftStatus(fromUrl.status);
+    setApplied(fromUrl);
+  }, [searchParams]);
+
+  useEffect(() => {
+    loadVehicles();
+  }, [loadVehicles]);
 
   function updateForm(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function applyFilters(event) {
+    event.preventDefault();
+    setApplied({
+      q: draftQuery.trim(),
+      status: draftStatus,
+      user_id: draftUserId,
+      issue: draftIssue,
+      sort: draftSort,
+    });
+  }
+
+  function resetFilters() {
+    setDraftQuery('');
+    setDraftStatus('');
+    setDraftUserId('');
+    setDraftIssue('');
+    setDraftSort('created_desc');
+    setApplied(EMPTY_FILTERS);
+  }
+
+  function applyQuickIssue(issue) {
+    setDraftIssue(issue);
+    setApplied((prev) => ({ ...prev, issue }));
   }
 
   function startCreate() {
@@ -130,7 +244,7 @@ export default function AdminVehiclesPage() {
       setShowForm(false);
       setForm(EMPTY_FORM);
       setEditingId(null);
-      load();
+      await loadVehicles();
     } catch (err) {
       setError(err.message);
     }
@@ -147,13 +261,13 @@ export default function AdminVehiclesPage() {
           ? `Prévia: ${s.total} dispositivos GPSWOX (${s.preview?.length || 0} na amostra).`
           : `Sincronizado: ${s.created} criados, ${s.updated} atualizados, ${s.skipped} ignorados.`,
       );
-      if (!dryRun) load();
+      if (!dryRun) await loadVehicles();
     } catch (err) {
       setError(err.message);
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
+  if (metaLoading) return <p className="muted">Carregando...</p>;
 
   return (
     <div>
@@ -208,6 +322,73 @@ export default function AdminVehiclesPage() {
           )}
         </div>
       )}
+
+      <form className="form-card" onSubmit={applyFilters}>
+        <div className="form-row">
+          <label>
+            Buscar
+            <input
+              type="search"
+              value={draftQuery}
+              onChange={(e) => setDraftQuery(e.target.value)}
+              placeholder="Placa, cliente, Device ID, IMEI, chip..."
+            />
+          </label>
+
+          <label>
+            Status
+            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
+              {STATUS_FILTERS.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Cliente
+            <select value={draftUserId} onChange={(e) => setDraftUserId(e.target.value)}>
+              <option value="">Todos os clientes</option>
+              {users.filter((user) => user.role === 'client').map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name || user.email}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Pendência
+            <select value={draftIssue} onChange={(e) => setDraftIssue(e.target.value)}>
+              {ISSUE_FILTERS.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Ordenar por
+            <select value={draftSort} onChange={(e) => setDraftSort(e.target.value)}>
+              {SORT_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="submit">Filtrar</button>
+          <button type="button" className="btn-secondary" onClick={resetFilters}>Limpar</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => applyQuickIssue('missing_device')}>
+            Sem Device ID
+          </button>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => applyQuickIssue('missing_chip')}>
+            Sem chip
+          </button>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => applyQuickIssue('missing_imei')}>
+            Sem IMEI
+          </button>
+        </div>
+      </form>
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>
@@ -324,8 +505,14 @@ export default function AdminVehiclesPage() {
       <div className="table-card">
         <div className="section-header">
           <h3>Veículos e dispositivos</h3>
-          <ExportButtons resource="veiculos" disabled={loading} />
+          <ExportButtons resource="veiculos" params={buildApiParams(applied)} disabled={listLoading} />
         </div>
+
+        <div className="audit-table-meta">
+          <span>{total} veículo(s)</span>
+          {listLoading && <span>Atualizando...</span>}
+        </div>
+
         <table>
           <thead>
             <tr>
@@ -333,22 +520,31 @@ export default function AdminVehiclesPage() {
               <th>Cliente</th>
               <th>Device ID</th>
               <th>Chip SIM</th>
+              <th>IMEI</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {vehicles.length === 0 ? (
+            {!listLoading && vehicles.length === 0 ? (
               <tr>
-                <td colSpan={6} className="muted">Nenhum veículo cadastrado.</td>
+                <td colSpan={7} className="muted">Nenhum veículo encontrado.</td>
               </tr>
             ) : (
               vehicles.map((vehicle) => (
                 <tr key={vehicle.id}>
                   <td>{vehicle.plate || 'Sem placa'}</td>
-                  <td>{vehicle.user_name || vehicle.user_email}</td>
+                  <td>
+                    {vehicle.user_name || vehicle.user_email}
+                    {vehicle.user_id ? (
+                      <div>
+                        <Link to={`/admin/clientes/${vehicle.user_id}`} className="btn-ghost btn-sm">Ficha</Link>
+                      </div>
+                    ) : null}
+                  </td>
                   <td><code>{vehicle.gpswox_device_id || '—'}</code></td>
                   <td>{vehicle.tracker_phone || '—'}</td>
+                  <td><small>{vehicle.tracker_imei || '—'}</small></td>
                   <td>
                     <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
                       {vehicleStatusLabel(vehicle.status)}

@@ -120,7 +120,7 @@ function OpsDetailsGrid({ ops }) {
         key="pending_installations"
         id="ops-pending_installations"
         title="Aguardando instalação"
-        footerLink="/admin/veiculos"
+        footerLink="/admin/veiculos?status=pending_installation"
         footerLabel="Ver veículos"
       >
         <VehicleRows rows={details.pending_installations} showStatus />
@@ -130,7 +130,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_chip?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_chip" id="ops-vehicles_missing_chip" title="Veículos sem chip SIM" footerLink="/admin/veiculos">
+      <OpsDetailCard key="vehicles_missing_chip" id="ops-vehicles_missing_chip" title="Veículos sem chip SIM" footerLink="/admin/veiculos?issue=missing_chip">
         <VehicleRows rows={details.vehicles_missing_chip} showStatus />
       </OpsDetailCard>,
     );
@@ -138,7 +138,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_imei?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_imei" id="ops-vehicles_missing_imei" title="Veículos sem IMEI" footerLink="/admin/veiculos">
+      <OpsDetailCard key="vehicles_missing_imei" id="ops-vehicles_missing_imei" title="Veículos sem IMEI" footerLink="/admin/veiculos?issue=missing_imei">
         <VehicleRows rows={details.vehicles_missing_imei} showStatus />
       </OpsDetailCard>,
     );
@@ -146,7 +146,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_model?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_model" id="ops-vehicles_missing_model" title="Veículos sem modelo de rastreador" footerLink="/admin/veiculos">
+      <OpsDetailCard key="vehicles_missing_model" id="ops-vehicles_missing_model" title="Veículos sem modelo de rastreador" footerLink="/admin/veiculos?issue=missing_model">
         <VehicleRows rows={details.vehicles_missing_model} showStatus />
       </OpsDetailCard>,
     );
@@ -154,7 +154,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_device?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem Device ID GPSWOX" footerLink="/admin/veiculos">
+      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem Device ID GPSWOX" footerLink="/admin/veiculos?issue=missing_device">
         <VehicleRows rows={details.vehicles_missing_device} showStatus />
       </OpsDetailCard>,
     );

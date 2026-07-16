@@ -405,6 +405,10 @@ export const ADMIN_GUIDES = {
         title: '7. Status',
         body: 'Aguardando instalação → Ativo após instalação confirmada. Inativo/Bloqueado conforme operação.',
       },
+      {
+        title: '8. Filtros',
+        body: 'Busque por placa, cliente, Device ID, IMEI ou chip. Filtre por status, cliente, pendências (sem device/chip/IMEI/modelo) e exporte a lista filtrada.',
+      },
     ],
     links: [
       { label: 'SMS Rastreador', to: '/admin/sms' },
