@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { getPool } = require('../db/pool');
 
 const SALT_ROUNDS = 12;
@@ -33,10 +34,23 @@ class UserRepository {
     const digits = String(cpfCnpj || '').replace(/\D/g, '');
     if (!digits) return null;
     const { rows } = await this.pool.query(
-      `SELECT id, email, name, cpf_cnpj FROM users
+      `SELECT id, email, name, cpf_cnpj, asaas_customer_id FROM users
        WHERE regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') = $1
        LIMIT 1`,
       [digits],
+    );
+    return rows[0] || null;
+  }
+
+  async findByAsaasCustomerId(asaasCustomerId) {
+    if (!asaasCustomerId) return null;
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, phone, cpf_cnpj, role, active, asaas_customer_id,
+              provisioning_status, created_at
+       FROM users
+       WHERE asaas_customer_id = $1
+       LIMIT 1`,
+      [String(asaasCustomerId)],
     );
     return rows[0] || null;
   }
@@ -51,12 +65,24 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async findByGpswoxUserId(gpswoxUserId) {
+  async findByTrackerUserId(trackerUserId) {
+    return this.findByPlatformUserId('gpswox', trackerUserId);
+  }
+
+  async findByPlatformUserId(provider, platformUserId) {
+    if (!platformUserId) return null;
+    const column = provider === 'traccar' ? 'traccar_user_id' : 'gpswox_user_id';
     const { rows } = await this.pool.query(
-      'SELECT id, email, name, phone, gpswox_user_id FROM users WHERE gpswox_user_id = $1 LIMIT 1',
-      [String(gpswoxUserId)]
+      `SELECT id, email, name, phone, gpswox_user_id, traccar_user_id
+       FROM users WHERE ${column} = $1 LIMIT 1`,
+      [String(platformUserId)],
     );
     return rows[0] || null;
+  }
+
+  /** @deprecated use findByPlatformUserId */
+  async findByGpswoxUserId(trackerUserId) {
+    return this.findByPlatformUserId('gpswox', trackerUserId);
   }
 
   async findByIdWithPassword(id) {
@@ -71,6 +97,33 @@ class UserRepository {
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, email, name, phone, cpf_cnpj, role, active, email_verified, created_at`,
       [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role]
+    );
+    return rows[0];
+  }
+
+  async createImportedFromAsaas({
+    email,
+    name,
+    phone,
+    cpf_cnpj,
+    asaas_customer_id,
+  }) {
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString('base64url'), SALT_ROUNDS);
+    const { rows } = await this.pool.query(
+      `INSERT INTO users (
+        email, password_hash, name, phone, cpf_cnpj, role,
+        asaas_customer_id, provisioning_status
+      ) VALUES ($1, $2, $3, $4, $5, 'client', $6, 'partial')
+      RETURNING id, email, name, phone, cpf_cnpj, role, active,
+                asaas_customer_id, provisioning_status, created_at`,
+      [
+        email.toLowerCase().trim(),
+        passwordHash,
+        name,
+        phone || null,
+        cpf_cnpj || null,
+        asaas_customer_id,
+      ],
     );
     return rows[0];
   }
@@ -135,7 +188,7 @@ class UserRepository {
   async listAll() {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
-              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              asaas_customer_id, mercadopago_payer_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at
        FROM users
@@ -199,7 +252,7 @@ class UserRepository {
     const { rows } = await this.pool.query(
       `SELECT
          u.id, u.email, u.name, u.phone, u.cpf_cnpj, u.role, u.active,
-         u.asaas_customer_id, u.mercadopago_payer_id, u.gpswox_user_id,
+         u.asaas_customer_id, u.mercadopago_payer_id, u.tracker_user_id,
          u.provisioning_status, u.provisioning_errors, u.referral_code,
          u.last_access_at, u.last_access_ip, u.created_at,
          COUNT(DISTINCT v.id)::int AS vehicles_count,
@@ -308,7 +361,7 @@ class UserRepository {
         updated_at = NOW()
        WHERE id = $1 AND role = 'client'
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 asaas_customer_id, mercadopago_payer_id, tracker_user_id,
                  provisioning_status, provisioning_errors, referral_code,
                  created_at, updated_at`,
       [userId, name, phone, active],
@@ -322,18 +375,21 @@ class UserRepository {
         asaas_customer_id = COALESCE($2, asaas_customer_id),
         mercadopago_payer_id = COALESCE($3, mercadopago_payer_id),
         gpswox_user_id = COALESCE($4, gpswox_user_id),
-        provisioning_status = COALESCE($5, provisioning_status),
-        provisioning_errors = COALESCE($6, provisioning_errors),
+        traccar_user_id = COALESCE($5, traccar_user_id),
+        provisioning_status = COALESCE($6, provisioning_status),
+        provisioning_errors = COALESCE($7, provisioning_errors),
         updated_at = NOW()
        WHERE id = $1
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 asaas_customer_id, mercadopago_payer_id,
+                 gpswox_user_id, traccar_user_id, tracker_user_id,
                  provisioning_status, provisioning_errors, created_at, updated_at`,
       [
         userId,
         data.asaas_customer_id,
         data.mercadopago_payer_id,
         data.gpswox_user_id,
+        data.traccar_user_id,
         data.provisioning_status,
         data.provisioning_errors ? JSON.stringify(data.provisioning_errors) : null,
       ]
@@ -344,7 +400,8 @@ class UserRepository {
   async findByIdWithProvisioning(id) {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active,
-              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              asaas_customer_id, mercadopago_payer_id,
+              gpswox_user_id, traccar_user_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at, updated_at
        FROM users WHERE id = $1`,

@@ -97,7 +97,7 @@ export default function AdminAlertsPage() {
           <br />
           <strong>WhatsApp permitido:</strong> cadastro, cobranças, recuperação de senha e promoções manuais abaixo.
           <br />
-          <strong>Webhook GPSWOX:</strong> POST /webhooks/gpswox
+          <strong>Webhooks de alertas:</strong> POST /webhooks/gpswox (GPSWOX) · POST /webhooks/traccar (Traccar)
           {config.webhook_secret ? ' (com segredo)' : ''}
         </div>
       )}

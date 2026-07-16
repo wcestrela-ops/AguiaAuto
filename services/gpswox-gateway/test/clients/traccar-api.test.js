@@ -12,6 +12,7 @@ describe('TraccarApiClient helpers', () => {
     const client = new TraccarApiClient({ url: 'https://t.example.com', email: 'a@b.com', password: 'x' });
     assert.equal(client.mapCommandType('engine_stop'), COMMAND_MAP.engine_stop);
     assert.equal(client.mapCommandType('engine_resume'), COMMAND_MAP.engine_resume);
+    assert.equal(client.mapCommandType('position_single'), COMMAND_MAP.position_single);
     assert.equal(client.mapCommandType('customCmd'), 'customCmd');
   });
 

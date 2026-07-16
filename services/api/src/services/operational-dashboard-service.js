@@ -74,7 +74,7 @@ class OperationalDashboardService {
       alerts.push({
         severity: 'error',
         key: 'vehicles_missing_device',
-        title: 'Veículos sem Device ID GPSWOX',
+        title: 'Veículos sem device ID do rastreador',
         count: vehiclesMissingDevice.count,
         link: '/admin/veiculos',
       });
@@ -243,11 +243,16 @@ class OperationalDashboardService {
     }
 
     if (gpswoxSync) {
+      const syncLabel = gpswoxSync.provider_label || 'GPSWOX';
+      const integrationsPath = gpswoxSync.provider === 'traccar'
+        ? '/admin/integracoes/traccar'
+        : '/admin/integracoes/gpswox';
+
       if (gpswoxSync.auto_sync_enabled && gpswoxSync.due_now) {
         alerts.push({
           severity: 'info',
           key: 'gpswox_sync_due',
-          title: 'Sync GPSWOX pendente',
+          title: `Sync ${syncLabel} pendente`,
           count: 1,
           link: '/admin/veiculos',
           hint: 'O sync automático deve rodar em breve (intervalo configurado).',
@@ -258,10 +263,10 @@ class OperationalDashboardService {
         alerts.push({
           severity: 'error',
           key: 'gpswox_sync_failed',
-          title: 'Último sync GPSWOX falhou',
+          title: `Último sync ${syncLabel} falhou`,
           count: 1,
           link: '/admin/veiculos',
-          hint: gpswoxSync.last_run.error_message || 'Verifique API Hash e gateway.',
+          hint: gpswoxSync.last_run.error_message || `Verifique credenciais ${syncLabel} e gateway.`,
         });
       }
 
@@ -269,10 +274,10 @@ class OperationalDashboardService {
         alerts.push({
           severity: 'warning',
           key: 'gpswox_unlinked_devices',
-          title: 'Dispositivos GPSWOX sem cliente Águia',
+          title: `Dispositivos ${syncLabel} sem cliente Águia`,
           count: gpswoxSync.unlinked_devices_last_success,
           link: '/admin/veiculos',
-          hint: 'Vincule users.gpswox_user_id ou cadastre o cliente.',
+          hint: `Vincule users.tracker_user_id, atributo aguia_user_id no device ou cadastre o cliente. Config: ${integrationsPath}`,
         });
       }
     }
@@ -347,13 +352,13 @@ class OperationalDashboardService {
       `SELECT v.id, v.plate, v.status, u.email AS user_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
-       WHERE v.gpswox_device_id IS NULL OR TRIM(v.gpswox_device_id) = ''
+       WHERE v.tracker_device_id IS NULL OR TRIM(v.tracker_device_id) = ''
        ORDER BY v.created_at DESC
        LIMIT 15`,
     );
     const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM vehicles
-       WHERE gpswox_device_id IS NULL OR TRIM(gpswox_device_id) = ''`,
+       WHERE tracker_device_id IS NULL OR TRIM(tracker_device_id) = ''`,
     );
     return { count: countRows[0].count, items: rows };
   }
@@ -414,7 +419,7 @@ class OperationalDashboardService {
 
   async _provisioningIssues() {
     const { rows } = await this.pool.query(
-      `SELECT id, email, name, provisioning_status, gpswox_user_id, asaas_customer_id
+      `SELECT id, email, name, provisioning_status, tracker_user_id, asaas_customer_id
        FROM users
        WHERE role = 'client'
          AND active = true

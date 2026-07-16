@@ -89,17 +89,21 @@ export default function AdminFinanceiroPage() {
   const [manualNotes, setManualNotes] = useState('');
   const [manualNotify, setManualNotify] = useState(true);
   const [submittingManual, setSubmittingManual] = useState(false);
+  const [asaasSync, setAsaasSync] = useState(null);
+  const [asaasPreview, setAsaasPreview] = useState(null);
+  const [asaasSyncing, setAsaasSyncing] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [chargesRes, usersRes, plansRes, gatewaysRes, notificationsRes, automationRes] = await Promise.all([
+      const [chargesRes, usersRes, plansRes, gatewaysRes, notificationsRes, automationRes, asaasSyncRes] = await Promise.all([
         api.getAdminCharges(),
         api.getAdminUsers(),
         api.getAdminPlans(),
         api.getPaymentGateways(),
         api.getAdminBillingNotifications({ limit: 30 }),
         api.getBillingAutomationStatus().catch(() => ({ data: null })),
+        api.getAsaasSyncStatus().catch(() => ({ data: null })),
       ]);
       setCharges(chargesRes.data || []);
       setUsers(usersRes.data || []);
@@ -107,6 +111,7 @@ export default function AdminFinanceiroPage() {
       setGateways(gatewaysRes.data);
       setBillingNotifications(notificationsRes.data || []);
       setBillingAutomation(automationRes.data || null);
+      setAsaasSync(asaasSyncRes.data || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -190,6 +195,46 @@ export default function AdminFinanceiroPage() {
       setError(err.message);
     } finally {
       setReprovisioning(null);
+    }
+  }
+
+  async function handleAsaasPreview() {
+    setAsaasSyncing(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.previewAsaasSync();
+      setAsaasPreview(res.data);
+      setMessage(`Prévia: ${res.data?.total_customers || 0} clientes no Asaas — `
+        + `${res.data?.would_create_users || 0} novos, ${res.data?.would_link_users || 0} vínculos.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAsaasSyncing(false);
+    }
+  }
+
+  async function handleAsaasSync(dryRun = false) {
+    setAsaasSyncing(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.runAsaasSync({ dry_run: dryRun });
+      setAsaasPreview(null);
+      if (res.data) {
+        setMessage(
+          `${dryRun ? 'Prévia' : 'Sync'}: ${res.data.total_customers} clientes — `
+          + `${res.data.users_created} criados, ${res.data.users_linked} vinculados, `
+          + `${res.data.invoices_imported} faturas importadas.`,
+        );
+      } else {
+        setMessage(res.message || 'Sincronização Asaas concluída.');
+      }
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAsaasSyncing(false);
     }
   }
 
@@ -302,6 +347,74 @@ export default function AdminFinanceiroPage() {
         </div>
       )}
 
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <SectionTitleWithHelp title="Sincronizar clientes do Asaas" guideId="financeiro" />
+        <p className="muted">
+          Importa clientes, assinaturas e histórico de cobranças do Asaas para a plataforma.
+          Clientes novos aqui também são registrados automaticamente no Asaas (busca por CPF/e-mail antes de criar).
+        </p>
+        {asaasSync && (
+          <p className="muted" style={{ fontSize: '0.875rem' }}>
+            Asaas {asaasSync.configured ? 'configurado' : 'não configurado'}
+            {asaasSync.remote_customer_count != null && (
+              <> · {asaasSync.remote_customer_count} clientes na conta</>
+            )}
+            {asaasSync.last_success?.finished_at && (
+              <> · último sync: {formatDateTime(asaasSync.last_success.finished_at)}</>
+            )}
+            {asaasSync.in_progress && <> · sincronizando...</>}
+          </p>
+        )}
+        <div className="form-actions" style={{ marginTop: '0.75rem' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={asaasSyncing || loading || !asaasSync?.configured}
+            onClick={handleAsaasPreview}
+          >
+            {asaasSyncing ? 'Consultando...' : 'Prévia'}
+          </button>
+          <button
+            type="button"
+            disabled={asaasSyncing || loading || !asaasSync?.configured}
+            onClick={() => handleAsaasSync(false)}
+          >
+            {asaasSyncing ? 'Sincronizando...' : 'Importar do Asaas'}
+          </button>
+        </div>
+        {asaasPreview?.customers?.length > 0 && (
+          <div className="table-wrap" style={{ marginTop: '1rem' }}>
+            <table className="data-table compact">
+              <thead>
+                <tr>
+                  <th>Asaas ID</th>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {asaasPreview.customers.slice(0, 20).map((row) => (
+                  <tr key={row.asaas_customer_id}>
+                    <td><code>{row.asaas_customer_id}</code></td>
+                    <td>{row.name || '—'}</td>
+                    <td>{row.email || '—'}</td>
+                    <td>
+                      <span className={`badge ${row.action === 'skip' ? 'warning' : 'info'}`}>
+                        {row.action}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {asaasPreview.customers.length > 20 && (
+              <p className="muted">Mostrando 20 de {asaasPreview.customers.length} clientes.</p>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="info-box">
         <strong>Lembretes automáticos:</strong> configure dias (vencimento, +1, +2, +3, +15), templates e SMS opcional em{' '}
         <Link to="/admin/integracoes/cobranca">Integrações → Cobrança e lembretes</Link>.
@@ -340,7 +453,7 @@ export default function AdminFinanceiroPage() {
               <tr key={user.id}>
                 <td>{user.name || user.email}</td>
                 <td><code>{user.asaas_customer_id || '—'}</code></td>
-                <td><code>{user.gpswox_user_id || '—'}</code></td>
+                <td><code>{user.tracker_user_id || '—'}</code></td>
                 <td>
                   <span className={`badge ${user.provisioning_status === 'completed' ? 'success' : 'warning'}`}>
                     {user.provisioning_status || 'pending'}

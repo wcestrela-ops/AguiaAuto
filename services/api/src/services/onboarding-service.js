@@ -18,7 +18,7 @@ const ONBOARDING_STEPS = [
   'cadastro_veiculo',
   'assinatura_contrato',
   'pagamento_asaas',
-  'criacao_gpswox',
+  'criacao_plataforma',
   'liberacao_acesso',
 ];
 
@@ -189,18 +189,19 @@ class OnboardingService {
         },
       ));
       steps.push(stepResult(
-        'criacao_gpswox',
-        provisioning.gpswox ? 'ok' : 'partial',
+        'criacao_plataforma',
+        provisioning.tracking || provisioning.gpswox ? 'ok' : 'partial',
         {
-          gpswox: provisioning.gpswox,
+          tracking: provisioning.tracking ?? provisioning.gpswox,
+          gpswox: provisioning.tracking ?? provisioning.gpswox,
           asaas: provisioning.asaas,
           mercadopago: provisioning.mercadopago,
-          errors: provisioning.errors?.filter((e) => e.step?.includes('gpswox') || e.step?.includes('asaas') || e.step?.includes('mercadopago')),
+          errors: provisioning.errors?.filter((e) => e.step?.includes('tracking') || e.step?.includes('gpswox') || e.step?.includes('asaas') || e.step?.includes('mercadopago')),
         },
       ));
     } catch (err) {
       steps.push(stepResult('pagamento_asaas', 'failed', { error: err.message }));
-      steps.push(stepResult('criacao_gpswox', 'failed', { error: err.message }));
+      steps.push(stepResult('criacao_plataforma', 'failed', { error: err.message }));
       await this.users.updateProvisioning(user.id, {
         provisioning_status: 'failed',
         provisioning_errors: [{ step: 'onboarding', error: err.message }],

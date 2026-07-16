@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { getVehicleService } = require('../../../services/vehicle-service');
 const { getUserRepository } = require('../../../repositories/user-repository');
 const { getAuditService } = require('../../../services/audit-service');
+const { normalizeVehicleInput } = require('../../../lib/tracker-fields');
 const { VEHICLE_STATUS } = require('../../../repositories/vehicle-repository');
 
 const router = Router();
@@ -38,7 +39,9 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei } = req.body;
+    const fields = normalizeVehicleInput(req.body);
+    const { user_id, plate, brand, model, color, year, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei } = { ...req.body, ...fields };
+    const { tracker_device_id, tracker_name, tracking_provider } = fields;
 
     if (!user_id) {
       return res.status(400).json({ success: false, error: 'user_id é obrigatório.' });
@@ -60,8 +63,9 @@ router.post('/', async (req, res) => {
       model,
       color,
       year,
-      gpswox_device_id,
-      gpswox_name,
+      tracking_provider,
+      tracker_device_id,
+      tracker_name,
       status,
       tracker_phone,
       tracker_model,
@@ -84,7 +88,9 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_imei } = req.body;
+    const fields = normalizeVehicleInput(req.body);
+    const { plate, brand, model, color, year, status, tracker_phone, tracker_model, tracker_imei } = req.body;
+    const { tracker_device_id, tracker_name, tracking_provider } = fields;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, error: 'Status inválido.' });
@@ -96,8 +102,9 @@ router.put('/:id', async (req, res) => {
       model,
       color,
       year,
-      gpswox_device_id,
-      gpswox_name,
+      tracker_device_id,
+      tracker_name,
+      tracking_provider,
       status,
       tracker_phone,
       tracker_model,
@@ -123,19 +130,36 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.post('/sync-gpswox', async (req, res) => {
+async function handleSyncTracker(req, res) {
   try {
     const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
-    const { dry_run: dryRun, default_user_id: defaultUserId } = req.body;
+    const { dry_run: dryRun, default_user_id: defaultUserId, provider } = req.body;
     const summary = await getGpswoxSyncService().syncAndAudit(
-      { dryRun: Boolean(dryRun), defaultUserId: defaultUserId ? Number(defaultUserId) : undefined },
+      {
+        dryRun: Boolean(dryRun),
+        defaultUserId: defaultUserId ? Number(defaultUserId) : undefined,
+        provider: provider || null,
+      },
       req,
     );
     res.json({ success: true, data: summary });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}
+
+async function handleSyncTrackerStatus(req, res) {
+  try {
+    const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
+    const data = await getGpswoxSyncService().getStatus();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+router.post('/sync-tracker', handleSyncTracker);
+router.post('/sync-gpswox', handleSyncTracker);
 
 router.patch('/:id/instalador', async (req, res) => {
   try {
@@ -182,14 +206,7 @@ router.delete('/:id/instalador', async (req, res) => {
   }
 });
 
-router.get('/sync-gpswox/status', async (req, res) => {
-  try {
-    const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
-    const data = await getGpswoxSyncService().getStatus();
-    res.json({ success: true, data });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+router.get('/sync-tracker/status', handleSyncTrackerStatus);
+router.get('/sync-gpswox/status', handleSyncTrackerStatus);
 
 module.exports = router;

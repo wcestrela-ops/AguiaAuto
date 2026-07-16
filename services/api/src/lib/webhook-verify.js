@@ -56,9 +56,22 @@ function verifyGpswoxWebhook(req, config) {
   return safeEqual(token, secret);
 }
 
+function verifyTraccarWebhook(req, config) {
+  const secret = config.webhook_secret;
+  if (!secret) {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  const auth = req.headers.authorization || '';
+  const headerSecret = req.headers['x-webhook-secret'] || req.headers['x-traccar-secret'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : headerSecret;
+  return safeEqual(token, secret);
+}
+
 module.exports = {
   safeEqual,
   verifyAsaasWebhook,
   verifyMercadoPagoWebhook,
   verifyGpswoxWebhook,
+  verifyTraccarWebhook,
 };

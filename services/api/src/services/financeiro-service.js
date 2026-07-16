@@ -254,10 +254,7 @@ class FinanceiroService {
     let targetUser = null;
     if (payment.customer_id || payment.external_customer_id) {
       const customerId = payment.customer_id || payment.external_customer_id;
-      const allUsers = await this.users.listAll();
-      targetUser = allUsers.find(u =>
-        u.asaas_customer_id === customerId || u.mercadopago_payer_id === customerId || u.email === customerId
-      );
+      targetUser = await this.users.findByAsaasCustomerId(customerId);
     }
 
     if (!targetUser) {

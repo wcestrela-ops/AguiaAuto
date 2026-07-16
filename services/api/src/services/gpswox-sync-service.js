@@ -1,5 +1,11 @@
-const { getStore } = require('@aguia/integrations');
 const gpswox = require('../integrations/gpswox-gateway');
+const {
+  getAllSyncSettings,
+  getSyncSettingsForProvider,
+  getProviderLabel,
+  TRACKING_PROVIDERS,
+  normalizeProviderName,
+} = require('../lib/tracking-platform');
 const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getUserRepository } = require('../repositories/user-repository');
@@ -38,31 +44,9 @@ function normalizeDevicesResponse(data) {
   return Array.isArray(items) ? items : Object.values(items);
 }
 
-async function getSyncSettings() {
-  try {
-    const store = getStore();
-    const config = await store.get('gpswox');
-    const settings = config.settings || {};
-    const envEnabled = process.env.GPSWOX_AUTO_SYNC_ENABLED;
-    const enabledFromEnv = envEnabled === undefined ? true : envEnabled !== 'false';
-
-    return {
-      enabled: config.enabled !== false
-        && settings.auto_sync_enabled !== false
-        && enabledFromEnv,
-      intervalHours: parseInt(
-        settings.auto_sync_interval_hours
-        || process.env.GPSWOX_AUTO_SYNC_INTERVAL_HOURS
-        || '24',
-        10,
-      ),
-    };
-  } catch {
-    return {
-      enabled: process.env.GPSWOX_AUTO_SYNC_ENABLED !== 'false',
-      intervalHours: parseInt(process.env.GPSWOX_AUTO_SYNC_INTERVAL_HOURS || '24', 10),
-    };
-  }
+async function getSyncSettings(provider) {
+  if (provider) return getSyncSettingsForProvider(provider);
+  return getAllSyncSettings();
 }
 
 function computeNextDueAt(lastRun, intervalHours) {
@@ -86,22 +70,36 @@ class GpswoxSyncService {
   }
 
   async getStatus() {
-    const settings = await getSyncSettings();
+    const platforms = await getAllSyncSettings();
     const lastRun = await this.runs.getLastRun();
-    const lastSuccess = await this.runs.getLastRun({ successOnly: true });
-    const recent = await this.runs.listRecent(5);
-    const unlinked = lastSuccess ? await this.runs.countUnlinkedFromLastRun() : 0;
+    const recent = await this.runs.listRecent(10);
+
+    const perPlatform = {};
+    for (const settings of platforms) {
+      const lastSuccess = await this.runs.getLastRun({ successOnly: true, provider: settings.provider });
+      const unlinked = lastSuccess ? await this.runs.countUnlinkedFromLastRun(lastSuccess) : 0;
+      perPlatform[settings.provider] = {
+        provider: settings.provider,
+        provider_label: settings.providerLabel,
+        auto_sync_enabled: settings.enabled,
+        interval_hours: settings.intervalHours,
+        last_success: lastSuccess,
+        next_due_at: settings.enabled ? computeNextDueAt(lastSuccess, settings.intervalHours) : null,
+        due_now: settings.enabled && isSyncDue(lastSuccess, settings.intervalHours),
+        unlinked_devices_last_success: unlinked,
+      };
+    }
 
     return {
-      auto_sync_enabled: settings.enabled,
-      interval_hours: settings.intervalHours,
+      mode: 'per-vehicle',
       in_progress: syncInProgress,
       last_run: lastRun,
-      last_success: lastSuccess,
-      next_due_at: settings.enabled ? computeNextDueAt(lastSuccess, settings.intervalHours) : null,
-      due_now: settings.enabled && isSyncDue(lastSuccess, settings.intervalHours),
-      unlinked_devices_last_success: unlinked,
       recent_runs: recent,
+      platforms: perPlatform,
+      // compat legado — espelha GPSWOX
+      ...perPlatform.gpswox,
+      provider: 'gpswox',
+      provider_label: 'GPSWOX',
     };
   }
 
@@ -117,11 +115,51 @@ class GpswoxSyncService {
     return match?.id || null;
   }
 
-  async importDevices({ dryRun = false, defaultUserId } = {}) {
-    const response = await gpswox.listDevices();
+  async _resolveUserId(device, provider, defaultUserId) {
+    const platformUserId = device.user_id || device.client_id || device.userId || null;
+    const aguiaUserId = device.attributes?.aguia_user_id || device.aguia_user_id || null;
+
+    if (aguiaUserId) {
+      const user = await this.users.findById(String(aguiaUserId));
+      if (user) return user.id;
+    }
+
+    if (platformUserId) {
+      const user = await this.users.findByPlatformUserId(provider, String(platformUserId));
+      if (user) return user.id;
+    }
+
+    return defaultUserId || null;
+  }
+
+  async importDevices({ provider, dryRun = false, defaultUserId } = {}) {
+    const platform = normalizeProviderName(provider);
+    const settings = await getSyncSettingsForProvider(platform);
+    const providerLabel = getProviderLabel(platform);
+
+    let response;
+    try {
+      response = await gpswox.listDevices(platform);
+    } catch (err) {
+      logger.warn(`Sync ${providerLabel} indisponível.`, { err: err.message });
+      return {
+        provider: platform,
+        provider_label: providerLabel,
+        total: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [{ reason: err.message }],
+        preview: [],
+        unavailable: true,
+      };
+    }
+
     const devices = normalizeDevicesResponse(response?.data || response);
 
     const summary = {
+      provider: platform,
+      provider_label: providerLabel,
       total: devices.length,
       created: 0,
       updated: 0,
@@ -138,33 +176,30 @@ class GpswoxSyncService {
           continue;
         }
 
-        const gpswoxUserId = device.user_id || device.client_id || device.userId || null;
-        let userId = defaultUserId || null;
-
-        if (gpswoxUserId) {
-          const user = await this.users.findByGpswoxUserId(String(gpswoxUserId));
-          if (user) userId = user.id;
-        }
+        const platformUserId = device.user_id || device.client_id || device.userId || null;
+        const userId = await this._resolveUserId(device, platform, defaultUserId);
 
         const modelName = extractTrackerModel(device);
         const trackerModelId = await this._resolveTrackerModelId(modelName);
 
         const payload = {
-          gpswox_device_id: deviceId,
-          gpswox_name: device.name || device.title || `Dispositivo ${deviceId}`,
+          tracking_provider: platform,
+          tracker_device_id: deviceId,
+          tracker_name: device.name || device.title || `Dispositivo ${deviceId}`,
           tracker_phone: extractSimNumber(device),
           tracker_model: modelName,
           tracker_model_id: trackerModelId,
           tracker_imei: extractImei(device),
           plate: extractPlate(device),
-          gpswox_synced_at: new Date().toISOString(),
+          tracker_synced_at: new Date().toISOString(),
         };
 
-        const existing = await this.vehicles.findByDeviceId(deviceId);
+        const existing = await this.vehicles.findByDeviceId(deviceId, platform);
 
         if (dryRun) {
           summary.preview.push({
             device_id: deviceId,
+            tracking_provider: platform,
             action: existing ? 'update' : userId ? 'create' : 'skip_no_user',
             ...payload,
             user_id: userId,
@@ -174,6 +209,14 @@ class GpswoxSyncService {
         }
 
         if (existing) {
+          if (existing.tracking_provider && existing.tracking_provider !== platform) {
+            summary.skipped += 1;
+            summary.errors.push({
+              device_id: deviceId,
+              reason: `Device já vinculado à plataforma ${existing.tracking_provider}`,
+            });
+            continue;
+          }
           await this.vehicles.update(existing.id, payload);
           summary.updated += 1;
           continue;
@@ -183,15 +226,15 @@ class GpswoxSyncService {
           summary.skipped += 1;
           summary.errors.push({
             device_id: deviceId,
-            reason: 'Cliente Águia não encontrado para user_id GPSWOX',
-            gpswox_user_id: gpswoxUserId,
+            reason: `Cliente Águia não encontrado para dispositivo ${providerLabel}`,
+            platform_user_id: platformUserId,
           });
           continue;
         }
 
         await this.vehicles.create({
           user_id: userId,
-          plate: payload.plate || payload.gpswox_name.slice(0, 10).toUpperCase(),
+          plate: payload.plate || payload.tracker_name.slice(0, 10).toUpperCase(),
           brand: device.brand || null,
           model: device.vehicle_model || device.model || null,
           status: 'active',
@@ -206,22 +249,43 @@ class GpswoxSyncService {
       }
     }
 
-    logger.info('Importação GPSWOX concluída', summary);
+    logger.info(`Importação ${providerLabel} concluída`, summary);
     return summary;
   }
 
-  async _runWithLog({ triggeredBy, dryRun, defaultUserId, req } = {}) {
-    const run = await this.runs.startRun({ triggered_by: triggeredBy, dry_run: dryRun });
+  async importAllPlatforms({ dryRun = false, defaultUserId } = {}) {
+    const results = [];
+    for (const provider of TRACKING_PROVIDERS) {
+      results.push(await this.importDevices({ provider, dryRun, defaultUserId }));
+    }
+    return {
+      platforms: results,
+      total: results.reduce((sum, r) => sum + r.total, 0),
+      created: results.reduce((sum, r) => sum + r.created, 0),
+      updated: results.reduce((sum, r) => sum + r.updated, 0),
+      skipped: results.reduce((sum, r) => sum + r.skipped, 0),
+    };
+  }
+
+  async _runWithLog({ triggeredBy, dryRun, defaultUserId, provider, req } = {}) {
+    const run = await this.runs.startRun({
+      triggered_by: triggeredBy,
+      dry_run: dryRun,
+      provider: provider || 'all',
+    });
 
     try {
-      const summary = await this.importDevices({ dryRun, defaultUserId });
+      const summary = provider
+        ? await this.importDevices({ provider, dryRun, defaultUserId })
+        : await this.importAllPlatforms({ dryRun, defaultUserId });
       await this.runs.finishRun(run.id, { summary, success: true });
 
       if (!dryRun && req) {
-        await getAuditService().adminAction('gpswox.sync', {
+        await getAuditService().adminAction('tracker.sync', {
           resourceType: 'vehicle',
           metadata: {
             triggered_by: triggeredBy,
+            provider: provider || 'all',
             created: summary.created,
             updated: summary.updated,
             skipped: summary.skipped,
@@ -247,36 +311,46 @@ class GpswoxSyncService {
       triggeredBy: 'admin',
       dryRun: Boolean(options.dryRun),
       defaultUserId: options.defaultUserId,
+      provider: options.provider || null,
       req,
     });
   }
 
   async runScheduledSync() {
     if (syncInProgress) {
-      logger.info('Sync GPSWOX agendado ignorado — execução já em andamento.');
-      return null;
-    }
-
-    const settings = await getSyncSettings();
-    if (!settings.enabled) {
-      return null;
-    }
-
-    const lastSuccess = await this.runs.getLastRun({ successOnly: true });
-    if (!isSyncDue(lastSuccess, settings.intervalHours)) {
       return null;
     }
 
     syncInProgress = true;
+    const summaries = [];
+
     try {
-      logger.info('Iniciando sync GPSWOX agendado.');
-      const summary = await this._runWithLog({ triggeredBy: 'scheduler', dryRun: false });
-      logger.info('Sync GPSWOX agendado concluído.', {
-        created: summary.created,
-        updated: summary.updated,
-        skipped: summary.skipped,
-      });
-      return summary;
+      for (const provider of TRACKING_PROVIDERS) {
+        const settings = await getSyncSettingsForProvider(provider);
+        if (!settings.enabled) continue;
+
+        const lastSuccess = await this.runs.getLastRun({ successOnly: true, provider });
+        if (!isSyncDue(lastSuccess, settings.intervalHours)) continue;
+
+        const providerLabel = getProviderLabel(provider);
+        logger.info(`Iniciando sync ${providerLabel} agendado.`);
+        try {
+          const summary = await this._runWithLog({
+            triggeredBy: 'scheduler',
+            dryRun: false,
+            provider,
+          });
+          summaries.push(summary);
+          logger.info(`Sync ${providerLabel} concluído.`, {
+            created: summary.created,
+            updated: summary.updated,
+            skipped: summary.skipped,
+          });
+        } catch (err) {
+          logger.warn(`Sync ${providerLabel} falhou (outras plataformas continuam).`, { err: err.message });
+        }
+      }
+      return summaries.length ? summaries : null;
     } finally {
       syncInProgress = false;
     }
@@ -298,7 +372,7 @@ function startGpswoxSyncPoller(checkIntervalMs) {
     try {
       await getGpswoxSyncService().runScheduledSync();
     } catch (err) {
-      logger.warn('Poller sync GPSWOX falhou.', { err: err.message });
+      logger.warn('Poller sync de plataforma falhou.', { err: err.message });
     }
   };
 

@@ -25,7 +25,10 @@ const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { migrateAdminAudit } = require('./db/migrate-admin-audit');
 const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
-const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
+    const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
+    const { migrateAsaasSyncRuns } = require('./db/migrate-asaas-sync-runs');
+const { migrateTrackerPlatformColumns } = require('./db/migrate-tracker-platform-columns');
+const { migrateVehiclePerPlatform } = require('./db/migrate-vehicle-per-platform');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
 const { migrateBillingAutomation } = require('./db/migrate-billing-automation');
 const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
@@ -235,6 +238,15 @@ async function bootstrap() {
 
     await migrateGpswoxSyncRuns();
     logger.info('Histórico de sync GPSWOX agendado inicializado.');
+
+    await migrateAsaasSyncRuns();
+    logger.info('Histórico de sync Asaas inicializado.');
+
+    await migrateTrackerPlatformColumns();
+    logger.info('Colunas tracker_* — migração concluída.');
+
+    await migrateVehiclePerPlatform();
+    logger.info('Plataforma por veículo — migração concluída.');
 
     await migrateBillingNotifications();
     logger.info('Notificações de cobrança (WhatsApp/SMS) inicializadas.');

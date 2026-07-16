@@ -18,7 +18,21 @@ class SubscriptionRepository {
   }
 
   async findById(id) {
-    const { rows } = await this.pool.query('SELECT * FROM subscriptions WHERE id = $1', [id]);
+    const { rows } = await this.pool.query(
+      `SELECT * FROM subscriptions WHERE id = $1`,
+      [id]
+    );
+    return rows[0] || null;
+  }
+
+  async findByExternalSubscription(provider, externalId) {
+    if (!externalId) return null;
+    const { rows } = await this.pool.query(
+      `SELECT * FROM subscriptions
+       WHERE payment_provider = $1 AND external_subscription_id = $2
+       LIMIT 1`,
+      [provider, String(externalId)],
+    );
     return rows[0] || null;
   }
 

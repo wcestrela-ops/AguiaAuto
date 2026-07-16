@@ -167,7 +167,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_device?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem Device ID GPSWOX" footerLink="/admin/veiculos?issue=missing_device">
+      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem device ID do rastreador" footerLink="/admin/veiculos?issue=missing_device">
         <VehicleRows rows={details.vehicles_missing_device} showStatus />
       </OpsDetailCard>,
     );
@@ -185,7 +185,7 @@ function OpsDetailsGrid({ ops }) {
               <tr key={row.id}>
                 <td>{clientLabel(row)}</td>
                 <td><small>{row.provisioning_status || 'pending'}</small></td>
-                <td><small>{row.gpswox_user_id ? '✓' : '—'}</small></td>
+                <td><small>{row.tracker_user_id ? '✓' : '—'}</small></td>
                 <td><small>{row.asaas_customer_id ? '✓' : '—'}</small></td>
                 <td>
                   <Link to={`/admin/clientes/${row.id}`} className="btn-ghost btn-sm">Ficha</Link>

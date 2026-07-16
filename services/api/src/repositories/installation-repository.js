@@ -8,13 +8,13 @@ class InstallationRepository {
   async create(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO installation_logs
-        (vehicle_id, installer_id, gpswox_device_id, imei, notes, report,
+        (vehicle_id, installer_id, tracker_device_id, imei, notes, report,
          duration_minutes, started_at, finished_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         data.vehicle_id,
         data.installer_id,
-        data.gpswox_device_id,
+        data.tracker_device_id,
         data.imei,
         data.notes,
         data.report,

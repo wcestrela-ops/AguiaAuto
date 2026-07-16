@@ -6,15 +6,16 @@ import { isValidImei, isValidTrackerPhone, normalizeImei } from '../../utils/ime
 
 const EMPTY_FORM = {
   plate: '',
-  gpswox_device_id: '',
-  gpswox_name: '',
+  tracking_provider: 'gpswox',
+  tracker_device_id: '',
+  tracker_name: '',
   imei: '',
   tracker_phone: '',
   tracker_model_id: '',
   notes: '',
   report: '',
   duration_minutes: '',
-  create_in_gpswox: true,
+  create_in_tracker: true,
 };
 
 const MAX_PHOTOS = 3;
@@ -56,8 +57,8 @@ export default function InstallerJobPage() {
         setForm((prev) => ({
           ...prev,
           plate: data?.plate || '',
-          gpswox_name: data?.plate || [data?.brand, data?.model].filter(Boolean).join(' ') || '',
-          gpswox_device_id: vehicle.gpswox_device_id || data?.gpswox_device_id || '',
+          tracker_name: data?.plate || [data?.brand, data?.model].filter(Boolean).join(' ') || '',
+          tracker_device_id: vehicle.tracker_device_id || data?.tracker_device_id || '',
           imei: vehicle.tracker_imei || '',
           tracker_phone: vehicle.tracker_phone || '',
           tracker_model_id: vehicle.tracker_model_id ? String(vehicle.tracker_model_id) : '',
@@ -72,7 +73,7 @@ export default function InstallerJobPage() {
   }, [photos]);
 
   const checklist = useMemo(() => ({
-    device: Boolean(form.gpswox_device_id.trim()),
+    device: Boolean(form.tracker_device_id.trim()),
     imei: isValidImei(form.imei),
     chip: isValidTrackerPhone(form.tracker_phone),
     model: Boolean(form.tracker_model_id),
@@ -130,8 +131,9 @@ export default function InstallerJobPage() {
 
     try {
       const formData = new FormData();
-      formData.append('gpswox_device_id', form.gpswox_device_id.trim());
-      if (form.gpswox_name.trim()) formData.append('gpswox_name', form.gpswox_name.trim());
+      formData.append('tracking_provider', form.tracking_provider);
+      formData.append('tracker_device_id', form.tracker_device_id.trim());
+      if (form.tracker_name.trim()) formData.append('tracker_name', form.tracker_name.trim());
       if (form.plate.trim()) formData.append('plate', form.plate.trim());
       formData.append('imei', normalizeImei(form.imei));
       formData.append('tracker_phone', form.tracker_phone.trim());
@@ -139,7 +141,7 @@ export default function InstallerJobPage() {
       if (form.notes.trim()) formData.append('notes', form.notes.trim());
       formData.append('report', form.report.trim());
       formData.append('duration_minutes', form.duration_minutes);
-      formData.append('create_in_gpswox', String(form.create_in_gpswox));
+      formData.append('create_in_tracker', String(form.create_in_tracker));
       photos.forEach((photo) => formData.append('photos', photo.file));
 
       await api.finalizeInstallation(id, formData);
@@ -215,7 +217,7 @@ export default function InstallerJobPage() {
         <fieldset disabled={blocked || submitting}>
         <SectionTitleWithHelp title="Checklist de instalação" guideId="installer_job" scope="installer" />
         <ul className="installer-checklist">
-          <ChecklistItem done={checklist.device} label="Device ID GPSWOX preenchido" />
+          <ChecklistItem done={checklist.device} label="Device ID do rastreador preenchido" />
           <ChecklistItem done={checklist.imei} label="IMEI válido (15 dígitos)" />
           <ChecklistItem done={checklist.chip} label="Chip SIM do rastreador registrado" />
           <ChecklistItem done={checklist.model} label="Modelo do rastreador selecionado" />
@@ -251,23 +253,36 @@ export default function InstallerJobPage() {
         )}
 
         <label>
-          Device ID GPSWOX *
+          Plataforma de rastreamento *
+          <select
+            value={form.tracking_provider}
+            onChange={(e) => updateForm('tracking_provider', e.target.value)}
+            required
+          >
+            <option value="gpswox">GPSWOX</option>
+            <option value="traccar">Traccar</option>
+          </select>
+          <small className="field-hint">Comandos e cadastro usam a API desta plataforma.</small>
+        </label>
+
+        <label>
+          Device ID *
           <input
             type="text"
-            value={form.gpswox_device_id}
-            onChange={(e) => updateForm('gpswox_device_id', e.target.value)}
-            placeholder="ID do dispositivo no GPSWOX"
+            value={form.tracker_device_id}
+            onChange={(e) => updateForm('tracker_device_id', e.target.value)}
+            placeholder="ID do dispositivo na plataforma escolhida"
             required
           />
         </label>
 
         <label>
-          Nome no GPSWOX
+          Nome no rastreador
           <input
             type="text"
-            value={form.gpswox_name}
-            onChange={(e) => updateForm('gpswox_name', e.target.value)}
-            placeholder={job.plate || 'Nome no GPSWOX'}
+            value={form.tracker_name}
+            onChange={(e) => updateForm('tracker_name', e.target.value)}
+            placeholder={job.plate || 'Nome do veículo'}
           />
         </label>
 
@@ -389,10 +404,10 @@ export default function InstallerJobPage() {
         <label className="checkbox-row">
           <input
             type="checkbox"
-            checked={form.create_in_gpswox}
-            onChange={(e) => updateForm('create_in_gpswox', e.target.checked)}
+            checked={form.create_in_tracker}
+            onChange={(e) => updateForm('create_in_tracker', e.target.checked)}
           />
-          Criar veículo automaticamente no GPSWOX
+          Criar veículo automaticamente na plataforma de rastreamento
         </label>
 
         <button type="submit" disabled={submitting || blocked || !checklistComplete}>

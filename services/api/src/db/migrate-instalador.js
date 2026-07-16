@@ -8,7 +8,7 @@ async function migrateInstalador() {
       id                SERIAL PRIMARY KEY,
       vehicle_id        INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
       installer_id      INTEGER NOT NULL REFERENCES users(id),
-      gpswox_device_id  VARCHAR(50) NOT NULL,
+      tracker_device_id  VARCHAR(50) NOT NULL,
       imei              VARCHAR(50),
       notes             TEXT,
       report            TEXT,

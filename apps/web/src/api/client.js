@@ -1,5 +1,20 @@
 const BASE = import.meta.env.VITE_API_URL || '/api';
 
+const STORAGE_KEYS = {
+  rememberMe: 'client_remember_me',
+  savedEmail: 'client_saved_email',
+};
+
+function decodeJwtPayload(token) {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    return JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return null;
+  }
+}
+
 class ApiClient {
   constructor() {
     this.adminToken = localStorage.getItem('admin_token') || '';
@@ -38,13 +53,83 @@ class ApiClient {
     localStorage.setItem('refresh_token', refresh_token);
   }
 
-  clearClientTokens() {
+  clearClientTokens({ keepRememberEmail = false } = {}) {
+    const remember = keepRememberEmail && this.getRememberMePreference();
+    const savedEmail = remember ? this.getSavedEmail() : '';
+
     this.accessToken = '';
     this.refreshToken = '';
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     localStorage.removeItem('service_contract_accepted');
+
+    if (remember && savedEmail) {
+      this.setRememberMePreference(true, savedEmail);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.rememberMe);
+      localStorage.removeItem(STORAGE_KEYS.savedEmail);
+    }
+  }
+
+  setRememberMePreference(enabled, email = '') {
+    localStorage.setItem(STORAGE_KEYS.rememberMe, enabled ? '1' : '0');
+    if (enabled && email) {
+      localStorage.setItem(STORAGE_KEYS.savedEmail, String(email).trim().toLowerCase());
+    } else if (!enabled) {
+      localStorage.removeItem(STORAGE_KEYS.savedEmail);
+    }
+  }
+
+  getRememberMePreference() {
+    return localStorage.getItem(STORAGE_KEYS.rememberMe) === '1';
+  }
+
+  getSavedEmail() {
+    return localStorage.getItem(STORAGE_KEYS.savedEmail) || '';
+  }
+
+  isAccessTokenValid() {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    if (!token) return false;
+    const payload = decodeJwtPayload(token);
+    if (!payload?.exp) return Boolean(token);
+    return payload.exp * 1000 > Date.now() + 60_000;
+  }
+
+  hasClientSession() {
+    return Boolean(
+      this.refreshToken
+      || localStorage.getItem('refresh_token')
+      || this.accessToken
+      || localStorage.getItem('access_token'),
+    );
+  }
+
+  isClientLoggedIn() {
+    return this.hasClientSession();
+  }
+
+  async ensureClientSession() {
+    this.accessToken = localStorage.getItem('access_token') || '';
+    this.refreshToken = localStorage.getItem('refresh_token') || '';
+
+    if (!this.hasClientSession()) return null;
+    if (this.isAccessTokenValid() && this.getStoredUser()?.id) {
+      return this.getStoredUser();
+    }
+    if (!this.refreshToken) {
+      this.clearClientTokens({ keepRememberEmail: true });
+      return null;
+    }
+
+    try {
+      const data = await this.refreshAccessToken();
+      return data.user;
+    } catch {
+      this.clearClientTokens({ keepRememberEmail: true });
+      return null;
+    }
   }
 
   setServiceContractAccepted(accepted) {
@@ -53,10 +138,6 @@ class ApiClient {
 
   isServiceContractAccepted() {
     return localStorage.getItem('service_contract_accepted') === '1';
-  }
-
-  isClientLoggedIn() {
-    return Boolean(this.accessToken || localStorage.getItem('access_token'));
   }
 
   getStoredUser() {
@@ -121,7 +202,7 @@ class ApiClient {
     const response = await fetch(`${BASE}${path}`, { ...options, headers });
     const data = await response.json().catch(() => null);
 
-    if (response.status === 401 && useClient && retry && this.refreshToken && data?.error?.includes('expirado')) {
+    if (response.status === 401 && useClient && retry && this.refreshToken) {
       await this.refreshAccessToken();
       return this.request(path, options, { useAdmin, useClient, retry: false });
     }
@@ -140,22 +221,29 @@ class ApiClient {
     });
     const data = await response.json();
     if (!response.ok) {
-      this.clearClientTokens();
+      this.clearClientTokens({ keepRememberEmail: true });
       throw new Error(data?.error || 'Sessão expirada.');
     }
     this.setClientTokens(data.data);
     localStorage.setItem('user', JSON.stringify(data.data.user));
+    if (data.data.remember_me != null) {
+      this.setRememberMePreference(
+        Boolean(data.data.remember_me),
+        data.data.user?.email,
+      );
+    }
     return data.data;
   }
 
   // ─── Auth Cliente ────────────────────────────────────────────────────────
-  login(email, password) {
+  login(email, password, { remember_me = true } = {}) {
     return this.request('/v1/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember_me }),
     }, { useClient: false }).then((res) => {
       this.setClientTokens(res.data);
       localStorage.setItem('user', JSON.stringify(res.data.user));
+      this.setRememberMePreference(Boolean(remember_me), email);
       return res;
     });
   }
@@ -167,6 +255,7 @@ class ApiClient {
     }).then((res) => {
       this.setClientTokens(res.data);
       localStorage.setItem('user', JSON.stringify(res.data.user));
+      this.setRememberMePreference(true, res.data.user?.email || payload.email);
       return res;
     });
   }
@@ -182,6 +271,7 @@ class ApiClient {
     }).then((res) => {
       this.setClientTokens(res.data);
       localStorage.setItem('user', JSON.stringify(res.data.user));
+      this.setRememberMePreference(true, res.data.user?.email || payload.email);
       if (res.data?.onboarding?.contract) {
         this.setServiceContractAccepted(true);
       }
@@ -190,6 +280,8 @@ class ApiClient {
   }
 
   async logout() {
+    const keepRememberEmail = this.getRememberMePreference();
+    const savedEmail = this.getSavedEmail();
     try {
       if (this.refreshToken) {
         await fetch(`${BASE}/v1/auth/logout`, {
@@ -199,7 +291,10 @@ class ApiClient {
         });
       }
     } finally {
-      this.clearClientTokens();
+      this.clearClientTokens({ keepRememberEmail });
+      if (keepRememberEmail && savedEmail) {
+        this.setRememberMePreference(true, savedEmail);
+      }
     }
   }
 
@@ -321,7 +416,10 @@ class ApiClient {
     return this.request('/v1/perfil/senha', {
       method: 'PUT',
       body: JSON.stringify({ current_password, new_password }),
-    }, { useClient: true });
+    }, { useClient: true }).then((res) => {
+      this.clearClientTokens({ keepRememberEmail: true });
+      return res;
+    });
   }
 
   registerFcmToken({ token, device_name, platform = 'web' }) {
@@ -529,15 +627,25 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
-  syncGpswoxVehicles(data = {}) {
-    return this.request('/v1/admin/veiculos/sync-gpswox', {
+  syncTrackerVehicles(data = {}) {
+    return this.request('/v1/admin/veiculos/sync-tracker', {
       method: 'POST',
       body: JSON.stringify(data),
     }, { useAdmin: true });
   }
 
+  /** @deprecated use syncTrackerVehicles */
+  syncGpswoxVehicles(data = {}) {
+    return this.syncTrackerVehicles(data);
+  }
+
+  getTrackerSyncStatus() {
+    return this.request('/v1/admin/veiculos/sync-tracker/status', {}, { useAdmin: true });
+  }
+
+  /** @deprecated use getTrackerSyncStatus */
   getGpswoxSyncStatus() {
-    return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
+    return this.getTrackerSyncStatus();
   }
 
   getAdminVehicles(params = {}) {
@@ -642,6 +750,22 @@ class ApiClient {
     return this.request(`/v1/admin/financeiro/reprovisionar/${userId}`, {
       method: 'POST',
       body: JSON.stringify({}),
+    }, { useAdmin: true });
+  }
+
+  getAsaasSyncStatus() {
+    return this.request('/v1/admin/financeiro/sync-asaas/status', {}, { useAdmin: true });
+  }
+
+  previewAsaasSync(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/financeiro/sync-asaas/preview${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  runAsaasSync(data = {}) {
+    return this.request('/v1/admin/financeiro/sync-asaas', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }, { useAdmin: true });
   }
 

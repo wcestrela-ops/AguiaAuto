@@ -1,5 +1,5 @@
 const {
-  getActiveTrackingClient,
+  getTrackingClient,
   getActiveProviderName,
   gpswoxOnlyFeature,
 } = require('../config/provider');
@@ -14,16 +14,12 @@ const {
 } = require('../lib/geofence');
 
 async function requireGpswoxClient() {
-  const name = await getActiveProviderName();
-  if (name !== 'gpswox') {
-    throw new Error(gpswoxOnlyFeature('Este recurso'));
-  }
-  const { client } = await getActiveTrackingClient();
+  const { client } = await getTrackingClient('gpswox');
   return client;
 }
 
-async function getLocation({ deviceId, veiculo }) {
-  const { name, client } = await getActiveTrackingClient();
+async function getLocation({ deviceId, veiculo, provider }) {
+  const { name, client } = await getTrackingClient(provider);
 
   if (name === 'traccar') {
     if (!deviceId) {
@@ -48,8 +44,8 @@ async function getLocation({ deviceId, veiculo }) {
   return enqueue(() => getVehicleLocation(veiculo));
 }
 
-async function blockDevice(deviceId) {
-  const { name, client } = await getActiveTrackingClient();
+async function blockDevice(deviceId, provider) {
+  const { name, client } = await getTrackingClient(provider);
   if (name === 'traccar') {
     return client.blockDevice(deviceId);
   }
@@ -57,8 +53,8 @@ async function blockDevice(deviceId) {
   return client.blockDevice(deviceId);
 }
 
-async function unblockDevice(deviceId) {
-  const { name, client } = await getActiveTrackingClient();
+async function unblockDevice(deviceId, provider) {
+  const { name, client } = await getTrackingClient(provider);
   if (name === 'traccar') {
     return client.unblockDevice(deviceId);
   }
@@ -66,8 +62,8 @@ async function unblockDevice(deviceId) {
   return client.unblockDevice(deviceId);
 }
 
-async function sendCommand(deviceId, command) {
-  const { name, client } = await getActiveTrackingClient();
+async function sendCommand(deviceId, command, provider) {
+  const { name, client } = await getTrackingClient(provider);
   if (name === 'traccar') {
     return client.sendCommand(deviceId, command);
   }
@@ -76,7 +72,7 @@ async function sendCommand(deviceId, command) {
 }
 
 async function createCliente(payload) {
-  const { name, client } = await getActiveTrackingClient();
+  const { name, client } = await getTrackingClient(payload.provider);
   if (name === 'traccar') {
     return client.createUser(payload);
   }
@@ -85,7 +81,7 @@ async function createCliente(payload) {
 }
 
 async function createVeiculo(payload) {
-  const { name, client } = await getActiveTrackingClient();
+  const { name, client } = await getTrackingClient(payload.provider);
   if (name === 'traccar') {
     return client.createDevice(payload);
   }
@@ -106,8 +102,8 @@ function extractSharingUrl(response, baseUrl) {
   return null;
 }
 
-async function getHistory(deviceId, from, to) {
-  const { name, client } = await getActiveTrackingClient();
+async function getHistory(deviceId, from, to, provider) {
+  const { name, client } = await getTrackingClient(provider);
 
   if (name === 'traccar') {
     return client.getHistory(deviceId, from, to);
@@ -134,8 +130,8 @@ async function getHistory(deviceId, from, to) {
   };
 }
 
-async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
-  const { name, client, settings } = await getActiveTrackingClient();
+async function createSharing(deviceId, { durationMinutes = 60, provider } = {}) {
+  const { name, client, settings } = await getTrackingClient(provider);
 
   if (name === 'traccar') {
     return client.createSharing(deviceId, { durationMinutes });
@@ -162,8 +158,8 @@ async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
   };
 }
 
-async function listDevices() {
-  const { name, client } = await getActiveTrackingClient();
+async function listDevices(provider) {
+  const { name, client } = await getTrackingClient(provider);
 
   if (name === 'traccar') {
     return client.getDevices();

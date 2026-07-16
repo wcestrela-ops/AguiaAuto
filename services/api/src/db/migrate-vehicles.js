@@ -16,8 +16,8 @@ async function migrateVehicles() {
     CREATE TABLE IF NOT EXISTS vehicles (
       id                SERIAL PRIMARY KEY,
       user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      gpswox_device_id  VARCHAR(50),
-      gpswox_name       VARCHAR(200),
+      tracker_device_id  VARCHAR(50),
+      tracker_name       VARCHAR(200),
       plate             VARCHAR(20) NOT NULL,
       brand             VARCHAR(100),
       model             VARCHAR(100),
@@ -30,7 +30,7 @@ async function migrateVehicles() {
 
     CREATE INDEX IF NOT EXISTS idx_vehicles_user ON vehicles (user_id);
     CREATE INDEX IF NOT EXISTS idx_vehicles_plate ON vehicles (plate);
-    CREATE INDEX IF NOT EXISTS idx_vehicles_device ON vehicles (gpswox_device_id);
+    CREATE INDEX IF NOT EXISTS idx_vehicles_device ON vehicles (tracker_device_id);
 
     CREATE TABLE IF NOT EXISTS subscriptions (
       id          SERIAL PRIMARY KEY,

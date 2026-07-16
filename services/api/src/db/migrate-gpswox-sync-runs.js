@@ -1,7 +1,19 @@
 const { getPool } = require('./pool');
 
+async function tableExists(pool, table) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [table],
+  );
+  return rows.length > 0;
+}
+
 async function migrateGpswoxSyncRuns() {
   const pool = getPool();
+
+  const hasTracker = await tableExists(pool, 'tracker_sync_runs');
+  if (hasTracker) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS gpswox_sync_runs (

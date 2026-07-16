@@ -49,7 +49,7 @@ export default function InstallerHistoryPage() {
                 <tr key={item.id}>
                   <td>{item.plate}</td>
                   <td>{item.client_name}</td>
-                  <td><code>{item.gpswox_device_id}</code></td>
+                  <td><code>{item.tracker_device_id}</code></td>
                   <td><code>{item.imei || '—'}</code></td>
                   <td>{new Date(item.created_at).toLocaleString('pt-BR')}</td>
                 </tr>

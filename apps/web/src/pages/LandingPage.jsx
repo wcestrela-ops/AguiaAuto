@@ -23,27 +23,47 @@ export default function LandingPage() {
   const [redirect, setRedirect] = useState(null);
 
   useEffect(() => {
-    if (api.isClientLoggedIn()) return;
+    let cancelled = false;
 
-    Promise.all([
-      api.getPublicLanding(),
-      api.getPlans().catch(() => ({ data: [] })),
-    ])
-      .then(([landingRes, plansRes]) => {
-        const data = landingRes.data;
-        if (data?.redirect) {
-          setRedirect(data.redirect);
+    api.ensureClientSession()
+      .then(async (user) => {
+        if (cancelled) return;
+        if (user) {
+          if (user.role === 'installer') {
+            setRedirect('/instalador');
+          } else {
+            setRedirect(await api.getClientAppPath());
+          }
+          setLoading(false);
           return;
         }
-        setContent(data?.content || null);
-        setPlans(plansRes.data || []);
+
+        return Promise.all([
+          api.getPublicLanding(),
+          api.getPlans().catch(() => ({ data: [] })),
+        ]).then(([landingRes, plansRes]) => {
+          if (cancelled) return;
+          const data = landingRes.data;
+          if (data?.redirect) {
+            setRedirect(data.redirect);
+            return;
+          }
+          setContent(data?.content || null);
+          setPlans(plansRes.data || []);
+        });
       })
-      .catch(() => setRedirect('/login'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setRedirect('/login');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, []);
 
-  if (api.isClientLoggedIn()) {
-    return <Navigate to="/app" replace />;
+  if (redirect) {
+    return <Navigate to={redirect} replace />;
   }
 
   if (loading) {

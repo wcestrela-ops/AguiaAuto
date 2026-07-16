@@ -6,6 +6,8 @@ const COMMAND_MAP = {
   engine_resume: 'engineResume',
   engineStop: 'engineStop',
   engineResume: 'engineResume',
+  position_single: 'positionSingle',
+  positionSingle: 'positionSingle',
 };
 
 function knotsToKmh(knots) {
@@ -171,6 +173,10 @@ class TraccarApiClient {
       phone: payload.phone || null,
     };
 
+    if (payload.aguia_user_id != null) {
+      body.attributes = { aguia_user_id: String(payload.aguia_user_id) };
+    }
+
     const user = await this.request('users', { method: 'POST', body });
     const groupId = payload.group_id ?? this.defaultGroupId;
     if (user?.id && groupId != null && groupId !== '') {
@@ -201,6 +207,14 @@ class TraccarApiClient {
     const groupId = payload.group_id ?? this.defaultGroupId;
     if (groupId != null && groupId !== '') {
       body.groupId = Number(groupId);
+    }
+
+    const attributes = { ...(payload.attributes || {}) };
+    if (payload.aguia_user_id != null) {
+      attributes.aguia_user_id = String(payload.aguia_user_id);
+    }
+    if (Object.keys(attributes).length > 0) {
+      body.attributes = attributes;
     }
 
     return this.request('devices', { method: 'POST', body });

@@ -22,7 +22,7 @@ async function getDashboard(userId) {
   }
 
   const veiculosComLocalizacao = [];
-  for (const v of vehicles.filter(x => x.status === 'active' && (x.gpswox_device_id || x.gpswox_name))) {
+  for (const v of vehicles.filter(x => x.status === 'active' && (x.tracker_device_id || x.tracker_name))) {
     try {
       const loc = await getVehicleService().getLocation(userId, v.id);
       veiculosComLocalizacao.push({

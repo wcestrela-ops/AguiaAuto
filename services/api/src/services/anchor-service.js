@@ -8,6 +8,7 @@ const {
   isIgnitionOn,
   extractLocationFromPayload,
 } = require('../lib/geo');
+const { normalizeProviderName, missingTrackerDeviceError } = require('../lib/tracking-platform');
 const logger = require('../logger');
 
 const DEFAULT_RADIUS_METERS = 10;
@@ -48,16 +49,17 @@ class AnchorService {
   async activate(userId, vehicleId, { radius_meters = DEFAULT_RADIUS_METERS } = {}) {
     const vehicle = await this.vehicles.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
-    if (!vehicle.gpswox_device_id) {
-      throw new Error('Veículo sem device_id GPSWOX configurado.');
+    if (!vehicle.tracker_device_id) {
+      throw new Error(missingTrackerDeviceError(vehicle.tracking_provider));
     }
     if (vehicle.status === VEHICLE_STATUS.PENDING_INSTALLATION) {
       throw new Error('Veículo aguardando instalação do rastreador.');
     }
 
     const location = await gpswox.getLocation({
-      device_id: vehicle.gpswox_device_id,
-      veiculo: vehicle.gpswox_name || vehicle.plate,
+      device_id: vehicle.tracker_device_id,
+      veiculo: vehicle.tracker_name || vehicle.plate,
+      provider: normalizeProviderName(vehicle.tracking_provider),
     });
 
     const lat = parseFloat(location.latitude);
@@ -110,8 +112,9 @@ class AnchorService {
     for (const anchor of anchors) {
       try {
         const location = await gpswox.getLocation({
-          device_id: anchor.gpswox_device_id,
-          veiculo: anchor.gpswox_name || anchor.plate,
+          device_id: anchor.tracker_device_id,
+          veiculo: anchor.tracker_name || anchor.plate,
+          provider: normalizeProviderName(anchor.tracking_provider),
         });
         const result = await this._evaluateAnchor(anchor, {
           latitude: parseFloat(location.latitude),
@@ -187,7 +190,7 @@ class AnchorService {
         message,
         source: 'ancora',
         sourceEventId: `ancora-${anchor.id}-${Date.now()}`,
-        deviceId: vehicle.gpswox_device_id,
+        deviceId: vehicle.tracker_device_id,
         payload: {
           anchor_id: anchor.id,
           distance_meters: Math.round(distance),

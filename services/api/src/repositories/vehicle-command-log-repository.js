@@ -43,7 +43,7 @@ class VehicleCommandLogRepository {
 
   async listRecentFailed({ hours = 24, limit = 20 } = {}) {
     const { rows } = await this.pool.query(
-      `SELECT l.*, v.plate, v.gpswox_device_id, u.email AS user_email, u.name AS user_name
+      `SELECT l.*, v.plate, v.tracker_device_id, u.email AS user_email, u.name AS user_name
        FROM vehicle_command_logs l
        JOIN vehicles v ON v.id = l.vehicle_id
        LEFT JOIN users u ON u.id = l.user_id

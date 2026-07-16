@@ -50,21 +50,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', async (req, res) => {
-  let provider = 'gpswox';
-  try {
-    provider = await getActiveProviderName();
-  } catch {
-    provider = 'gpswox';
-  }
-
+app.get('/health', async (_req, res) => {
   res.json({
     status: 'ok',
     service: 'tracking-gateway',
-    provider,
+    mode: 'per-vehicle',
+    providers: ['gpswox', 'traccar'],
     timestamp: new Date().toISOString(),
   });
 });
+
+function requestProvider(req) {
+  return req.body?.provider || null;
+}
 
 app.post('/localizacao', async (req, res) => {
   const { veiculo, device_id: deviceId } = req.body;
@@ -77,7 +75,7 @@ app.post('/localizacao', async (req, res) => {
   }
 
   try {
-    const resultado = await getLocation({ veiculo, deviceId });
+    const resultado = await getLocation({ veiculo, deviceId, provider: requestProvider(req) });
     return res.json(resultado);
   } catch (err) {
     logger.error('Erro ao buscar localização.', { veiculo, deviceId, err: err.message });
@@ -110,7 +108,7 @@ app.post('/comandos', async (req, res) => {
   }
 
   try {
-    const resultado = await sendCommand(deviceId, comando);
+    const resultado = await sendCommand(deviceId, comando, requestProvider(req));
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -124,7 +122,7 @@ app.post('/bloqueio', async (req, res) => {
   }
 
   try {
-    const resultado = await blockDevice(deviceId);
+    const resultado = await blockDevice(deviceId, requestProvider(req));
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -138,7 +136,7 @@ app.post('/desbloqueio', async (req, res) => {
   }
 
   try {
-    const resultado = await unblockDevice(deviceId);
+    const resultado = await unblockDevice(deviceId, requestProvider(req));
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -155,7 +153,7 @@ app.post('/historico', async (req, res) => {
   }
 
   try {
-    const resultado = await getHistory(deviceId, from, to);
+    const resultado = await getHistory(deviceId, from, to, requestProvider(req));
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -169,7 +167,10 @@ app.post('/compartilhar', async (req, res) => {
   }
 
   try {
-    const resultado = await createSharing(deviceId, { durationMinutes: durationMinutes || 60 });
+    const resultado = await createSharing(deviceId, {
+      durationMinutes: durationMinutes || 60,
+      provider: requestProvider(req),
+    });
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -178,7 +179,7 @@ app.post('/compartilhar', async (req, res) => {
 
 app.post('/dispositivos', async (req, res) => {
   try {
-    const resultado = await listDevices();
+    const resultado = await listDevices(requestProvider(req));
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

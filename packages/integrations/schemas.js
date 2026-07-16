@@ -1,18 +1,29 @@
 const INTEGRATIONS = {
   rastreamento: {
     label: 'Plataforma de Rastreamento',
-    description: 'Escolha GPSWOX ou Traccar. Credenciais ficam nos cards de cada plataforma.',
+    description: 'GPSWOX e Traccar podem estar ativos ao mesmo tempo — cada veículo usa a plataforma escolhida no cadastro.',
     fields: [
       {
-        key: 'provider',
-        label: 'Plataforma ativa',
+        key: 'default_provider',
+        label: 'Plataforma padrão (novos veículos)',
         type: 'select',
         default: 'gpswox',
         options: [
           { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
           { value: 'traccar', label: 'Traccar' },
         ],
-        hint: 'Altere aqui para trocar de plataforma — sem deploy. Depois use Recarregar integrações.',
+        hint: 'Usada no onboarding e instalador quando nenhuma plataforma for escolhida. Veículos existentes mantêm a plataforma marcada.',
+      },
+      {
+        key: 'provider',
+        label: 'Plataforma padrão (legado)',
+        type: 'select',
+        default: 'gpswox',
+        options: [
+          { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
+          { value: 'traccar', label: 'Traccar' },
+        ],
+        hint: 'Alias de default_provider — mantido para compatibilidade.',
       },
     ],
   },
@@ -27,7 +38,7 @@ const INTEGRATIONS = {
       { key: 'default_group_id', label: 'Group ID padrão (novos devices)', type: 'number', env: 'TRACCAR_DEFAULT_GROUP_ID' },
       { key: 'auto_sync_enabled', label: 'Sync automático de veículos', type: 'boolean', default: true, hint: 'Importa/atualiza veículos do Traccar periodicamente' },
       { key: 'auto_sync_interval_hours', label: 'Intervalo do sync (horas)', type: 'number', default: 24, env: 'TRACCAR_AUTO_SYNC_INTERVAL_HOURS' },
-      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Fase 2 — notificador HTTP no Traccar' },
+      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Configure notificador HTTP no Traccar → POST /webhooks/traccar na API' },
     ],
   },
   gpswox: {

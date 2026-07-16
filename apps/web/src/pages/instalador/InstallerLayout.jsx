@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 
@@ -10,6 +11,18 @@ const NAV = [
 export default function InstallerLayout() {
   const navigate = useNavigate();
   const user = api.getStoredUser();
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') return;
+      if (!api.hasClientSession()) return;
+      if (api.isAccessTokenValid()) return;
+      api.ensureClientSession().catch(() => {});
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   async function logout() {
     await api.logout();

@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getStore } = require('@aguia/integrations');
+const { getDefaultProviderName, getPlatformSettings, getProviderLabel, normalizeProviderName } = require('../lib/tracking-platform');
 const gpswox = require('../integrations/gpswox-gateway');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
@@ -43,7 +43,7 @@ class ProvisioningService {
 
     const errors = [];
     let paymentOk = false;
-    let gpswoxOk = Boolean(user.gpswox_user_id);
+    let trackingOk = Boolean(user.gpswox_user_id || user.traccar_user_id);
     let subscriptionOk = false;
 
     const customerResult = await this.payments.ensureCustomers(user, this.users);
@@ -51,26 +51,11 @@ class ProvisioningService {
     errors.push(...customerResult.errors.map(e => ({ step: `${e.provider}_customer`, error: e.error })));
 
     try {
-      if (!user.gpswox_user_id) {
-        const store = getStore();
-        const gpswoxSettings = await store.getSettings('gpswox');
-        const password = generateGpswoxPassword();
-        const result = await gpswox.createCliente({
-          email: user.email,
-          password,
-          name: user.name || user.email,
-          phone: user.phone || undefined,
-          group_id: gpswoxSettings.default_group_id || undefined,
-        });
-        const gpswoxUserId = extractId(result, ['id', 'user_id']);
-        if (!gpswoxUserId) throw new Error('GPSWOX não retornou ID do usuário.');
-        await this.users.updateProvisioning(userId, { gpswox_user_id: gpswoxUserId });
-        user.gpswox_user_id = gpswoxUserId;
-        gpswoxOk = true;
-      }
+      const defaultProvider = await getDefaultProviderName();
+      trackingOk = await this.ensurePlatformUser(userId, defaultProvider) || trackingOk;
     } catch (err) {
-      errors.push({ step: 'gpswox_user', error: err.message });
-      logger.warn('Falha ao criar usuário GPSWOX.', { userId, err: err.message });
+      errors.push({ step: 'tracking_user', error: err.message });
+      logger.warn('Falha ao criar usuário na plataforma padrão.', { userId, err: err.message });
     }
 
     if (plan_id) {
@@ -164,7 +149,7 @@ class ProvisioningService {
     }
 
     const status = errors.length === 0 ? 'completed'
-      : (gpswoxOk || paymentOk || subscriptionOk) ? 'partial' : 'failed';
+      : (trackingOk || paymentOk || subscriptionOk) ? 'partial' : 'failed';
 
     await this.users.updateProvisioning(userId, {
       provisioning_status: status,
@@ -183,11 +168,46 @@ class ProvisioningService {
       status,
       asaas: Boolean(user.asaas_customer_id),
       mercadopago: Boolean(user.mercadopago_payer_id),
-      gpswox: gpswoxOk,
+      tracking: trackingOk,
+      /** @deprecated use tracking */
+      gpswox: trackingOk,
       initial_payment: paymentOk,
       subscription: subscriptionOk,
       errors,
     };
+  }
+
+  async ensurePlatformUser(userId, provider) {
+    const platformName = normalizeProviderName(provider);
+    let user = await this.users.findByIdWithProvisioning(userId);
+    if (!user) throw new Error('Usuário não encontrado.');
+
+    const field = platformName === 'traccar' ? 'traccar_user_id' : 'gpswox_user_id';
+    if (user[field]) return user[field];
+
+    const platform = await getPlatformSettings(platformName);
+    const providerLabel = getProviderLabel(platformName);
+    const password = generateGpswoxPassword();
+
+    const result = await gpswox.createCliente({
+      provider: platformName,
+      email: user.email,
+      password,
+      name: user.name || user.email,
+      phone: user.phone || undefined,
+      group_id: platform.settings.default_group_id || undefined,
+      aguia_user_id: userId,
+    });
+
+    const platformUserId = extractId(result, ['id', 'user_id']);
+    if (!platformUserId) throw new Error(`${providerLabel} não retornou ID do usuário.`);
+
+    const update = platformName === 'traccar'
+      ? { traccar_user_id: platformUserId }
+      : { gpswox_user_id: platformUserId };
+
+    await this.users.updateProvisioning(userId, update);
+    return platformUserId;
   }
 
   async retryProvisioning(userId) {
@@ -196,6 +216,18 @@ class ProvisioningService {
       plan_id: subscription?.plan_id,
       billing_type: subscription?.billing_type || 'PIX',
     });
+  }
+
+  async ensureAsaasCustomer(userId) {
+    let user = await this.users.findByIdWithProvisioning(userId);
+    if (!user) throw new Error('Usuário não encontrado.');
+
+    const result = await this.payments.ensureCustomers(user, this.users);
+    return {
+      asaas_customer_id: result.user.asaas_customer_id || null,
+      linked: Boolean(result.user.asaas_customer_id),
+      errors: result.errors,
+    };
   }
 }
 
@@ -206,4 +238,4 @@ function getProvisioningService() {
   return instance;
 }
 
-module.exports = { ProvisioningService, getProvisioningService };
+module.exports = { ProvisioningService, getProvisioningService, extractId };
