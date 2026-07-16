@@ -19,7 +19,7 @@ const STATUS_FILTERS = [
 
 const ISSUE_FILTERS = [
   { value: '', label: 'Qualquer pendência' },
-  { value: 'missing_device', label: 'Sem Device ID GPSWOX' },
+  { value: 'missing_device', label: 'Sem Device ID do rastreador' },
   { value: 'missing_chip', label: 'Sem chip SIM (ativos/bloqueados)' },
   { value: 'missing_imei', label: 'Sem IMEI (ativos/bloqueados)' },
   { value: 'missing_model', label: 'Sem modelo rastreador (ativos/bloqueados)' },
@@ -356,9 +356,10 @@ export default function AdminVehiclesPage() {
     try {
       const res = await api.syncGpswoxVehicles({ dry_run: dryRun });
       const s = res.data;
+      const label = syncStatus?.provider_label || 'Plataforma';
       setMessage(
         dryRun
-          ? `Prévia: ${s.total} dispositivos GPSWOX (${s.preview?.length || 0} na amostra).`
+          ? `Prévia: ${s.total} dispositivos ${label} (${s.preview?.length || 0} na amostra).`
           : `Sincronizado: ${s.created} criados, ${s.updated} atualizados, ${s.skipped} ignorados.`,
       );
       if (!dryRun) await loadVehicles();
@@ -369,20 +370,25 @@ export default function AdminVehiclesPage() {
 
   if (metaLoading) return <p className="muted">Carregando...</p>;
 
+  const platformLabel = syncStatus?.provider_label || 'Plataforma';
+  const integrationsPath = syncStatus?.provider === 'traccar'
+    ? '/admin/integracoes/traccar'
+    : '/admin/integracoes/gpswox';
+
   return (
     <div>
       <PageHeaderWithHelp
         title="Veículos"
-        subtitle="Cadastre veículos, importe do GPSWOX (chip SIM, IMEI, modelo) e vincule ao cliente."
+        subtitle="Cadastre veículos, importe da plataforma de rastreamento (chip SIM, IMEI, modelo) e vincule ao cliente."
         guideId="vehicles"
       >
         <div className="row" style={{ gap: '0.5rem' }}>
           <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(true)}>
-            Prévia GPSWOX
+            Prévia {platformLabel}
           </button>
-          <HelpButton guideId="vehicles_sync" size="sm" label="Ajuda: sincronizar GPSWOX" />
+          <HelpButton guideId="vehicles_sync" size="sm" label={`Ajuda: sincronizar ${platformLabel}`} />
           <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(false)}>
-            Sincronizar GPSWOX
+            Sincronizar {platformLabel}
           </button>
           <button type="button" onClick={startCreate}>Novo veículo</button>
         </div>
@@ -393,11 +399,12 @@ export default function AdminVehiclesPage() {
 
       {syncStatus && (
         <div className="form-card" style={{ marginBottom: '1rem' }}>
-          <SectionTitleWithHelp title="Sync GPSWOX automático" guideId="vehicles_sync" />
+          <SectionTitleWithHelp title={`Sync automático (${platformLabel})`} guideId="vehicles_sync" />
           <div className="row" style={{ gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className={`badge ${syncStatus.auto_sync_enabled ? 'success' : 'warning'}`}>
               {syncStatus.auto_sync_enabled ? 'Ativo' : 'Desligado'}
             </span>
+            <span className="badge info">{platformLabel}</span>
             {syncStatus.in_progress && <span className="badge info">Sincronizando...</span>}
             <span className="guide-inline" style={{ margin: 0 }}>
               Intervalo: {syncStatus.interval_hours}h
@@ -417,7 +424,7 @@ export default function AdminVehiclesPage() {
           )}
           {!syncStatus.auto_sync_enabled && (
             <p className="guide-inline">
-              Ative em <Link to="/admin/integracoes/gpswox">Integrações → GPSWOX</Link> (Sync automático de veículos).
+              Ative em <Link to={integrationsPath}>Integrações → {platformLabel}</Link> (Sync automático de veículos).
             </p>
           )}
         </div>
@@ -497,7 +504,7 @@ export default function AdminVehiclesPage() {
             guideId="vehicles"
           />
           <p className="guide-inline">
-            Preencha GPSWOX Device ID, chip SIM e modelo da biblioteca para comandos e failover 4G→SMS.
+            Preencha Device ID do rastreador, chip SIM e modelo da biblioteca para comandos e failover 4G→SMS.
           </p>
 
           {!editingId && (
@@ -539,14 +546,14 @@ export default function AdminVehiclesPage() {
             <input type="number" value={form.year} onChange={(e) => updateForm('year', e.target.value)} />
           </label>
           <label>
-            GPSWOX Device ID
+            Device ID (rastreador)
             <input value={form.gpswox_device_id} onChange={(e) => updateForm('gpswox_device_id', e.target.value)} />
-            <small className="hint">ID do dispositivo no GPSWOX</small>
+            <small className="hint">ID do dispositivo na plataforma ativa</small>
           </label>
           <label>
-            GPSWOX Nome
+            Nome no rastreador
             <input value={form.gpswox_name} onChange={(e) => updateForm('gpswox_name', e.target.value)} />
-            <small className="hint">Nome do veículo no GPSWOX (fallback Playwright)</small>
+            <small className="hint">Nome do veículo na plataforma (fallback Playwright no GPSWOX)</small>
           </label>
           <label>
             Número do chip SIM (SMS)
@@ -576,7 +583,7 @@ export default function AdminVehiclesPage() {
             <small className="hint">Define quais comandos SMS serão usados no failover 4G.</small>
           </label>
           <label>
-            Modelo (texto livre / GPSWOX)
+            Modelo (texto livre / plataforma)
             <input value={form.tracker_model} onChange={(e) => updateForm('tracker_model', e.target.value)} />
           </label>
           <label>

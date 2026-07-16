@@ -243,11 +243,16 @@ class OperationalDashboardService {
     }
 
     if (gpswoxSync) {
+      const syncLabel = gpswoxSync.provider_label || 'GPSWOX';
+      const integrationsPath = gpswoxSync.provider === 'traccar'
+        ? '/admin/integracoes/traccar'
+        : '/admin/integracoes/gpswox';
+
       if (gpswoxSync.auto_sync_enabled && gpswoxSync.due_now) {
         alerts.push({
           severity: 'info',
           key: 'gpswox_sync_due',
-          title: 'Sync GPSWOX pendente',
+          title: `Sync ${syncLabel} pendente`,
           count: 1,
           link: '/admin/veiculos',
           hint: 'O sync automático deve rodar em breve (intervalo configurado).',
@@ -258,10 +263,10 @@ class OperationalDashboardService {
         alerts.push({
           severity: 'error',
           key: 'gpswox_sync_failed',
-          title: 'Último sync GPSWOX falhou',
+          title: `Último sync ${syncLabel} falhou`,
           count: 1,
           link: '/admin/veiculos',
-          hint: gpswoxSync.last_run.error_message || 'Verifique API Hash e gateway.',
+          hint: gpswoxSync.last_run.error_message || `Verifique credenciais ${syncLabel} e gateway.`,
         });
       }
 
@@ -269,10 +274,10 @@ class OperationalDashboardService {
         alerts.push({
           severity: 'warning',
           key: 'gpswox_unlinked_devices',
-          title: 'Dispositivos GPSWOX sem cliente Águia',
+          title: `Dispositivos ${syncLabel} sem cliente Águia`,
           count: gpswoxSync.unlinked_devices_last_success,
           link: '/admin/veiculos',
-          hint: 'Vincule users.gpswox_user_id ou cadastre o cliente.',
+          hint: `Vincule users.gpswox_user_id, atributo aguia_user_id no device ou cadastre o cliente. Config: ${integrationsPath}`,
         });
       }
     }

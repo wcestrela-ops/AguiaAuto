@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getStore } = require('@aguia/integrations');
+const { getActivePlatformSettings, getProviderLabel } = require('../lib/tracking-platform');
 const gpswox = require('../integrations/gpswox-gateway');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
@@ -52,25 +52,25 @@ class ProvisioningService {
 
     try {
       if (!user.gpswox_user_id) {
-        const store = getStore();
-        const gpswoxSettings = await store.getSettings('gpswox');
+        const platform = await getActivePlatformSettings();
+        const providerLabel = getProviderLabel(platform.provider);
         const password = generateGpswoxPassword();
         const result = await gpswox.createCliente({
           email: user.email,
           password,
           name: user.name || user.email,
           phone: user.phone || undefined,
-          group_id: gpswoxSettings.default_group_id || undefined,
+          group_id: platform.settings.default_group_id || undefined,
         });
-        const gpswoxUserId = extractId(result, ['id', 'user_id']);
-        if (!gpswoxUserId) throw new Error('GPSWOX não retornou ID do usuário.');
-        await this.users.updateProvisioning(userId, { gpswox_user_id: gpswoxUserId });
-        user.gpswox_user_id = gpswoxUserId;
+        const platformUserId = extractId(result, ['id', 'user_id']);
+        if (!platformUserId) throw new Error(`${providerLabel} não retornou ID do usuário.`);
+        await this.users.updateProvisioning(userId, { gpswox_user_id: platformUserId });
+        user.gpswox_user_id = platformUserId;
         gpswoxOk = true;
       }
     } catch (err) {
-      errors.push({ step: 'gpswox_user', error: err.message });
-      logger.warn('Falha ao criar usuário GPSWOX.', { userId, err: err.message });
+      errors.push({ step: 'tracking_user', error: err.message });
+      logger.warn('Falha ao criar usuário na plataforma de rastreamento.', { userId, err: err.message });
     }
 
     if (plan_id) {
