@@ -2,11 +2,11 @@ FROM mcr.microsoft.com/playwright:v1.44.0-jammy
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY packages/integrations packages/integrations
 COPY services/gpswox-gateway services/gpswox-gateway
 
-RUN npm install --omit=dev -w @aguia/gpswox-gateway
+RUN npm ci --omit=dev -w @aguia/gpswox-gateway
 RUN npx playwright install chromium --with-deps
 
 WORKDIR /app/services/gpswox-gateway

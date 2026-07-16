@@ -2,13 +2,14 @@ FROM node:20-slim
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY packages/shared packages/shared
 COPY packages/integrations packages/integrations
 COPY packages/whatsapp packages/whatsapp
+COPY packages/sms packages/sms
 COPY services/api services/api
 
-RUN npm install --omit=dev -w @aguia/api
+RUN npm ci --omit=dev -w @aguia/api
 
 WORKDIR /app/services/api
 

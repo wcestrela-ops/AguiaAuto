@@ -466,7 +466,32 @@ npm run test:gateway   # Apenas Gateway GPSWOX
 | `@aguia/web` | Vitest | IMEI, status veículo, `CONTRACT_REQUIRED` no client API, `setClientPageError` |
 | `@aguia/gpswox-gateway` | Node.js `node:test` | Polígonos circulares, parsing de cercas/eventos GPSWOX |
 
-Testes ficam em `services/api/test/` e `apps/web/src/**/*.test.js`. Não exigem PostgreSQL — foco em regras de negócio e utilitários. Para CI, execute `npm test` após `npm install`.
+Testes ficam em `services/api/test/`, `services/gpswox-gateway/test/` e `apps/web/src/**/*.test.js`. Não exigem PostgreSQL — foco em regras de negócio e utilitários.
+
+## CI/CD (GitHub Actions)
+
+Workflows em `.github/workflows/`:
+
+| Workflow | Gatilho | O que faz |
+|----------|---------|-----------|
+| **CI** (`ci.yml`) | Push em `main` e pull requests | `npm ci` → `npm test` → `npm run build:web` + artefato `web-dist` |
+| **CD** (`cd.yml`) | Push em `main` ou manual | Build e push das imagens Docker para GHCR |
+
+Imagens publicadas:
+
+- `ghcr.io/wcestrela-ops/aguia-api:latest`
+- `ghcr.io/wcestrela-ops/aguia-web:latest`
+- `ghcr.io/wcestrela-ops/aguia-gateway:latest`
+
+Cada push em `main` também gera tag com o SHA do commit. Deploy manual:
+
+```bash
+docker login ghcr.io
+docker pull ghcr.io/wcestrela-ops/aguia-api:latest
+docker compose up -d
+```
+
+Ou dispare **CD** em Actions → **Run workflow** no GitHub.
 
 ## Roadmap de implementação
 
