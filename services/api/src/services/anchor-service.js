@@ -8,6 +8,7 @@ const {
   isIgnitionOn,
   extractLocationFromPayload,
 } = require('../lib/geo');
+const { normalizeProviderName } = require('../lib/tracking-platform');
 const logger = require('../logger');
 
 const DEFAULT_RADIUS_METERS = 10;
@@ -58,6 +59,7 @@ class AnchorService {
     const location = await gpswox.getLocation({
       device_id: vehicle.tracker_device_id,
       veiculo: vehicle.tracker_name || vehicle.plate,
+      provider: normalizeProviderName(vehicle.tracking_provider),
     });
 
     const lat = parseFloat(location.latitude);
@@ -112,6 +114,7 @@ class AnchorService {
         const location = await gpswox.getLocation({
           device_id: anchor.tracker_device_id,
           veiculo: anchor.tracker_name || anchor.plate,
+          provider: normalizeProviderName(anchor.tracking_provider),
         });
         const result = await this._evaluateAnchor(anchor, {
           latitude: parseFloat(location.latitude),

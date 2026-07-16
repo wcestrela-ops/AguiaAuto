@@ -226,4 +226,4 @@ function getProvisioningService() {
   return instance;
 }
 
-module.exports = { ProvisioningService, getProvisioningService };
+module.exports = { ProvisioningService, getProvisioningService, extractId };

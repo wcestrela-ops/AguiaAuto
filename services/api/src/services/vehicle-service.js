@@ -11,23 +11,15 @@ const { buildCommandFeedback, formatCommandLogRow, normalizeSmsStatus } = requir
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const { getAuditService } = require('./audit-service');
 const { formatVehicleFields } = require('../lib/tracker-fields');
-const { normalizeProviderName } = require('../lib/tracking-platform');
+const {
+  normalizeProviderName,
+  defaultHistoryRange,
+  normalizeHistoryRange,
+} = require('../lib/tracking-platform');
 const logger = require('../logger');
 
 function vehicleProvider(vehicle) {
   return normalizeProviderName(vehicle.tracking_provider || 'gpswox');
-}
-
-function formatDateTime(date) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
-    + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-function defaultHistoryRange(hours = 24) {
-  const to = new Date();
-  const from = new Date(to.getTime() - hours * 60 * 60 * 1000);
-  return { from: formatDateTime(from), to: formatDateTime(to) };
 }
 
 function formatVehicle(v) {
@@ -308,7 +300,10 @@ class VehicleService {
 
   async getHistory(userId, vehicleId, { from, to, hours } = {}) {
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const range = from && to ? { from, to } : defaultHistoryRange(hours || 24);
+    const provider = vehicleProvider(vehicle);
+    const range = from && to
+      ? normalizeHistoryRange(from, to, provider)
+      : defaultHistoryRange(hours || 24, provider);
 
     const response = await gpswox.getHistory(
       vehicle.tracker_device_id,

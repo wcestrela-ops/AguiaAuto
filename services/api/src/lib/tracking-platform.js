@@ -110,6 +110,40 @@ function platformUserIdColumn(provider) {
   return normalizeProviderName(provider) === 'traccar' ? 'traccar_user_id' : 'gpswox_user_id';
 }
 
+function formatGpswoxDateTime(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function formatHistoryDateTime(date, provider) {
+  if (normalizeProviderName(provider) === 'traccar') {
+    return date.toISOString();
+  }
+  return formatGpswoxDateTime(date);
+}
+
+function defaultHistoryRange(hours = 24, provider = DEFAULT_PROVIDER) {
+  const to = new Date();
+  const from = new Date(to.getTime() - hours * 60 * 60 * 1000);
+  return {
+    from: formatHistoryDateTime(from, provider),
+    to: formatHistoryDateTime(to, provider),
+  };
+}
+
+function normalizeHistoryRange(from, to, provider) {
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return { from, to };
+  }
+  return {
+    from: formatHistoryDateTime(fromDate, provider),
+    to: formatHistoryDateTime(toDate, provider),
+  };
+}
+
 module.exports = {
   DEFAULT_PROVIDER,
   PROVIDER_LABELS,
@@ -124,4 +158,8 @@ module.exports = {
   getAllSyncSettings,
   getActiveSyncSettings,
   platformUserIdColumn,
+  formatGpswoxDateTime,
+  formatHistoryDateTime,
+  defaultHistoryRange,
+  normalizeHistoryRange,
 };

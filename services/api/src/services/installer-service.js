@@ -5,7 +5,7 @@ const { getUserRepository } = require('../repositories/user-repository');
 const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
 const { getTrackerCommandService } = require('./tracker-command-service');
 const { formatVehicle } = require('./vehicle-service');
-const { getProvisioningService } = require('./provisioning-service');
+const { getProvisioningService, extractId } = require('./provisioning-service');
 const { normalizeInstallerFinalizeInput } = require('../lib/tracker-fields');
 const firebase = require('./firebase');
 const logger = require('../logger');
@@ -225,12 +225,13 @@ class InstallerService {
     const startedAt = new Date(finishedAt.getTime() - duration * 60 * 1000);
 
     const platform = tracking_provider || 'gpswox';
+    let resolvedDeviceId = tracker_device_id;
 
     if (create_in_tracker) {
       try {
         await getProvisioningService().ensurePlatformUser(vehicle.user_id, platform);
         const gpswox = require('../integrations/gpswox-gateway');
-        await gpswox.createVeiculo({
+        const created = await gpswox.createVeiculo({
           provider: platform,
           device_id: tracker_device_id,
           imei: normalizedImei,
@@ -238,6 +239,10 @@ class InstallerService {
           plate: resolvedPlate,
           aguia_user_id: vehicle.user_id,
         });
+        const platformDeviceId = extractId(created, ['id', 'device_id']);
+        if (platformDeviceId) {
+          resolvedDeviceId = platformDeviceId;
+        }
       } catch (err) {
         logger.warn('Falha ao criar veículo na plataforma (continuando).', { vehicleId, platform, err: err.message });
       }
@@ -245,7 +250,7 @@ class InstallerService {
 
     const updated = await this.vehicles.update(vehicleId, {
       tracking_provider: platform,
-      tracker_device_id,
+      tracker_device_id: resolvedDeviceId,
       tracker_name: deviceName,
       plate: normalizedPlate || undefined,
       status: VEHICLE_STATUS.ACTIVE,
@@ -261,7 +266,7 @@ class InstallerService {
     const log = await this.installations.create({
       vehicle_id: vehicleId,
       installer_id: installerId,
-      tracker_device_id,
+      tracker_device_id: resolvedDeviceId,
       imei: normalizedImei,
       notes: notes || null,
       report: String(report).trim(),

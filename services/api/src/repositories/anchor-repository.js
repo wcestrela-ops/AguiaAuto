@@ -31,7 +31,7 @@ class AnchorRepository {
 
   async listMonitoring() {
     const { rows } = await this.pool.query(
-      `SELECT va.*, v.tracker_device_id, v.tracker_name, v.plate, v.brand, v.model, v.status AS vehicle_status
+      `SELECT va.*, v.tracker_device_id, v.tracker_name, v.tracking_provider, v.plate, v.brand, v.model, v.status AS vehicle_status
        FROM vehicle_anchors va
        JOIN vehicles v ON v.id = va.vehicle_id
        WHERE va.active = true AND va.status = 'monitoring'
