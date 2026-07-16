@@ -46,6 +46,12 @@ router.put('/documentos/:id', vehicleDocumentUpload.single('file'), async (req, 
   try {
     const fileMeta = storeVehicleDocumentFile(req.file, req.body?.vehicle_id);
     const data = await getService().adminUpdateDocument(Number(req.params.id), req.body, fileMeta);
+    await getAuditService().adminAction('fleet.document.update', {
+      resourceType: 'vehicle',
+      resourceId: data.vehicle_id,
+      metadata: { document_id: data.id, title: data.title, doc_type: data.doc_type, plate: data.plate },
+      req,
+    });
     res.json({ success: true, data });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
@@ -112,6 +118,12 @@ router.post('/manutencao', async (req, res) => {
 router.put('/manutencao/:id', async (req, res) => {
   try {
     const data = await getService().adminUpdateMaintenance(Number(req.params.id), req.body);
+    await getAuditService().adminAction('fleet.maintenance.update', {
+      resourceType: 'vehicle',
+      resourceId: data.vehicle_id,
+      metadata: { maintenance_id: data.id, title: data.title, plate: data.plate },
+      req,
+    });
     res.json({ success: true, data });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;

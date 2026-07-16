@@ -599,8 +599,8 @@ export const ADMIN_GUIDES = {
     title: 'Documentos e manutenção',
     summary: 'Gestão de CRLV, seguro, IPVA, revisões e lembretes push automáticos.',
     steps: [
-      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
-      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
+      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Use Editar para alterar dados ou substituir o anexo; Ver anexo abre o arquivo em nova aba.' },
+      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM). Edite registros existentes pela tabela.' },
       { title: 'Lembretes push', body: 'Aba "Lembretes push" mostra status, histórico por canal (push/WhatsApp/SMS) e botão "Executar agora".' },
       { title: 'Push automático', body: 'Configure canais, intervalo e template em Integrações → Documentos e Manutenção.' },
       { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },

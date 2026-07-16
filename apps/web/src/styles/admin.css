@@ -1052,6 +1052,13 @@ td.actions { white-space: nowrap; }
   margin: 0;
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
 .tab-row {
   display: flex;
   flex-wrap: wrap;
