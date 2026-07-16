@@ -28,6 +28,7 @@ const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
 const { migrateBillingAutomation } = require('./db/migrate-billing-automation');
 const { migrateVehicleFleet } = require('./db/migrate-vehicle-fleet');
+const { migrateFleetReminders } = require('./db/migrate-fleet-reminders');
 const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
@@ -35,6 +36,7 @@ const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
 const { startBillingReminderPoller } = require('./services/billing-reminder-service');
+const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -218,6 +220,9 @@ async function bootstrap() {
     await migrateVehicleFleet();
     logger.info('Documentos e manutenção de veículos inicializados.');
 
+    await migrateFleetReminders();
+    logger.info('Lembretes push de documentos e manutenção inicializados.');
+
     await migrateEmergencia();
     logger.info('Botão de emergência (SOS) inicializado.');
 
@@ -247,7 +252,10 @@ async function bootstrap() {
       startBillingReminderPoller(
         parseInt(process.env.BILLING_REMINDER_CHECK_MS || '0', 10) || undefined,
       );
-      logger.info('Pollers de âncora, indicações, sync GPSWOX e lembretes de cobrança iniciados.');
+      startFleetReminderPoller(
+        parseInt(process.env.FLEET_REMINDER_CHECK_MS || '0', 10) || undefined,
+      );
+      logger.info('Pollers de âncora, indicações, sync GPSWOX, lembretes de cobrança e frota iniciados.');
     }
   });
 }

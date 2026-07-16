@@ -1,6 +1,8 @@
 const { Router } = require('express');
 const path = require('path');
 const { getVehicleFleetService } = require('../../../services/vehicle-fleet-service');
+const { getFleetReminderService } = require('../../../services/fleet-reminder-service');
+const { getFleetReminderNotificationRepository } = require('../../../repositories/fleet-reminder-notification-repository');
 const { vehicleDocumentUpload, storeVehicleDocumentFile } = require('../../../lib/upload');
 
 const router = Router();
@@ -105,6 +107,29 @@ router.delete('/manutencao/:id', async (req, res) => {
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/lembretes', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '50', 10);
+    const userId = req.query.user_id ? parseInt(req.query.user_id, 10) : undefined;
+    const [status, notifications] = await Promise.all([
+      getFleetReminderService().getStatus(),
+      getFleetReminderNotificationRepository().listRecent({ limit, userId }),
+    ]);
+    res.json({ success: true, data: { status, notifications } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/lembretes/executar', async (req, res) => {
+  try {
+    const result = await getFleetReminderService().runScheduledReminders();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

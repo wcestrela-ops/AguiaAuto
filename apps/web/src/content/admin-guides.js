@@ -568,9 +568,13 @@ export const ADMIN_GUIDES = {
     steps: [
       { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
       { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
+      { title: 'Push automático', body: 'Configure em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia quando houver vencimentos próximos ou atrasados.' },
       { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
     ],
-    links: [{ label: 'Veículos', to: '/admin/veiculos' }],
+    links: [
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Integração Frota', to: '/admin/integracoes/frota' },
+    ],
   },
 
   admin_indicacoes: {
@@ -595,6 +599,33 @@ export const ADMIN_GUIDES = {
     ],
     links: [{ label: 'Integrações', to: '/admin/integracoes' }],
   },
+
+  frota: {
+    title: 'Lembretes de documentos e manutenção',
+    summary: 'Push automático quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
+    steps: [
+      {
+        title: 'Consolidado por cliente',
+        body: 'No máximo um push por dia por cliente, mesmo com vários documentos ou manutenções pendentes.',
+      },
+      {
+        title: 'Antecedência',
+        body: 'Itens com vencimento dentro do prazo configurado (padrão 30 dias) entram no lembrete — inclui já vencidos.',
+      },
+      {
+        title: 'Firebase',
+        body: 'Requer integração Firebase ativa e o cliente com app/PWA registrado para push.',
+      },
+      {
+        title: 'Histórico admin',
+        body: 'GET /v1/admin/frota/lembretes lista envios recentes; POST .../lembretes/executar força uma rodada.',
+      },
+    ],
+    links: [
+      { label: 'Documentos (admin)', to: '/admin/frota' },
+      { label: 'Firebase', to: '/admin/integracoes/firebase' },
+    ],
+  },
 };
 
 /** Guia por chave de integração (IntegrationEditPage) */
@@ -608,6 +639,7 @@ export const INTEGRATION_GUIDE_KEYS = {
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
   cobranca: 'cobranca',
+  frota: 'frota',
   emergencia: 'emergencia',
 };
 

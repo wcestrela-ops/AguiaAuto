@@ -140,6 +140,33 @@ class VehicleMaintenanceRepository {
     );
     return rows;
   }
+
+  async listNeedingReminderForUser(userId, warningDays = 30) {
+    const { rows } = await this.pool.query(
+      `SELECT m.*, v.plate, v.brand, v.model
+       FROM vehicle_maintenance_records m
+       JOIN vehicles v ON v.id = m.vehicle_id
+       WHERE m.user_id = $1
+         AND m.next_due_date IS NOT NULL
+         AND m.next_due_date <= CURRENT_DATE + ($2 || ' days')::interval
+       ORDER BY m.next_due_date ASC`,
+      [userId, String(warningDays)],
+    );
+    return rows;
+  }
+
+  async listUserIdsNeedingReminder(warningDays = 30) {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT m.user_id
+       FROM vehicle_maintenance_records m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.next_due_date IS NOT NULL
+         AND m.next_due_date <= CURRENT_DATE + ($1 || ' days')::interval
+         AND u.active = true`,
+      [String(warningDays)],
+    );
+    return rows.map((row) => row.user_id);
+  }
 }
 
 let instance = null;

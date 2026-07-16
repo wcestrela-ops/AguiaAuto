@@ -155,6 +155,16 @@ const INTEGRATIONS = {
       },
     ],
   },
+  frota: {
+    label: 'Documentos e Manutenção',
+    description: 'Lembretes push automáticos de vencimento de documentos e revisões programadas',
+    fields: [
+      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos', type: 'boolean', default: true, hint: 'Envia um push consolidado por cliente por dia' },
+      { key: 'reminder_check_interval_hours', label: 'Verificar lembretes a cada (horas)', type: 'number', default: 6, env: 'FLEET_REMINDER_CHECK_HOURS' },
+      { key: 'warning_days', label: 'Antecedência do alerta (dias)', type: 'number', default: 30, hint: 'Documentos e manutenções com vencimento neste prazo entram no lembrete' },
+      { key: 'reminder_push_enabled', label: 'Enviar notificação push', type: 'boolean', default: true, hint: 'Requer Firebase configurado e app com token FCM registrado' },
+    ],
+  },
   emergencia: {
     label: 'Emergência (SOS)',
     description: 'Botão de pânico no app — notifica contatos via WhatsApp/SMS com localização',

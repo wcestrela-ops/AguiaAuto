@@ -134,6 +134,33 @@ class VehicleDocumentRepository {
     );
     return rows;
   }
+
+  async listNeedingReminderForUser(userId, warningDays = 30) {
+    const { rows } = await this.pool.query(
+      `SELECT d.*, v.plate, v.brand, v.model
+       FROM vehicle_documents d
+       JOIN vehicles v ON v.id = d.vehicle_id
+       WHERE d.user_id = $1
+         AND d.expiry_date IS NOT NULL
+         AND d.expiry_date <= CURRENT_DATE + ($2 || ' days')::interval
+       ORDER BY d.expiry_date ASC`,
+      [userId, String(warningDays)],
+    );
+    return rows;
+  }
+
+  async listUserIdsNeedingReminder(warningDays = 30) {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT d.user_id
+       FROM vehicle_documents d
+       JOIN users u ON u.id = d.user_id
+       WHERE d.expiry_date IS NOT NULL
+         AND d.expiry_date <= CURRENT_DATE + ($1 || ' days')::interval
+         AND u.active = true`,
+      [String(warningDays)],
+    );
+    return rows.map((row) => row.user_id);
+  }
 }
 
 let instance = null;

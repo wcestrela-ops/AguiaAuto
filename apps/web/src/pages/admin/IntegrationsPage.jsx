@@ -14,6 +14,7 @@ const ICONS = {
   smtp: '✉️',
   sms_gpswox_gateway: '📲',
   cobranca: '💬',
+  frota: '📋',
   emergencia: '🆘',
   gateway: '🔒',
   gateway_client: '🔗',
@@ -29,6 +30,7 @@ const INTEGRATION_GUIDE_MAP = {
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
   cobranca: 'cobranca',
+  frota: 'frota',
   emergencia: 'emergencia',
 };
 

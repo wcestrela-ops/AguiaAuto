@@ -43,5 +43,6 @@ initFirebase();
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow('/app'));
+  const path = event.notification.data?.path || '/app';
+  event.waitUntil(clients.openWindow(path));
 });
