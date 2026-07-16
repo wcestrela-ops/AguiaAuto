@@ -53,6 +53,17 @@ export default function ClientHomePage() {
                   : 'Contrato e termos de entrega'}
               </p>
             </Link>
+            <Link to="/app/frota" className="card card-link">
+              <span className="card-icon">🛠️</span>
+              <h3>Documentos</h3>
+              <p>
+                {dashboard.frota?.documentos_vencidos > 0
+                  ? `${dashboard.frota.documentos_vencidos} doc. vencido(s)`
+                  : dashboard.frota?.manutencoes_proximas > 0
+                    ? `${dashboard.frota.manutencoes_proximas} manutenção(ões) próxima(s)`
+                    : 'CRLV, seguro e revisões'}
+              </p>
+            </Link>
             <Link to="/app/alertas" className="card card-link">
               <span className="card-icon">🔔</span>
               <h3>Alertas</h3>

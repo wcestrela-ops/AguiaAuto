@@ -157,6 +157,42 @@ class ReferralRepository {
     );
     return rows;
   }
+
+  async listAll({ limit = 100, status } = {}) {
+    const params = [Math.min(limit, 300)];
+    let where = '';
+    if (status) {
+      params.push(status);
+      where = `WHERE r.discount_status = $${params.length}`;
+    }
+
+    const { rows } = await this.pool.query(
+      `SELECT r.*,
+              ref.name AS referrer_name, ref.email AS referrer_email, ref.referral_code AS referrer_code,
+              u.name AS referred_name, u.email AS referred_email, u.created_at AS referred_at
+       FROM referrals r
+       JOIN users ref ON ref.id = r.referrer_user_id
+       JOIN users u ON u.id = r.referred_user_id
+       ${where}
+       ORDER BY r.created_at DESC
+       LIMIT $1`,
+      params,
+    );
+    return rows;
+  }
+
+  async getGlobalStats() {
+    const { rows } = await this.pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE discount_status = 'awaiting_completion')::int AS aguardando,
+         COUNT(*) FILTER (WHERE discount_status = 'qualified')::int AS qualificadas,
+         COUNT(*) FILTER (WHERE discount_status = 'applied')::int AS desconto_aplicado,
+         COUNT(DISTINCT referrer_user_id)::int AS indicadores_ativos
+       FROM referrals`,
+    );
+    return rows[0];
+  }
 }
 
 let instance = null;

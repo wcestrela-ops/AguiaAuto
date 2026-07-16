@@ -202,6 +202,44 @@ export const CLIENT_GUIDES = {
     ],
   },
 
+  client_frota: {
+    title: 'Documentos e manutenção',
+    summary: 'CRLV, seguro, IPVA e histórico de revisões por veículo.',
+    steps: [
+      {
+        title: 'Documentos',
+        body: 'Cadastre CRLV, seguro, IPVA ou licenciamento com data de vencimento. Anexe PDF ou foto para consulta rápida.',
+      },
+      {
+        title: 'Alertas de vencimento',
+        body: 'Documentos vencidos ou a vencer em 30 dias aparecem destacados no painel e em Meu Painel.',
+      },
+      {
+        title: 'Manutenção',
+        body: 'Registre troca de óleo, revisões e pneus. Informe a próxima data ou KM para lembrete.',
+      },
+    ],
+    links: [{ label: 'Meus veículos', to: '/app/veiculos' }],
+  },
+
+  client_frota_docs: {
+    title: 'Documentos do veículo',
+    summary: 'Anexe CRLV, seguro e IPVA com vencimento.',
+    steps: [
+      { title: 'Cadastro', body: 'Escolha o veículo, tipo e vencimento. PDF ou foto opcional.' },
+      { title: 'Consulta', body: 'Toque em "Ver arquivo" para abrir o anexo.' },
+    ],
+  },
+
+  client_frota_maint: {
+    title: 'Manutenção',
+    summary: 'Histórico e próximas revisões.',
+    steps: [
+      { title: 'Registrar', body: 'Informe data, KM e próxima revisão prevista.' },
+      { title: 'Lembretes', body: 'Revisões próximas ou atrasadas aparecem com badge de alerta.' },
+    ],
+  },
+
   client_profile: {
     title: 'Meu perfil',
     summary: 'Dados pessoais, indicações, senha e notificações push do dispositivo.',

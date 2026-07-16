@@ -746,6 +746,119 @@ class ApiClient {
     }
     return response.blob();
   }
+
+  // ─── Frota (documentos + manutenção) ─────────────────────────────────────
+  getFrotaOverview() {
+    return this.request('/v1/frota', {}, { useClient: true });
+  }
+
+  createFrotaDocument(vehicleId, formData) {
+    return this.uploadClientForm(`/v1/frota/documentos/veiculos/${vehicleId}`, formData);
+  }
+
+  updateFrotaDocument(id, formData) {
+    return this.uploadClientForm(`/v1/frota/documentos/${id}`, formData, 'PUT');
+  }
+
+  deleteFrotaDocument(id) {
+    return this.request(`/v1/frota/documentos/${id}`, { method: 'DELETE' }, { useClient: true });
+  }
+
+  async openFrotaDocumentFile(id) {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}/v1/frota/documentos/${id}/arquivo`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  createFrotaMaintenance(vehicleId, data) {
+    return this.request(`/v1/frota/manutencao/veiculos/${vehicleId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useClient: true });
+  }
+
+  updateFrotaMaintenance(id, data) {
+    return this.request(`/v1/frota/manutencao/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useClient: true });
+  }
+
+  deleteFrotaMaintenance(id) {
+    return this.request(`/v1/frota/manutencao/${id}`, { method: 'DELETE' }, { useClient: true });
+  }
+
+  async uploadClientForm(path, formData, method = 'POST') {
+    const token = this.accessToken || localStorage.getItem('access_token');
+    const response = await fetch(`${BASE}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    return data;
+  }
+
+  getAdminFrotaDocuments() {
+    return this.request('/v1/admin/frota/documentos', {}, { useAdmin: true });
+  }
+
+  createAdminFrotaDocument(vehicleId, formData) {
+    return this.uploadAdminForm(`/v1/admin/frota/documentos/veiculos/${vehicleId}`, formData);
+  }
+
+  deleteAdminFrotaDocument(id) {
+    return this.request(`/v1/admin/frota/documentos/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  getAdminFrotaMaintenance() {
+    return this.request('/v1/admin/frota/manutencao', {}, { useAdmin: true });
+  }
+
+  createAdminFrotaMaintenance(data) {
+    return this.request('/v1/admin/frota/manutencao', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  deleteAdminFrotaMaintenance(id) {
+    return this.request(`/v1/admin/frota/manutencao/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  async uploadAdminForm(path, formData, method = 'POST') {
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    return data;
+  }
+
+  getAdminIndicacoes() {
+    return this.request('/v1/admin/indicacoes', {}, { useAdmin: true });
+  }
+
+  syncAdminIndicacoes() {
+    return this.request('/v1/admin/indicacoes/sync', { method: 'POST' }, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

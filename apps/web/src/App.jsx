@@ -19,6 +19,7 @@ import ClientVehicleDetailPage from './pages/client/ClientVehicleDetailPage';
 import ClientFinanceiroPage from './pages/client/ClientFinanceiroPage';
 import ClientAlertsPage from './pages/client/ClientAlertsPage';
 import ClientContratosPage from './pages/client/ClientContratosPage';
+import ClientFrotaPage from './pages/client/ClientFrotaPage';
 import ForgotPasswordPage from './pages/client/ForgotPasswordPage';
 import ResetPasswordPage from './pages/client/ResetPasswordPage';
 import InstallerLayout from './pages/instalador/InstallerLayout';
@@ -28,6 +29,8 @@ import InstallerHistoryPage from './pages/instalador/InstallerHistoryPage';
 import InstallerJobPage from './pages/instalador/InstallerJobPage';
 import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
 import AdminContratosPage from './pages/admin/AdminContratosPage';
+import AdminFrotaPage from './pages/admin/AdminFrotaPage';
+import AdminIndicacoesPage from './pages/admin/AdminIndicacoesPage';
 import SmsPage from './pages/admin/SmsPage';
 
 function AdminRoute({ children }) {
@@ -71,6 +74,7 @@ export default function App() {
         <Route path="financeiro" element={<ClientFinanceiroPage />} />
         <Route path="alertas" element={<ClientAlertsPage />} />
         <Route path="contratos" element={<ClientContratosPage />} />
+        <Route path="frota" element={<ClientFrotaPage />} />
         <Route path="perfil" element={<ClientProfilePage />} />
       </Route>
 
@@ -109,6 +113,8 @@ export default function App() {
         <Route path="alertas" element={<AdminAlertsPage />} />
         <Route path="instaladores" element={<AdminInstaladoresPage />} />
         <Route path="contratos" element={<AdminContratosPage />} />
+        <Route path="frota" element={<AdminFrotaPage />} />
+        <Route path="indicacoes" element={<AdminIndicacoesPage />} />
       </Route>
     </Routes>
   );

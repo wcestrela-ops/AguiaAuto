@@ -434,9 +434,10 @@ npm run diagnostico    # Descobrir seletores GPSWOX
 - Aceite registrado em `contract_acceptances` com IP e data
 - Fotos servidas com autenticação JWT
 
-### Fase 6 — Extras
-- Indique e Ganhe
-- Documentos e Manutenção
+### Fase 6 — Extras ✅ (atual)
+- **Indique e Ganhe** — link no perfil, desconto automático na mensalidade, painel admin `/admin/indicacoes`
+- **Documentos e Manutenção** — CRLV, seguro, IPVA e revisões por veículo (`/app/frota` cliente, `/admin/frota` admin)
+- Alertas operacionais no dashboard admin para vencimentos e manutenções próximas
 
 ## Área do Instalador
 

@@ -549,13 +549,38 @@ export const ADMIN_GUIDES = {
       { title: 'Comandos com falha', body: 'Últimas 24h — bloqueio/desbloqueio que nem 4G nem SMS conseguiram.' },
       { title: 'Provisionamento', body: 'Clientes sem Asaas/GPSWOX completo — veja Financeiro → Reprovisionar.' },
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
+      { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
+      { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
     ],
     links: [
       { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Financeiro', to: '/admin/financeiro' },
+      { label: 'Documentos', to: '/admin/frota' },
       { label: 'SMS', to: '/admin/sms' },
     ],
+  },
+
+  admin_frota: {
+    title: 'Documentos e manutenção',
+    summary: 'Gestão de CRLV, seguro, IPVA e histórico de revisões por veículo.',
+    steps: [
+      { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
+      { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
+      { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
+    ],
+    links: [{ label: 'Veículos', to: '/admin/veiculos' }],
+  },
+
+  admin_indicacoes: {
+    title: 'Indique e Ganhe',
+    summary: 'Indicações confirmadas geram 50% de desconto por mês; duas no mês isentam a mensalidade.',
+    steps: [
+      { title: 'Qualificação', body: 'Indicado precisa concluir instalação, aceitar contrato e ter veículo ativo.' },
+      { title: 'Desconto automático', body: 'Poller aplica desconto na mensalidade do mês. Use "Sincronizar" para forçar.' },
+      { title: 'Cliente', body: 'Link e código ficam em Meu Perfil no app cliente.' },
+    ],
+    links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
   },
 };
 

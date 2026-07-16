@@ -11,6 +11,8 @@ const NAV = [
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/instaladores', label: 'Instaladores' },
   { to: '/admin/contratos', label: 'Contratos' },
+  { to: '/admin/frota', label: 'Documentos' },
+  { to: '/admin/indicacoes', label: 'Indicações' },
 ];
 
 export default function AdminLayout() {
