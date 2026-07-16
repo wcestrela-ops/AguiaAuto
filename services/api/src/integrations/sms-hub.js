@@ -31,6 +31,7 @@ async function sendTrackerCommand({
   user_id,
   source = 'aguia-failover',
   idempotencyKey,
+  companyId,
 }) {
   const config = getSmsHubConfig();
 
@@ -39,9 +40,10 @@ async function sendTrackerCommand({
     'X-Aguia-Service-Secret': config.secret,
   };
 
-  if (idempotencyKey) {
-    headers['Idempotency-Key'] = idempotencyKey;
-  }
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+
+  const resolvedCompanyId = companyId || process.env.SMS_HUB_DEFAULT_COMPANY_ID;
+  if (resolvedCompanyId) headers['X-Company-Id'] = resolvedCompanyId;
 
   const response = await fetch(`${config.url}/api/v1/sms/internal/dispatches/send`, {
     method: 'POST',
@@ -54,6 +56,7 @@ async function sendTrackerCommand({
       user_id,
       source,
       idempotency_key: idempotencyKey,
+      company_id: resolvedCompanyId,
     }),
   });
 

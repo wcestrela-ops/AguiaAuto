@@ -3,11 +3,21 @@ const asaas = require('../../integrations/asaas');
 const mercadopago = require('../../integrations/mercadopago');
 const { getFinanceiroService } = require('../../services/financeiro-service');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
+const {
+  verifyAsaasWebhook,
+  verifyMercadoPagoWebhook,
+  verifyGpswoxWebhook,
+} = require('../../lib/webhook-verify');
 
 const router = Router();
 
 router.post('/asaas', async (req, res) => {
   try {
+    const config = await asaas.getConfig();
+    if (!verifyAsaasWebhook(req, config)) {
+      return res.status(401).json({ success: false, error: 'Webhook Asaas não autorizado.' });
+    }
+
     const parsed = await asaas.handleWebhook(req.body);
     if (!parsed.processed) {
       return res.json({ success: true, data: parsed });
@@ -27,6 +37,11 @@ router.post('/asaas', async (req, res) => {
 
 router.post('/mercadopago', async (req, res) => {
   try {
+    const config = await mercadopago.getConfig();
+    if (!verifyMercadoPagoWebhook(req, config)) {
+      return res.status(401).json({ success: false, error: 'Webhook Mercado Pago não autorizado.' });
+    }
+
     const parsed = await mercadopago.handleWebhook(req.body);
     if (!parsed.processed) {
       return res.json({ success: true, data: parsed });
@@ -52,13 +67,8 @@ router.post('/gpswox', async (req, res) => {
     const { getAlertService } = require('../../services/alert-service');
     const config = await getAlertService().getEngineConfig();
 
-    if (config.webhook_secret) {
-      const auth = req.headers['authorization'] || '';
-      const headerSecret = req.headers['x-webhook-secret'] || '';
-      const token = auth.startsWith('Bearer ') ? auth.slice(7) : headerSecret;
-      if (token !== config.webhook_secret) {
-        return res.status(401).json({ success: false, error: 'Webhook não autorizado.' });
-      }
+    if (!verifyGpswoxWebhook(req, config)) {
+      return res.status(401).json({ success: false, error: 'Webhook GPSWOX não autorizado.' });
     }
 
     const result = await getAlertService().processGpswoxWebhook(req.body);

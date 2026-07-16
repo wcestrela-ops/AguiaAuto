@@ -45,8 +45,8 @@ services/sms-hub-api/src/
 │   ├── users/          🔜 Fase 2
 │   ├── catalog/        🔜 Fase 3
 │   ├── devices/        🔜 Fase 4
-│   ├── dispatches/     🔜 Fase 5
-│   ├── gateways/       🔜 Fase 6
+│   ├── dispatches/     ✅ Fase 1 (internal + fila BullMQ)
+│   ├── gateways/       ✅ Fase 1 (FAKE + Gateway Manager)
 │   ├── android-gateway/🔜 Fase 7
 │   ├── documents/      🔜
 │   ├── audit/          🔜
@@ -57,7 +57,7 @@ services/sms-hub-api/src/
     ├── database/
     ├── encryption/
     ├── errors/
-    ├── queue/          🔜 Redis/BullMQ
+    ├── queue/          ✅ BullMQ/Redis (fallback síncrono)
     └── ...
 ```
 
@@ -116,11 +116,11 @@ Ver `.env.sms-hub.example`. Prefixo `SMS_HUB_` para a API.
 
 1. ✅ Estrutura, Docker, auth, migrations, seed, login, layout PWA
 2. Empresas e usuários (admin CRUD)
-3. Permissões e guards de `company_id`
+3. ✅ Permissões e guards de `company_id` (CompanyGuard + dispatch)
 4. Biblioteca (fabricantes, protocolos, modelos, comandos)
 5. Dispositivos
-6. Prévia e dispatch + fila
-7. Gateway FAKE + Gateway Manager
+6. ✅ Prévia e dispatch + fila
+7. ✅ Gateway FAKE + Gateway Manager
 8. Android Gateway
 9. SMSMarket
 10. Retry/failover seguro, auditoria, testes E2E completos
@@ -145,13 +145,12 @@ Senhas sobrescritas por `SMS_HUB_ADMIN_PASSWORD` e `SMS_HUB_OPERATOR_PASSWORD`.
 
 ## Limitações atuais (Fase 1)
 
-- Apenas autenticação e dashboard placeholder
-- Sem CRUD de empresas/usuários/dispositivos/comandos
-- Sem fila Redis/BullMQ conectada
-- Sem gateways (FAKE/ANDROID/SMSMARKET)
+- Autenticação, dashboard placeholder e dispatch interno (failover Águia)
+- Sem CRUD de empresas/usuários/dispositivos/comandos (além do seed)
+- Gateway FAKE apenas (sem ANDROID/SMSMARKET real)
 - Recuperação de senha retorna 501
 - Páginas Dispositivos/Enviar/Histórico/Biblioteca são placeholders
 
-## Integração futura com Águia
+## Integração com Águia
 
-O AG SMS Hub está **integrado ao painel Águia** em `/admin/sms` e também disponível como app standalone (`apps/sms-hub-web`). Integração com veículos Águia (failover 4G→SMS) será feita em fase posterior.
+O AG SMS Hub está **integrado ao painel Águia** em `/admin/sms` e também disponível como app standalone (`apps/sms-hub-web`). Failover **4G→SMS** ativo via `POST /api/v1/sms/internal/dispatches/send` (secret `AGUIA_SERVICE_SECRET`). Auditoria admin em `GET /v1/admin/audit` (Águia API).

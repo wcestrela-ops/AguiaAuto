@@ -129,6 +129,15 @@ Env: `SMS_HUB_URL`, `AGUIA_SERVICE_SECRET` (distinto do `ADMIN_SECRET`, só serv
 - **JWT SMS Hub:** falha em produção se `SMS_HUB_JWT_SECRET` ausente ou padrão dev
 - **Idempotência SMS:** header `Idempotency-Key` no failover (1 min por veículo+ação)
 
+### Segurança P1 (implementado)
+
+- **Isolamento por empresa:** `CompanyGuard` no dashboard; `company_id` em dispatches (header `X-Company-Id` no failover Águia)
+- **Fila assíncrona:** BullMQ + Redis para processar dispatches (`SMS_HUB_QUEUE_ENABLED=false` cai para síncrono)
+- **Auditoria admin (Águia):** tabela `audit_logs`, hooks em veículos/comandos, `GET /v1/admin/audit`
+- **Webhooks assinados:** Asaas (`asaas-access-token`), Mercado Pago (`x-signature` HMAC), GPSWOX (Bearer / `x-webhook-secret`)
+
+Env adicional Águia: `SMS_HUB_DEFAULT_COMPANY_ID` (UUID do seed SMS Hub)
+
 ## PWA
 
 - Instalável via navegador (Add to Home Screen)
@@ -163,18 +172,17 @@ npm run test:sms-hub-web
 
 ## Limitações da Fase 1
 
-- Sem CRUD de empresas, usuários, biblioteca, dispositivos ou gateways
-- Sem envio real de SMS
-- Redis presente no Docker mas fila ainda não conectada
+- Sem CRUD de empresas, usuários, biblioteca, dispositivos ou gateways (além do seed)
+- Sem envio real de SMS (gateway FAKE em dev)
 - Páginas além de Login/Início são placeholders
 - Recuperação de senha não implementada
 
 ## Próxima entrega recomendada
 
 1. Módulos **companies** e **users** com CRUD admin
-2. Guards de autorização e isolamento `company_id`
-3. Seed expandido (fabricante Joker, protocolo GT06, comandos de exemplo)
-4. Conexão Redis + BullMQ para jobs assíncronos
+2. Seed expandido (fabricante Joker, protocolo GT06, comandos de exemplo)
+3. Gateways reais (ANDROID / SMSMarket)
+4. Testes E2E completos do fluxo failover
 
 ## Referência
 

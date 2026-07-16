@@ -1,16 +1,26 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CommandDispatchEntity } from '../dispatches/infrastructure/command-dispatch.entity';
-import { SmsGatewayEntity } from '../gateways/infrastructure/sms-gateway.entity';
+import { DispatchModule } from '../dispatches/dispatch.module';
 import { DispatchService } from '../dispatches/application/dispatch.service';
-import { GatewayManagerService } from '../gateways/application/gateway-manager.service';
+import { QueueModule } from '../../shared/queue/queue.module';
+import { DispatchQueueService } from '../../shared/queue/dispatch-queue.service';
 import { InternalDispatchController } from './presentation/internal-dispatch.controller';
 import { AguiaServiceGuard } from '../../shared/guards/aguia-service.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CommandDispatchEntity, SmsGatewayEntity])],
+  imports: [DispatchModule, QueueModule],
   controllers: [InternalDispatchController],
-  providers: [DispatchService, GatewayManagerService, AguiaServiceGuard],
-  exports: [DispatchService],
+  providers: [AguiaServiceGuard],
 })
-export class InternalModule {}
+export class InternalModule implements OnModuleInit {
+  constructor(
+    private readonly dispatchService: DispatchService,
+    private readonly queueService: DispatchQueueService,
+  ) {}
+
+  onModuleInit() {
+    if (this.queueService.isReady()) {
+      this.dispatchService.setQueueService(this.queueService);
+    }
+  }
+}

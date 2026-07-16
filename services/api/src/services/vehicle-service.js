@@ -5,6 +5,7 @@ const smsHub = require('../integrations/sms-hub');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
+const { getAuditService } = require('./audit-service');
 const logger = require('../logger');
 
 function formatDateTime(date) {
@@ -117,6 +118,13 @@ class VehicleService {
         failover: false,
       });
 
+      await getAuditService().userAction('vehicle.command', {
+        userId,
+        resourceType: 'vehicle',
+        resourceId: vehicle.id,
+        metadata: { action: normalized, channel: '4g', plate: vehicle.plate },
+      });
+
       return {
         success: true,
         action: normalized,
@@ -152,6 +160,7 @@ class VehicleService {
         vehicle_id: String(vehicle.id),
         user_id: String(userId),
         idempotencyKey,
+        companyId: process.env.SMS_HUB_DEFAULT_COMPANY_ID,
       });
 
       if (normalized === 'bloquear') {
@@ -171,7 +180,21 @@ class VehicleService {
         external_ref: smsData?.dispatch_id || smsData?.id || null,
       });
 
+      await getAuditService().userAction('vehicle.command.sms_failover', {
+        userId,
+        resourceType: 'vehicle',
+        resourceId: vehicle.id,
+        metadata: {
+          action: normalized,
+          channel: 'sms',
+          dispatch_id: smsData?.dispatch_id,
+          status: smsData?.status,
+          duplicate: smsData?.duplicate,
+        },
+      });
+
       const duplicateNote = smsData?.duplicate ? ' (requisição duplicada ignorada)' : '';
+      const queuedNote = smsData?.queued ? ' (na fila SMS)' : '';
 
       return {
         success: true,
@@ -180,7 +203,7 @@ class VehicleService {
         channel: 'sms',
         failover: true,
         data: smsData,
-        message: `${command.label} enviado via SMS (4G indisponível)${duplicateNote}.`,
+        message: `${command.label} enviado via SMS (4G indisponível)${queuedNote}${duplicateNote}.`,
       };
     }
   }

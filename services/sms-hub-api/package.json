@@ -33,6 +33,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "@nestjs/throttler": "^6.4.0",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.4.2",
     "typeorm": "^0.3.20",
     "uuid": "^11.0.3"
   },

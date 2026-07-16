@@ -17,10 +17,12 @@ export class InternalDispatchController {
   async send(
     @Body() dto: InternalSendDto,
     @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-company-id') companyId?: string,
   ) {
     const data = await this.dispatchService.sendInternal({
       ...dto,
       idempotency_key: idempotencyKey || dto.idempotency_key,
+      company_id: companyId || dto.company_id,
     });
     return { success: true, data, meta: null };
   }

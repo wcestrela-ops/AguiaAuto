@@ -21,6 +21,7 @@ const { migrateContratosSnapshot } = require('./db/migrate-contratos-snapshot');
 const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
+const { migrateAdminAudit } = require('./db/migrate-admin-audit');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 
@@ -48,6 +49,7 @@ const adminAlertasRoutes = require('./modules/admin/alertas/routes');
 const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
+const adminAuditRoutes = require('./modules/admin/audit/routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -114,6 +116,7 @@ app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
 app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
 app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
+app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -163,6 +166,9 @@ async function bootstrap() {
 
     await migrateVehicleSms();
     logger.info('Veículos — chip SMS e logs de comando inicializados.');
+
+    await migrateAdminAudit();
+    logger.info('Auditoria administrativa inicializada.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();

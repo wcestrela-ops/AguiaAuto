@@ -36,4 +36,9 @@ export class InternalSendDto {
   @IsOptional()
   @IsString()
   idempotency_key?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  company_id?: string;
 }

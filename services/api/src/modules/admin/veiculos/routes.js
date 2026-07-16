@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getVehicleService } = require('../../../services/vehicle-service');
 const { getUserRepository } = require('../../../repositories/user-repository');
+const { getAuditService } = require('../../../services/audit-service');
 const { VEHICLE_STATUS } = require('../../../repositories/vehicle-repository');
 
 const router = Router();
@@ -46,6 +47,13 @@ router.post('/', async (req, res) => {
       tracker_phone,
     });
 
+    await getAuditService().adminAction('vehicle.create', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: { plate: data.plate, user_id },
+      req,
+    });
+
     res.status(201).json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -70,6 +78,17 @@ router.put('/:id', async (req, res) => {
       gpswox_name,
       status,
       tracker_phone,
+    });
+
+    await getAuditService().adminAction('vehicle.update', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: {
+        plate: data.plate,
+        tracker_phone_changed: Boolean(tracker_phone),
+        status: data.status,
+      },
+      req,
     });
 
     res.json({ success: true, data });

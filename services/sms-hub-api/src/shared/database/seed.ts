@@ -74,6 +74,8 @@ async function seed() {
     console.log('Gateway FAKE criado.');
   }
 
+  console.log(`SMS_HUB_DEFAULT_COMPANY_ID=${company.id}`);
+
   await dataSource.destroy();
   console.log('Seed concluído.');
 }

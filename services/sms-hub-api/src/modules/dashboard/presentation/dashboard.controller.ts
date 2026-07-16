@@ -4,11 +4,12 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../../shared/auth/jwt-payload.interface';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
+import { CompanyGuard } from '../../../shared/guards/company.guard';
 import { UserRole } from '../../users/domain/user-role.enum';
 
 @ApiTags('dashboard')
 @Controller('dashboard')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, CompanyGuard)
 @ApiBearerAuth()
 export class DashboardController {
   @Get()

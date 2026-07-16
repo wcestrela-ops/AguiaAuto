@@ -18,9 +18,13 @@ describe('DispatchService', () => {
       else stored.push(data);
       return data;
     }),
-    findOne: jest.fn(async ({ where }) =>
-      stored.find((item) => item.idempotencyKey === where.idempotencyKey) || null,
-    ),
+    findOne: jest.fn(async ({ where }) => {
+      if (where.id) return stored.find((item) => item.id === where.id) || null;
+      if (where.idempotencyKey) {
+        return stored.find((item) => item.idempotencyKey === where.idempotencyKey) || null;
+      }
+      return null;
+    }),
   };
 
   const gatewayManager = {
@@ -57,7 +61,8 @@ describe('DispatchService', () => {
 
     expect(result.status).toBe(DispatchStatus.SENT);
     expect(result.message).toBe('RELAY,0#');
-    expect(result.gateway).toBe('Gateway Simulado');
+    expect(result.duplicate).toBe(false);
+    expect(result.queued).toBe(false);
   });
 
   it('should return duplicate when idempotency key repeats', async () => {

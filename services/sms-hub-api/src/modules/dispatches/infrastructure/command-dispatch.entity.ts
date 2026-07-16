@@ -24,6 +24,9 @@ export class CommandDispatchEntity {
   @Column({ name: 'user_id', type: 'varchar', length: 50, nullable: true })
   userId!: string | null;
 
+  @Column({ name: 'company_id', type: 'uuid', nullable: true })
+  companyId!: string | null;
+
   @Column({ type: 'varchar', length: 50, default: 'aguia' })
   source!: string;
 
