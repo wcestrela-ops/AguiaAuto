@@ -26,6 +26,8 @@ class OperationalDashboardService {
       billingSmsFallback24h,
       billingFailed24h,
       recentBillingFallbacks,
+      recentBillingFailed,
+      overdueInvoicesList,
       gpswoxSync,
       fleetOps,
       emergencyOps,
@@ -35,11 +37,11 @@ class OperationalDashboardService {
       this._vehiclesMissingDevice(),
       this._vehiclesMissingImei(),
       this._vehiclesMissingModel(),
-      this._countPendingInstallations(),
+      this._pendingInstallations(),
       this._provisioningIssues(),
       this._countFailedCommands(24),
       this._countFailedSms(24),
-      this._countOverdueInvoices(),
+      this._overdueInvoices(),
       this._recentFailedCommands(10),
       this._recentFailedSms(10),
       getBillingNotificationRepository().countSince(24, { channel: 'sms', usedFallback: true, status: 'sent' }),
@@ -48,6 +50,7 @@ class OperationalDashboardService {
         limit: 10,
         channel: 'sms',
       }).then((rows) => rows.filter((row) => row.used_fallback)),
+      getBillingNotificationRepository().listRecentFailed(10),
       getGpswoxSyncService().getStatus().catch(() => null),
       getVehicleFleetService().getOperationalSummary().catch(() => null),
       getEmergencyService().getOperationalStats().catch(() => null),
@@ -85,6 +88,17 @@ class OperationalDashboardService {
         count: vehiclesMissingImei.count,
         link: '/admin/veiculos',
         hint: 'IMEI deve ser registrado na instalação para suporte e failover SMS.',
+      });
+    }
+
+    if (vehiclesMissingModel.count > 0) {
+      alerts.push({
+        severity: 'warning',
+        key: 'vehicles_missing_model',
+        title: 'Veículos ativos sem modelo de rastreador',
+        count: vehiclesMissingModel.count,
+        link: '/admin/veiculos',
+        hint: 'Modelo define comandos SMS e perfil do dispositivo.',
       });
     }
 
@@ -140,12 +154,12 @@ class OperationalDashboardService {
       });
     }
 
-    if (overdueInvoices > 0) {
+    if (overdueInvoicesList.count > 0) {
       alerts.push({
         severity: 'warning',
         key: 'overdue_invoices',
         title: 'Faturas vencidas',
-        count: overdueInvoices,
+        count: overdueInvoicesList.count,
         link: '/admin/financeiro',
       });
     }
@@ -218,12 +232,12 @@ class OperationalDashboardService {
       });
     }
 
-    if (pendingInstallations > 0) {
+    if (pendingInstallations.count > 0) {
       alerts.push({
         severity: 'info',
         key: 'pending_installations',
         title: 'Aguardando instalação',
-        count: pendingInstallations,
+        count: pendingInstallations.count,
         link: '/admin/veiculos',
       });
     }
@@ -270,13 +284,13 @@ class OperationalDashboardService {
         vehicles_missing_device: vehiclesMissingDevice.count,
         vehicles_missing_imei: vehiclesMissingImei.count,
         vehicles_missing_model: vehiclesMissingModel.count,
-        pending_installations: pendingInstallations,
+        pending_installations: pendingInstallations.count,
         provisioning_issues: provisioningIssues.count,
         failed_commands_24h: failedCommands24h,
         failed_sms_24h: failedSms24h,
         billing_sms_fallback_24h: billingSmsFallback24h,
         billing_notifications_failed_24h: billingFailed24h,
-        overdue_invoices: overdueInvoices,
+        overdue_invoices: overdueInvoicesList.count,
         gpswox_unlinked_devices: gpswoxSync?.unlinked_devices_last_success || 0,
         fleet_documents_expiring: fleetOps?.documents_expiring || 0,
         fleet_documents_expired: fleetOps?.documents_expired || 0,
@@ -284,6 +298,7 @@ class OperationalDashboardService {
         fleet_maintenance_overdue: fleetOps?.maintenance_overdue || 0,
         emergency_events_24h: emergencyOps?.count_24h || 0,
         clients_inactive_access_30d: inactiveAccessClients.count,
+        inactive_access_days: inactiveAccessClients.days,
       },
       gpswox_sync: gpswoxSync,
       fleet: fleetOps,
@@ -293,12 +308,17 @@ class OperationalDashboardService {
         vehicles_missing_chip: vehiclesMissingChip.items,
         vehicles_missing_device: vehiclesMissingDevice.items,
         vehicles_missing_imei: vehiclesMissingImei.items,
+        vehicles_missing_model: vehiclesMissingModel.items,
+        pending_installations: pendingInstallations.items,
         provisioning_issues: provisioningIssues.items,
         recent_failed_commands: recentFailedCommands,
         recent_failed_sms: recentFailedSms,
         recent_billing_sms_fallback: recentBillingFallbacks,
+        recent_billing_failed: recentBillingFailed,
+        overdue_invoices: overdueInvoicesList.items,
         fleet_expiring_documents: fleetOps?.recent_expiring_documents || [],
         fleet_due_maintenance: fleetOps?.recent_due_maintenance || [],
+        emergency_recent: emergencyOps?.recent || [],
         inactive_access_clients: inactiveAccessClients.items,
       },
     };
@@ -357,19 +377,36 @@ class OperationalDashboardService {
   }
 
   async _vehiclesMissingModel() {
+    const { rows } = await this.pool.query(
+      `SELECT v.id, v.plate, v.status, u.email AS user_email, u.name AS user_name
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       WHERE v.status IN ('active', 'blocked')
+         AND v.tracker_model_id IS NULL
+       ORDER BY v.updated_at DESC
+       LIMIT 15`,
+    );
     const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM vehicles
        WHERE status IN ('active', 'blocked')
          AND tracker_model_id IS NULL`,
     );
-    return { count: countRows[0].count, items: [] };
+    return { count: countRows[0].count, items: rows };
   }
 
-  async _countPendingInstallations() {
+  async _pendingInstallations() {
     const { rows } = await this.pool.query(
+      `SELECT v.id, v.plate, v.status, v.created_at, u.id AS user_id, u.email AS user_email, u.name AS user_name
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       WHERE v.status = 'pending_installation'
+       ORDER BY v.created_at DESC
+       LIMIT 15`,
+    );
+    const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM vehicles WHERE status = 'pending_installation'`,
     );
-    return rows[0].count;
+    return { count: countRows[0].count, items: rows };
   }
 
   async _provisioningIssues() {
@@ -411,13 +448,23 @@ class OperationalDashboardService {
     return rows[0].count;
   }
 
-  async _countOverdueInvoices() {
+  async _overdueInvoices() {
     const { rows } = await this.pool.query(
+      `SELECT i.id, i.description, i.amount, i.due_date, i.status,
+              u.id AS user_id, u.email AS user_email, u.name AS user_name
+       FROM invoices i
+       JOIN users u ON u.id = i.user_id
+       WHERE i.status IN ('overdue', 'pending')
+         AND i.due_date < CURRENT_DATE
+       ORDER BY i.due_date ASC
+       LIMIT 15`,
+    );
+    const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM invoices
        WHERE status IN ('overdue', 'pending')
          AND due_date < CURRENT_DATE`,
     );
-    return rows[0].count;
+    return { count: countRows[0].count, items: rows };
   }
 
   async _recentFailedCommands(limit) {

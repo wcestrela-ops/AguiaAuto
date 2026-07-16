@@ -1020,6 +1020,38 @@ td.actions { white-space: nowrap; }
   margin-top: 1rem;
 }
 
+.ops-detail-card {
+  scroll-margin-top: 1rem;
+}
+
+.ops-detail-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.ops-sync-dl {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+  margin: 0;
+}
+
+.ops-sync-dl div {
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: 0.5rem;
+}
+
+.ops-sync-dl dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ops-sync-dl dd {
+  margin: 0;
+}
+
 .tab-row {
   display: flex;
   flex-wrap: wrap;
