@@ -881,6 +881,22 @@ class ApiClient {
   getAdminEmergencyEvents(limit = 30) {
     return this.request(`/v1/admin/emergencia/eventos?limit=${limit}`, {}, { useAdmin: true });
   }
+
+  getAdminAuditLogs(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.offset != null) query.set('offset', String(params.offset));
+    if (params.action) query.set('action', params.action);
+    if (params.actor_type) query.set('actor_type', params.actor_type);
+    if (params.resource_type) query.set('resource_type', params.resource_type);
+    if (params.actor_id) query.set('actor_id', params.actor_id);
+    const qs = query.toString();
+    return this.request(`/v1/admin/audit${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getAdminAuditActions() {
+    return this.request('/v1/admin/audit/acoes', {}, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

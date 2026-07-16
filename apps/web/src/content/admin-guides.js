@@ -588,6 +588,20 @@ export const ADMIN_GUIDES = {
     links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
   },
 
+  admin_audit: {
+    title: 'Auditoria administrativa',
+    summary: 'Histórico de ações sensíveis no painel e no app cliente.',
+    steps: [
+      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), comandos remotos (cliente), sync GPSWOX e failover SMS.' },
+      { title: 'Filtros', body: 'Filtre por ação, tipo de ator (admin/cliente/sistema), recurso ou ID do ator.' },
+      { title: 'Detalhes', body: 'Clique em JSON para ver metadados completos (placa, canal, totais do sync, etc.).' },
+    ],
+    links: [
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Integrações GPSWOX', to: '/admin/integracoes/gpswox' },
+    ],
+  },
+
   emergencia: {
     title: 'Emergência (SOS)',
     summary: 'Botão de pânico no app — alerta contatos e central via WhatsApp/SMS.',

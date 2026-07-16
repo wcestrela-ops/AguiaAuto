@@ -32,6 +32,7 @@ import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
 import AdminContratosPage from './pages/admin/AdminContratosPage';
 import AdminFrotaPage from './pages/admin/AdminFrotaPage';
 import AdminIndicacoesPage from './pages/admin/AdminIndicacoesPage';
+import AdminAuditPage from './pages/admin/AdminAuditPage';
 import SmsPage from './pages/admin/SmsPage';
 
 function AdminRoute({ children }) {
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="contratos" element={<AdminContratosPage />} />
         <Route path="frota" element={<AdminFrotaPage />} />
         <Route path="indicacoes" element={<AdminIndicacoesPage />} />
+        <Route path="auditoria" element={<AdminAuditPage />} />
       </Route>
     </Routes>
   );

@@ -1078,3 +1078,38 @@ td.actions { white-space: nowrap; }
 .emergency-home-card {
   border-color: rgba(220, 53, 69, 0.35);
 }
+
+.audit-table-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.audit-actor-id {
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+.audit-meta-row td {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.audit-json {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.audit-pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+}

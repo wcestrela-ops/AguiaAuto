@@ -13,6 +13,7 @@ const NAV = [
   { to: '/admin/contratos', label: 'Contratos' },
   { to: '/admin/frota', label: 'Documentos' },
   { to: '/admin/indicacoes', label: 'Indicações' },
+  { to: '/admin/auditoria', label: 'Auditoria' },
 ];
 
 export default function AdminLayout() {

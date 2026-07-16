@@ -24,12 +24,66 @@ class AuditRepository {
     return rows[0];
   }
 
-  async listRecent(limit = 50) {
+  _buildListQuery(filters = {}) {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+
+    if (filters.action) {
+      conditions.push(`action = $${idx++}`);
+      params.push(filters.action);
+    }
+    if (filters.actor_type) {
+      conditions.push(`actor_type = $${idx++}`);
+      params.push(filters.actor_type);
+    }
+    if (filters.resource_type) {
+      conditions.push(`resource_type = $${idx++}`);
+      params.push(filters.resource_type);
+    }
+    if (filters.actor_id) {
+      conditions.push(`actor_id = $${idx++}`);
+      params.push(String(filters.actor_id));
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    return { where, params, nextIdx: idx };
+  }
+
+  async list(filters = {}) {
+    const limit = Math.min(Math.max(parseInt(filters.limit || '50', 10), 1), 200);
+    const offset = Math.max(parseInt(filters.offset || '0', 10), 0);
+    const { where, params, nextIdx } = this._buildListQuery(filters);
+
+    params.push(limit, offset);
     const { rows } = await this.pool.query(
-      `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1`,
-      [limit],
+      `SELECT * FROM audit_logs
+       ${where}
+       ORDER BY created_at DESC
+       LIMIT $${nextIdx} OFFSET $${nextIdx + 1}`,
+      params,
     );
     return rows;
+  }
+
+  async count(filters = {}) {
+    const { where, params } = this._buildListQuery(filters);
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM audit_logs ${where}`,
+      params,
+    );
+    return rows[0]?.count || 0;
+  }
+
+  async listDistinctActions() {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT action FROM audit_logs ORDER BY action ASC`,
+    );
+    return rows.map((row) => row.action);
+  }
+
+  async listRecent(limit = 50) {
+    return this.list({ limit });
   }
 }
 
