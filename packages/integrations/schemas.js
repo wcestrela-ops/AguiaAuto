@@ -99,6 +99,38 @@ const INTEGRATIONS = {
       { key: 'from_name', label: 'Nome do remetente', type: 'text', default: 'Águia Gestão Veicular', env: 'SMTP_FROM_NAME' },
     ],
   },
+  cadastro: {
+    label: 'Notificações de cadastro',
+    description: 'Avisos ao cliente e à central quando um novo cadastro é concluído',
+    fields: [
+      { key: 'client_email_enabled', label: 'E-mail para o cliente', type: 'boolean', default: true },
+      { key: 'client_push_enabled', label: 'Push para o cliente', type: 'boolean', default: true, hint: 'Requer Firebase; pode falhar se o app ainda não registrou token' },
+      { key: 'client_whatsapp_enabled', label: 'WhatsApp para o cliente', type: 'boolean', default: true },
+      { key: 'client_sms_enabled', label: 'SMS para o cliente (fallback)', type: 'boolean', default: true, hint: 'Usado se WhatsApp falhar' },
+      { key: 'central_notify_enabled', label: 'Notificar a central', type: 'boolean', default: true },
+      { key: 'central_whatsapp_enabled', label: 'Central — WhatsApp', type: 'boolean', default: true },
+      { key: 'central_sms_enabled', label: 'Central — SMS (fallback)', type: 'boolean', default: true },
+      {
+        key: 'central_phones',
+        label: 'Telefones da central',
+        type: 'textarea',
+        hint: 'Um por linha ou separados por vírgula — recebem alerta de novo cadastro',
+      },
+      {
+        key: 'central_emails',
+        label: 'E-mails da central',
+        type: 'textarea',
+        hint: 'Um por linha — recebem alerta de novo cadastro',
+      },
+      {
+        key: 'template_central',
+        label: 'Mensagem — alerta à central',
+        type: 'textarea',
+        default: '🆕 Novo cadastro Águia\n\nCliente: {{nome}}\nE-mail: {{email}}\nTel: {{telefone}}\nCPF/CNPJ: {{cpf_cnpj}}\nPlano: {{plano}} — R$ {{plano_valor}}/mês\nVeículo: {{veiculo}}\nIndicação: {{indicacao}}\n\n{{data}}',
+        hint: 'Variáveis: {{nome}}, {{email}}, {{telefone}}, {{cpf_cnpj}}, {{plano}}, {{plano_valor}}, {{veiculo}}, {{placa}}, {{indicacao}}, {{data}}',
+      },
+    ],
+  },
   sms_gpswox_gateway: {
     label: 'Gateway SMS GPSWOX (entrada)',
     description: 'URL que o painel GPSWOX chama para enviar SMS via Águia (%NUMBER%, %MESSAGE%)',

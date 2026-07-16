@@ -686,6 +686,21 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  cadastro: {
+    title: 'Notificações de cadastro',
+    summary: 'E-mail, push, WhatsApp/SMS ao cliente e alerta à central em cada novo cadastro.',
+    steps: [
+      { title: 'Cliente', body: 'Recebe e-mail com credenciais, WhatsApp/SMS de boas-vindas e push (se Firebase ativo e app com token).' },
+      { title: 'Central', body: 'Telefones e e-mails configurados recebem resumo: nome, plano, veículo, indicação.' },
+      { title: 'WhatsApp + SMS', body: 'WhatsApp primeiro; SMS como fallback quando habilitado (cliente e central).' },
+      { title: 'Template central', body: 'Personalize a mensagem com variáveis {{nome}}, {{plano}}, {{veiculo}}, etc.' },
+    ],
+    links: [
+      { label: 'Integrações', to: '/admin/integracoes/cadastro' },
+      { label: 'Clientes', to: '/admin/clientes' },
+    ],
+  },
+
   frota: {
     title: 'Lembretes de documentos e manutenção',
     summary: 'Push, WhatsApp e SMS automáticos quando CRLV, seguro, IPVA ou revisões estão vencendo ou atrasados.',
@@ -729,6 +744,7 @@ export const INTEGRATION_GUIDE_KEYS = {
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
   cobranca: 'cobranca',
+  cadastro: 'cadastro',
   frota: 'frota',
   emergencia: 'emergencia',
 };

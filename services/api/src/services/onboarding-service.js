@@ -115,30 +115,6 @@ class OnboardingService {
       cpf_cnpj: formattedCpf,
     });
 
-    const welcome = await authNotifications.sendRegistrationWelcome({ user, password });
-    steps.push(stepResult(
-      'confirmacao_email',
-      welcome.channels.includes('email') ? 'sent' : 'skipped',
-      { channels: welcome.channels },
-    ));
-    steps.push(stepResult(
-      'confirmacao_whatsapp',
-      welcome.channels.includes('whatsapp') ? 'sent' : 'skipped',
-      { channels: welcome.channels },
-    ));
-
-    let referral = null;
-    if (referralCode) {
-      try {
-        referral = await getReferralService().processReferralOnRegister({
-          referredUserId: user.id,
-          referralCode,
-        });
-      } catch (err) {
-        logger.warn('Onboarding: falha ao processar indicação.', { userId: user.id, err: err.message });
-      }
-    }
-
     const vehicle = await this.vehicles.create({
       user_id: user.id,
       plate,
@@ -153,6 +129,49 @@ class OnboardingService {
       plate: vehicle.plate,
       status: vehicle.status,
     }));
+
+    const welcome = await authNotifications.sendRegistrationWelcome({
+      user,
+      password,
+      plan,
+      vehicle,
+      referralCode,
+    });
+    steps.push(stepResult(
+      'confirmacao_email',
+      welcome.channels.includes('email') ? 'sent' : 'skipped',
+      { channels: welcome.channels },
+    ));
+    steps.push(stepResult(
+      'confirmacao_whatsapp',
+      welcome.channels.includes('whatsapp') || welcome.channels.includes('sms') ? 'sent' : 'skipped',
+      { channels: welcome.channels.filter((c) => c === 'whatsapp' || c === 'sms') },
+    ));
+    steps.push(stepResult(
+      'confirmacao_push',
+      welcome.channels.includes('push') ? 'sent' : 'skipped',
+      { channels: welcome.channels.filter((c) => c === 'push') },
+    ));
+    if (welcome.central?.recipients > 0 || welcome.central?.channels?.length) {
+      steps.push(stepResult('notificacao_central', 'sent', {
+        channels: welcome.central.channels,
+        recipients: welcome.central.recipients,
+      }));
+    } else {
+      steps.push(stepResult('notificacao_central', 'skipped', { reason: 'disabled_or_no_recipients' }));
+    }
+
+    let referral = null;
+    if (referralCode) {
+      try {
+        referral = await getReferralService().processReferralOnRegister({
+          referredUserId: user.id,
+          referralCode,
+        });
+      } catch (err) {
+        logger.warn('Onboarding: falha ao processar indicação.', { userId: user.id, err: err.message });
+      }
+    }
 
     let provisioning = null;
     try {

@@ -182,7 +182,18 @@ class AuthService {
     const user = await this.users.create({ email, password, name, phone, cpf_cnpj });
     const tokens = await this._issueTokens(user, { ip, forceAccess: true });
 
-    authNotifications.sendRegistrationWelcome({ user, password }).catch((err) => {
+    let plan = null;
+    if (plan_id) {
+      const { getPlanRepository } = require('../repositories/plan-repository');
+      plan = await getPlanRepository().findById(plan_id);
+    }
+
+    authNotifications.sendRegistrationWelcome({
+      user,
+      password,
+      plan,
+      referralCode: referral_code,
+    }).catch((err) => {
       logger.warn('Notificação de cadastro não enviada.', { userId: user.id, err: err.message });
     });
 
