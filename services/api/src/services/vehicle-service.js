@@ -10,6 +10,7 @@ const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
 const { buildCommandFeedback, formatCommandLogRow, normalizeSmsStatus } = require('../lib/command-feedback');
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const { getAuditService } = require('./audit-service');
+const { formatVehicleFields } = require('../lib/tracker-fields');
 const logger = require('../logger');
 
 function formatDateTime(date) {
@@ -33,14 +34,12 @@ function formatVehicle(v) {
     color: v.color,
     year: v.year,
     status: v.status,
-    gpswox_device_id: v.gpswox_device_id,
-    gpswox_name: v.gpswox_name,
+    ...formatVehicleFields(v),
     tracker_phone: v.tracker_phone || null,
     tracker_phone_masked: v.tracker_phone ? maskPhone(v.tracker_phone) : null,
     tracker_model: v.tracker_model || null,
     tracker_model_id: v.tracker_model_id || null,
     tracker_imei: v.tracker_imei || null,
-    gpswox_synced_at: v.gpswox_synced_at || null,
     assigned_installer_id: v.assigned_installer_id || null,
     assigned_installer_name: v.assigned_installer_name || null,
     assigned_installer_email: v.assigned_installer_email || null,
@@ -73,7 +72,7 @@ class VehicleService {
     const vehicle = await this.repo.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
 
-    if (!vehicle.gpswox_device_id && !vehicle.gpswox_name) {
+    if (!vehicle.tracker_device_id && !vehicle.tracker_name) {
       throw new Error('Veículo ainda não vinculado ao rastreador.');
     }
 
@@ -82,8 +81,8 @@ class VehicleService {
     }
 
     const location = await gpswox.getLocation({
-      device_id: vehicle.gpswox_device_id,
-      veiculo: vehicle.gpswox_name || vehicle.plate,
+      device_id: vehicle.tracker_device_id,
+      veiculo: vehicle.tracker_name || vehicle.plate,
     });
 
     return {
@@ -284,12 +283,12 @@ class VehicleService {
 
   async _sendViaGps(vehicle, normalized, command) {
     if (normalized === 'bloquear') {
-      return gpswox.blockDevice(vehicle.gpswox_device_id);
+      return gpswox.blockDevice(vehicle.tracker_device_id);
     }
     if (normalized === 'desbloquear') {
-      return gpswox.unblockDevice(vehicle.gpswox_device_id);
+      return gpswox.unblockDevice(vehicle.tracker_device_id);
     }
-    return gpswox.sendCommand(vehicle.gpswox_device_id, command.gpswox);
+    return gpswox.sendCommand(vehicle.tracker_device_id, command.gpswox);
   }
 
   async _logCommand(entry) {
@@ -305,7 +304,7 @@ class VehicleService {
     const range = from && to ? { from, to } : defaultHistoryRange(hours || 24);
 
     const response = await gpswox.getHistory(
-      vehicle.gpswox_device_id,
+      vehicle.tracker_device_id,
       range.from,
       range.to,
     );
@@ -319,7 +318,7 @@ class VehicleService {
 
   async shareLocation(userId, vehicleId, { duration_minutes = 60 } = {}) {
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const response = await gpswox.createSharing(vehicle.gpswox_device_id, duration_minutes);
+    const response = await gpswox.createSharing(vehicle.tracker_device_id, duration_minutes);
     const share = response.data || response;
 
     return {
@@ -444,7 +443,7 @@ class VehicleService {
   async _requireDevice(vehicleId, userId) {
     const vehicle = await this.repo.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
-    if (!vehicle.gpswox_device_id) {
+    if (!vehicle.tracker_device_id) {
       throw new Error('Veículo sem device_id GPSWOX configurado.');
     }
     return vehicle;

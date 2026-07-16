@@ -14,8 +14,8 @@ class VehicleRepository {
 
   async listByUser(userId) {
     const { rows } = await this.pool.query(
-      `SELECT id, user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status,
-              tracker_phone, tracker_model, tracker_model_id, tracker_imei, gpswox_synced_at, created_at, updated_at
+      `SELECT id, user_id, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
+              tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_synced_at, created_at, updated_at
        FROM vehicles WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
@@ -60,19 +60,19 @@ class VehicleRepository {
   async create(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO vehicles (
-        user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status,
-        tracker_phone, tracker_model, tracker_model_id, tracker_imei, gpswox_synced_at
+        user_id, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
+        tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_synced_at
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
-        data.user_id, data.gpswox_device_id, data.gpswox_name,
+        data.user_id, data.tracker_device_id, data.tracker_name,
         data.plate, data.brand, data.model, data.color, data.year,
         data.status || VEHICLE_STATUS.PENDING_INSTALLATION,
         data.tracker_phone || null,
         data.tracker_model || null,
         data.tracker_model_id || null,
         data.tracker_imei || null,
-        data.gpswox_synced_at || null,
+        data.tracker_synced_at || null,
       ]
     );
     return rows[0];
@@ -84,8 +84,8 @@ class VehicleRepository {
 
     const { rows } = await this.pool.query(
       `UPDATE vehicles SET
-        gpswox_device_id = COALESCE($2, gpswox_device_id),
-        gpswox_name = COALESCE($3, gpswox_name),
+        tracker_device_id = COALESCE($2, tracker_device_id),
+        tracker_name = COALESCE($3, tracker_name),
         plate = COALESCE($4, plate),
         brand = COALESCE($5, brand),
         model = COALESCE($6, model),
@@ -96,16 +96,16 @@ class VehicleRepository {
         tracker_model = COALESCE($11, tracker_model),
         tracker_model_id = COALESCE($12, tracker_model_id),
         tracker_imei = COALESCE($13, tracker_imei),
-        gpswox_synced_at = COALESCE($14, gpswox_synced_at),
+        tracker_synced_at = COALESCE($14, tracker_synced_at),
         assigned_installer_id = CASE WHEN $15 = '__skip__' THEN assigned_installer_id ELSE $15 END,
         installation_scheduled_at = CASE WHEN $16 = '__skip__' THEN installation_scheduled_at ELSE $16 END,
         assigned_at = CASE WHEN $17 = '__skip__' THEN assigned_at ELSE $17 END,
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
-        id, data.gpswox_device_id, data.gpswox_name, data.plate,
+        id, data.tracker_device_id, data.tracker_name, data.plate,
         data.brand, data.model, data.color, data.year, data.status,
-        data.tracker_phone, data.tracker_model, data.tracker_model_id, data.tracker_imei, data.gpswox_synced_at,
+        data.tracker_phone, data.tracker_model, data.tracker_model_id, data.tracker_imei, data.tracker_synced_at,
         Object.prototype.hasOwnProperty.call(data, 'assigned_installer_id') ? data.assigned_installer_id : '__skip__',
         Object.prototype.hasOwnProperty.call(data, 'installation_scheduled_at') ? data.installation_scheduled_at : '__skip__',
         Object.prototype.hasOwnProperty.call(data, 'assigned_at') ? data.assigned_at : '__skip__',
@@ -140,8 +140,8 @@ class VehicleRepository {
         v.plate ILIKE $${idx}
         OR v.brand ILIKE $${idx}
         OR v.model ILIKE $${idx}
-        OR v.gpswox_device_id ILIKE $${idx}
-        OR v.gpswox_name ILIKE $${idx}
+        OR v.tracker_device_id ILIKE $${idx}
+        OR v.tracker_name ILIKE $${idx}
         OR v.tracker_phone ILIKE $${idx}
         OR v.tracker_imei ILIKE $${idx}
         OR u.name ILIKE $${idx}
@@ -162,7 +162,7 @@ class VehicleRepository {
     }
 
     if (filters.issue === 'missing_device') {
-      conditions.push(`(v.gpswox_device_id IS NULL OR TRIM(v.gpswox_device_id) = '')`);
+      conditions.push(`(v.tracker_device_id IS NULL OR TRIM(v.tracker_device_id) = '')`);
     } else if (filters.issue === 'missing_chip') {
       conditions.push(`v.status IN ('active', 'blocked')`);
       conditions.push(`(v.tracker_phone IS NULL OR TRIM(v.tracker_phone) = '')`);
@@ -297,7 +297,7 @@ class VehicleRepository {
       `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
-       WHERE v.gpswox_device_id = $1 OR v.gpswox_name = $1
+       WHERE v.tracker_device_id = $1 OR v.tracker_name = $1
        LIMIT 1`,
       [String(deviceId)]
     );

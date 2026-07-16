@@ -277,7 +277,7 @@ class OperationalDashboardService {
           title: `Dispositivos ${syncLabel} sem cliente Águia`,
           count: gpswoxSync.unlinked_devices_last_success,
           link: '/admin/veiculos',
-          hint: `Vincule users.gpswox_user_id, atributo aguia_user_id no device ou cadastre o cliente. Config: ${integrationsPath}`,
+          hint: `Vincule users.tracker_user_id, atributo aguia_user_id no device ou cadastre o cliente. Config: ${integrationsPath}`,
         });
       }
     }
@@ -352,13 +352,13 @@ class OperationalDashboardService {
       `SELECT v.id, v.plate, v.status, u.email AS user_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
-       WHERE v.gpswox_device_id IS NULL OR TRIM(v.gpswox_device_id) = ''
+       WHERE v.tracker_device_id IS NULL OR TRIM(v.tracker_device_id) = ''
        ORDER BY v.created_at DESC
        LIMIT 15`,
     );
     const { rows: countRows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM vehicles
-       WHERE gpswox_device_id IS NULL OR TRIM(gpswox_device_id) = ''`,
+       WHERE tracker_device_id IS NULL OR TRIM(tracker_device_id) = ''`,
     );
     return { count: countRows[0].count, items: rows };
   }
@@ -419,7 +419,7 @@ class OperationalDashboardService {
 
   async _provisioningIssues() {
     const { rows } = await this.pool.query(
-      `SELECT id, email, name, provisioning_status, gpswox_user_id, asaas_customer_id
+      `SELECT id, email, name, provisioning_status, tracker_user_id, asaas_customer_id
        FROM users
        WHERE role = 'client'
          AND active = true

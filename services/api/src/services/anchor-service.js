@@ -48,7 +48,7 @@ class AnchorService {
   async activate(userId, vehicleId, { radius_meters = DEFAULT_RADIUS_METERS } = {}) {
     const vehicle = await this.vehicles.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
-    if (!vehicle.gpswox_device_id) {
+    if (!vehicle.tracker_device_id) {
       throw new Error('Veículo sem device_id GPSWOX configurado.');
     }
     if (vehicle.status === VEHICLE_STATUS.PENDING_INSTALLATION) {
@@ -56,8 +56,8 @@ class AnchorService {
     }
 
     const location = await gpswox.getLocation({
-      device_id: vehicle.gpswox_device_id,
-      veiculo: vehicle.gpswox_name || vehicle.plate,
+      device_id: vehicle.tracker_device_id,
+      veiculo: vehicle.tracker_name || vehicle.plate,
     });
 
     const lat = parseFloat(location.latitude);
@@ -110,8 +110,8 @@ class AnchorService {
     for (const anchor of anchors) {
       try {
         const location = await gpswox.getLocation({
-          device_id: anchor.gpswox_device_id,
-          veiculo: anchor.gpswox_name || anchor.plate,
+          device_id: anchor.tracker_device_id,
+          veiculo: anchor.tracker_name || anchor.plate,
         });
         const result = await this._evaluateAnchor(anchor, {
           latitude: parseFloat(location.latitude),
@@ -187,7 +187,7 @@ class AnchorService {
         message,
         source: 'ancora',
         sourceEventId: `ancora-${anchor.id}-${Date.now()}`,
-        deviceId: vehicle.gpswox_device_id,
+        deviceId: vehicle.tracker_device_id,
         payload: {
           anchor_id: anchor.id,
           distance_meters: Math.round(distance),

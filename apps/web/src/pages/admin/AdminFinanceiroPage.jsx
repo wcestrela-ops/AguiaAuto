@@ -340,7 +340,7 @@ export default function AdminFinanceiroPage() {
               <tr key={user.id}>
                 <td>{user.name || user.email}</td>
                 <td><code>{user.asaas_customer_id || '—'}</code></td>
-                <td><code>{user.gpswox_user_id || '—'}</code></td>
+                <td><code>{user.tracker_user_id || '—'}</code></td>
                 <td>
                   <span className={`badge ${user.provisioning_status === 'completed' ? 'success' : 'warning'}`}>
                     {user.provisioning_status || 'pending'}

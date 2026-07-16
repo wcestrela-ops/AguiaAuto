@@ -27,7 +27,7 @@ const INTEGRATIONS = {
       { key: 'default_group_id', label: 'Group ID padrão (novos devices)', type: 'number', env: 'TRACCAR_DEFAULT_GROUP_ID' },
       { key: 'auto_sync_enabled', label: 'Sync automático de veículos', type: 'boolean', default: true, hint: 'Importa/atualiza veículos do Traccar periodicamente' },
       { key: 'auto_sync_interval_hours', label: 'Intervalo do sync (horas)', type: 'number', default: 24, env: 'TRACCAR_AUTO_SYNC_INTERVAL_HOURS' },
-      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Fase 2 — notificador HTTP no Traccar' },
+      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Configure notificador HTTP no Traccar → POST /webhooks/traccar na API' },
     ],
   },
   gpswox: {

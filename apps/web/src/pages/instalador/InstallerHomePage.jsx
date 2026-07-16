@@ -57,7 +57,7 @@ export default function InstallerHomePage() {
                       <span className="badge success">Concluída</span>
                     </div>
                     <p className="vehicle-card-meta">
-                      Device: {item.gpswox_device_id} ·{' '}
+                      Device: {item.tracker_device_id} ·{' '}
                       {new Date(item.created_at).toLocaleString('pt-BR')}
                     </p>
                   </div>

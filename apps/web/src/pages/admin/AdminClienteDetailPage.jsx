@@ -199,7 +199,7 @@ function ClientDetailBody({
             </div>
             <div>Asaas: {user.asaas_customer_id || '—'}</div>
             <div>Mercado Pago: {user.mercadopago_payer_id || '—'}</div>
-            <div>GPSWOX: {user.gpswox_user_id || '—'}</div>
+            <div>GPSWOX: {user.tracker_user_id || '—'}</div>
             {user.provisioning_errors && (
               <pre className="audit-json">{JSON.stringify(user.provisioning_errors, null, 2)}</pre>
             )}
@@ -282,7 +282,7 @@ function ClientDetailBody({
                     </span>
                   </td>
                   <td>{vehicle.tracker_phone || '—'}</td>
-                  <td>{vehicle.gpswox_device_id || '—'}</td>
+                  <td>{vehicle.tracker_device_id || '—'}</td>
                 </tr>
               ))
             )}

@@ -529,15 +529,25 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
-  syncGpswoxVehicles(data = {}) {
-    return this.request('/v1/admin/veiculos/sync-gpswox', {
+  syncTrackerVehicles(data = {}) {
+    return this.request('/v1/admin/veiculos/sync-tracker', {
       method: 'POST',
       body: JSON.stringify(data),
     }, { useAdmin: true });
   }
 
+  /** @deprecated use syncTrackerVehicles */
+  syncGpswoxVehicles(data = {}) {
+    return this.syncTrackerVehicles(data);
+  }
+
+  getTrackerSyncStatus() {
+    return this.request('/v1/admin/veiculos/sync-tracker/status', {}, { useAdmin: true });
+  }
+
+  /** @deprecated use getTrackerSyncStatus */
   getGpswoxSyncStatus() {
-    return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
+    return this.getTrackerSyncStatus();
   }
 
   getAdminVehicles(params = {}) {

@@ -15,7 +15,7 @@ function formatVehicle(row) {
     status: row.status,
     status_label: row.status,
     tracker_phone: row.tracker_phone || null,
-    gpswox_device_id: row.gpswox_device_id || null,
+    tracker_device_id: row.tracker_device_id || null,
     created_at: row.created_at,
   };
 }
@@ -103,7 +103,7 @@ class AdminClientService {
         active: user.active,
         asaas_customer_id: user.asaas_customer_id,
         mercadopago_payer_id: user.mercadopago_payer_id,
-        gpswox_user_id: user.gpswox_user_id,
+        tracker_user_id: user.tracker_user_id,
         provisioning_status: user.provisioning_status,
         provisioning_errors: user.provisioning_errors,
         referral_code: referralCode,

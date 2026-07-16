@@ -6,6 +6,7 @@ const { getAlertPreferenceRepository } = require('../repositories/alert-preferen
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getUserRepository } = require('../repositories/user-repository');
 const { normalizeGpswoxPayload, ALERT_TYPE_LABELS } = require('../lib/gpswox-events');
+const { normalizeTraccarPayload } = require('../lib/tracking-events');
 const firebase = require('./firebase');
 const logger = require('../logger');
 
@@ -52,19 +53,45 @@ class AlertService {
     return result;
   }
 
+  async getTraccarWebhookConfig({ masked = false } = {}) {
+    const store = getStore();
+    const config = await store.getSettings('traccar');
+    const result = {
+      webhook_secret: config.webhook_secret || '',
+    };
+    if (masked && result.webhook_secret) {
+      result.webhook_secret = '********';
+    }
+    return result;
+  }
+
   async processGpswoxWebhook(payload) {
+    return this._processTrackingWebhook(payload, {
+      source: 'gpswox',
+      normalize: normalizeGpswoxPayload,
+    });
+  }
+
+  async processTraccarWebhook(payload) {
+    return this._processTrackingWebhook(payload, {
+      source: 'traccar',
+      normalize: normalizeTraccarPayload,
+    });
+  }
+
+  async _processTrackingWebhook(payload, { source, normalize }) {
     const config = await this.getEngineConfig();
     if (!config.enabled) {
       return { processed: false, reason: 'Motor de alertas desativado.' };
     }
 
-    const normalized = normalizeGpswoxPayload(payload);
+    const normalized = normalize(payload);
     if (!normalized.device_id) {
       return { processed: false, reason: 'device_id não informado.' };
     }
 
     const duplicate = await this.alerts.findRecentDuplicate({
-      source: 'gpswox',
+      source,
       sourceEventId: normalized.source_event_id,
       minutes: config.dedup_minutes,
     });
@@ -97,7 +124,7 @@ class AlertService {
       alert_type: normalized.alert_type,
       title: normalized.title,
       message: normalized.message,
-      source: 'gpswox',
+      source,
       source_event_id: normalized.source_event_id,
       device_id: normalized.device_id,
       payload: normalized.payload,

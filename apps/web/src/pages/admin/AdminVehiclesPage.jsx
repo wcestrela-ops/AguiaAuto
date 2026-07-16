@@ -48,8 +48,8 @@ const EMPTY_FORM = {
   model: '',
   color: '',
   year: '',
-  gpswox_device_id: '',
-  gpswox_name: '',
+  tracker_device_id: '',
+  tracker_name: '',
   tracker_phone: '',
   tracker_model: '',
   tracker_model_id: '',
@@ -297,8 +297,8 @@ export default function AdminVehiclesPage() {
       model: vehicle.model || '',
       color: vehicle.color || '',
       year: vehicle.year ? String(vehicle.year) : '',
-      gpswox_device_id: vehicle.gpswox_device_id || '',
-      gpswox_name: vehicle.gpswox_name || '',
+      tracker_device_id: vehicle.tracker_device_id || '',
+      tracker_name: vehicle.tracker_name || '',
       tracker_phone: vehicle.tracker_phone || '',
       tracker_model: vehicle.tracker_model || '',
       tracker_model_id: vehicle.tracker_model_id ? String(vehicle.tracker_model_id) : '',
@@ -321,8 +321,8 @@ export default function AdminVehiclesPage() {
       model: form.model.trim() || null,
       color: form.color.trim() || null,
       year: form.year ? Number(form.year) : null,
-      gpswox_device_id: form.gpswox_device_id.trim() || null,
-      gpswox_name: form.gpswox_name.trim() || null,
+      tracker_device_id: form.tracker_device_id.trim() || null,
+      tracker_name: form.tracker_name.trim() || null,
       tracker_phone: form.tracker_phone.trim() || null,
       tracker_model: form.tracker_model.trim() || null,
       tracker_model_id: form.tracker_model_id ? Number(form.tracker_model_id) : null,
@@ -547,12 +547,12 @@ export default function AdminVehiclesPage() {
           </label>
           <label>
             Device ID (rastreador)
-            <input value={form.gpswox_device_id} onChange={(e) => updateForm('gpswox_device_id', e.target.value)} />
+            <input value={form.tracker_device_id} onChange={(e) => updateForm('tracker_device_id', e.target.value)} />
             <small className="hint">ID do dispositivo na plataforma ativa</small>
           </label>
           <label>
             Nome no rastreador
-            <input value={form.gpswox_name} onChange={(e) => updateForm('gpswox_name', e.target.value)} />
+            <input value={form.tracker_name} onChange={(e) => updateForm('tracker_name', e.target.value)} />
             <small className="hint">Nome do veículo na plataforma (fallback Playwright no GPSWOX)</small>
           </label>
           <label>
@@ -650,7 +650,7 @@ export default function AdminVehiclesPage() {
                       </div>
                     ) : null}
                   </td>
-                  <td><code>{vehicle.gpswox_device_id || '—'}</code></td>
+                  <td><code>{vehicle.tracker_device_id || '—'}</code></td>
                   <td>{vehicle.tracker_phone || '—'}</td>
                   <td><small>{vehicle.tracker_imei || '—'}</small></td>
                   <td>

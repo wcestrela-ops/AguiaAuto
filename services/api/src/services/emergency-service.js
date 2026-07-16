@@ -191,8 +191,8 @@ class EmergencyService {
 
       try {
         const location = await gpswox.getLocation({
-          device_id: vehicle.gpswox_device_id,
-          veiculo: vehicle.gpswox_name || vehicle.plate,
+          device_id: vehicle.tracker_device_id,
+          veiculo: vehicle.tracker_name || vehicle.plate,
         });
         lat = location.latitude ?? lat;
         lng = location.longitude ?? lng;

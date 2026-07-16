@@ -27,7 +27,7 @@ function formatInstallationReport(row, photos = [], { accepted = null, baseUrl =
     plate: row.plate,
     vehicle_label: [row.brand, row.model, row.plate].filter(Boolean).join(' · ') || row.plate,
     installer_name: row.installer_name,
-    gpswox_device_id: row.gpswox_device_id,
+    tracker_device_id: row.tracker_device_id,
     imei: row.imei,
     notes: row.notes,
     report: row.report,

@@ -51,12 +51,17 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async findByGpswoxUserId(gpswoxUserId) {
+  async findByTrackerUserId(trackerUserId) {
     const { rows } = await this.pool.query(
-      'SELECT id, email, name, phone, gpswox_user_id FROM users WHERE gpswox_user_id = $1 LIMIT 1',
-      [String(gpswoxUserId)]
+      'SELECT id, email, name, phone, tracker_user_id FROM users WHERE tracker_user_id = $1 LIMIT 1',
+      [String(trackerUserId)]
     );
     return rows[0] || null;
+  }
+
+  /** @deprecated use findByTrackerUserId */
+  async findByGpswoxUserId(trackerUserId) {
+    return this.findByTrackerUserId(trackerUserId);
   }
 
   async findByIdWithPassword(id) {
@@ -135,7 +140,7 @@ class UserRepository {
   async listAll() {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
-              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              asaas_customer_id, mercadopago_payer_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at
        FROM users
@@ -199,7 +204,7 @@ class UserRepository {
     const { rows } = await this.pool.query(
       `SELECT
          u.id, u.email, u.name, u.phone, u.cpf_cnpj, u.role, u.active,
-         u.asaas_customer_id, u.mercadopago_payer_id, u.gpswox_user_id,
+         u.asaas_customer_id, u.mercadopago_payer_id, u.tracker_user_id,
          u.provisioning_status, u.provisioning_errors, u.referral_code,
          u.last_access_at, u.last_access_ip, u.created_at,
          COUNT(DISTINCT v.id)::int AS vehicles_count,
@@ -308,7 +313,7 @@ class UserRepository {
         updated_at = NOW()
        WHERE id = $1 AND role = 'client'
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 asaas_customer_id, mercadopago_payer_id, tracker_user_id,
                  provisioning_status, provisioning_errors, referral_code,
                  created_at, updated_at`,
       [userId, name, phone, active],
@@ -321,19 +326,19 @@ class UserRepository {
       `UPDATE users SET
         asaas_customer_id = COALESCE($2, asaas_customer_id),
         mercadopago_payer_id = COALESCE($3, mercadopago_payer_id),
-        gpswox_user_id = COALESCE($4, gpswox_user_id),
+        tracker_user_id = COALESCE($4, tracker_user_id),
         provisioning_status = COALESCE($5, provisioning_status),
         provisioning_errors = COALESCE($6, provisioning_errors),
         updated_at = NOW()
        WHERE id = $1
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 asaas_customer_id, mercadopago_payer_id, tracker_user_id,
                  provisioning_status, provisioning_errors, created_at, updated_at`,
       [
         userId,
         data.asaas_customer_id,
         data.mercadopago_payer_id,
-        data.gpswox_user_id,
+        data.tracker_user_id,
         data.provisioning_status,
         data.provisioning_errors ? JSON.stringify(data.provisioning_errors) : null,
       ]
@@ -344,7 +349,7 @@ class UserRepository {
   async findByIdWithProvisioning(id) {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active,
-              asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+              asaas_customer_id, mercadopago_payer_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at, updated_at
        FROM users WHERE id = $1`,

@@ -185,7 +185,7 @@ function OpsDetailsGrid({ ops }) {
               <tr key={row.id}>
                 <td>{clientLabel(row)}</td>
                 <td><small>{row.provisioning_status || 'pending'}</small></td>
-                <td><small>{row.gpswox_user_id ? '✓' : '—'}</small></td>
+                <td><small>{row.tracker_user_id ? '✓' : '—'}</small></td>
                 <td><small>{row.asaas_customer_id ? '✓' : '—'}</small></td>
                 <td>
                   <Link to={`/admin/clientes/${row.id}`} className="btn-ghost btn-sm">Ficha</Link>

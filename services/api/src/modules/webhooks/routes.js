@@ -7,6 +7,7 @@ const {
   verifyAsaasWebhook,
   verifyMercadoPagoWebhook,
   verifyGpswoxWebhook,
+  verifyTraccarWebhook,
 } = require('../../lib/webhook-verify');
 
 const router = Router();
@@ -57,6 +58,31 @@ router.post('/mercadopago', async (req, res) => {
     }
 
     res.json({ success: true, data: parsed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/traccar', async (req, res) => {
+  try {
+    const { getAlertService } = require('../../services/alert-service');
+    const config = await getAlertService().getTraccarWebhookConfig();
+
+    if (!verifyTraccarWebhook(req, config)) {
+      return res.status(401).json({ success: false, error: 'Webhook Traccar não autorizado.' });
+    }
+
+    const result = await getAlertService().processTraccarWebhook(req.body);
+
+    const { getAnchorService } = require('../../services/anchor-service');
+    const anchorPayload = {
+      ...req.body,
+      device_id: req.body?.event?.deviceId || req.body?.deviceId || req.body?.device_id,
+      deviceId: req.body?.event?.deviceId || req.body?.deviceId,
+    };
+    const anchorResult = await getAnchorService().evaluateFromWebhook(anchorPayload);
+
+    res.json({ success: true, data: { ...result, ancora: anchorResult } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

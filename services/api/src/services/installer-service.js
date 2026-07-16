@@ -6,6 +6,7 @@ const { getTrackerModelRepository } = require('../repositories/tracker-model-rep
 const { getTrackerCommandService } = require('./tracker-command-service');
 const { formatVehicle } = require('./vehicle-service');
 const gpswox = require('../integrations/gpswox-gateway');
+const { normalizeInstallerFinalizeInput } = require('../lib/tracker-fields');
 const firebase = require('./firebase');
 const logger = require('../logger');
 const { movePhotosToInstallation, MAX_PHOTOS } = require('../lib/upload');
@@ -32,8 +33,8 @@ function formatPendingJob(row, viewerInstallerId = null) {
     color: row.color,
     year: row.year,
     status: row.status,
-    gpswox_device_id: row.gpswox_device_id,
-    gpswox_name: row.gpswox_name,
+    tracker_device_id: row.tracker_device_id,
+    tracker_name: row.tracker_name,
     label: [row.brand, row.model, row.plate].filter(Boolean).join(' · ') || row.plate || 'Sem placa',
     client: {
       id: row.user_id,
@@ -83,7 +84,7 @@ class InstallerService {
         vehicle_id: row.vehicle_id,
         plate: row.plate,
         client_name: row.client_name,
-        gpswox_device_id: row.gpswox_device_id,
+        tracker_device_id: row.tracker_device_id,
         duration_minutes: row.duration_minutes,
         created_at: row.created_at,
       })),
@@ -138,9 +139,10 @@ class InstallerService {
   }
 
   async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = [], userRole = 'installer') {
+    const input = normalizeInstallerFinalizeInput(data);
     const {
-      gpswox_device_id,
-      gpswox_name,
+      tracker_device_id,
+      tracker_name,
       plate,
       imei,
       tracker_phone,
@@ -148,11 +150,11 @@ class InstallerService {
       notes,
       report,
       duration_minutes,
-      create_in_gpswox,
-    } = data;
+      create_in_tracker,
+    } = input;
 
-    if (!gpswox_device_id) {
-      throw new Error('gpswox_device_id é obrigatório para finalizar.');
+    if (!tracker_device_id) {
+      throw new Error('tracker_device_id é obrigatório para finalizar.');
     }
 
     const normalizedImei = normalizeImei(imei);
@@ -214,29 +216,30 @@ class InstallerService {
     }
 
     const resolvedPlate = normalizedPlate || vehicle.plate;
-    const deviceName = gpswox_name
+    const deviceName = tracker_name
       || resolvedPlate
       || [vehicle.brand, vehicle.model].filter(Boolean).join(' ')
       || `Veículo ${vehicle.id}`;
     const finishedAt = new Date();
     const startedAt = new Date(finishedAt.getTime() - duration * 60 * 1000);
 
-    if (create_in_gpswox === true || create_in_gpswox === 'true') {
+    if (create_in_tracker) {
       try {
         await gpswox.createVeiculo({
-          device_id: gpswox_device_id,
+          device_id: tracker_device_id,
           imei: normalizedImei,
           name: deviceName,
           plate: resolvedPlate,
+          aguia_user_id: vehicle.user_id,
         });
       } catch (err) {
-        logger.warn('Falha ao criar veículo no GPSWOX (continuando).', { vehicleId, err: err.message });
+        logger.warn('Falha ao criar veículo na plataforma (continuando).', { vehicleId, err: err.message });
       }
     }
 
     const updated = await this.vehicles.update(vehicleId, {
-      gpswox_device_id,
-      gpswox_name: deviceName,
+      tracker_device_id,
+      tracker_name: deviceName,
       plate: normalizedPlate || undefined,
       status: VEHICLE_STATUS.ACTIVE,
       tracker_imei: normalizedImei,
@@ -251,7 +254,7 @@ class InstallerService {
     const log = await this.installations.create({
       vehicle_id: vehicleId,
       installer_id: installerId,
-      gpswox_device_id,
+      tracker_device_id,
       imei: normalizedImei,
       notes: notes || null,
       report: String(report).trim(),

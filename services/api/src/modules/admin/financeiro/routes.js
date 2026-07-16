@@ -132,7 +132,7 @@ router.get('/clientes/:userId', async (req, res) => {
           email: user.email,
           name: user.name,
           asaas_customer_id: user.asaas_customer_id,
-          gpswox_user_id: user.gpswox_user_id,
+          tracker_user_id: user.tracker_user_id,
           provisioning_status: user.provisioning_status,
           provisioning_errors: user.provisioning_errors,
         },

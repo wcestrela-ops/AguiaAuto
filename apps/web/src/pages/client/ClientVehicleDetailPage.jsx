@@ -172,7 +172,7 @@ export default function ClientVehicleDetailPage() {
 
   const canTrack = vehicle.status === 'active' || vehicle.status === 'blocked';
   const hasCoords = location?.latitude != null && location?.longitude != null;
-  const hasDevice = Boolean(vehicle.gpswox_device_id);
+  const hasDevice = Boolean(vehicle.tracker_device_id);
   const anchorActive = anchor?.active && anchor?.status === 'monitoring';
 
   return (
@@ -216,8 +216,8 @@ export default function ClientVehicleDetailPage() {
             {vehicle.model && <div><dt>Modelo</dt><dd>{vehicle.model}</dd></div>}
             {vehicle.color && <div><dt>Cor</dt><dd>{vehicle.color}</dd></div>}
             {vehicle.year && <div><dt>Ano</dt><dd>{vehicle.year}</dd></div>}
-            {vehicle.gpswox_device_id && (
-              <div><dt>Device ID</dt><dd><code>{vehicle.gpswox_device_id}</code></dd></div>
+            {vehicle.tracker_device_id && (
+              <div><dt>Device ID</dt><dd><code>{vehicle.tracker_device_id}</code></dd></div>
             )}
           </dl>
         </div>

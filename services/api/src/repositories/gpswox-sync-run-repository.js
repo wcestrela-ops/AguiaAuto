@@ -7,7 +7,7 @@ class GpswoxSyncRunRepository {
 
   async startRun({ triggered_by = 'scheduler', dry_run = false } = {}) {
     const { rows } = await this.pool.query(
-      `INSERT INTO gpswox_sync_runs (triggered_by, dry_run, started_at)
+      `INSERT INTO tracker_sync_runs (triggered_by, dry_run, started_at)
        VALUES ($1, $2, NOW())
        RETURNING *`,
       [triggered_by, dry_run],
@@ -17,7 +17,7 @@ class GpswoxSyncRunRepository {
 
   async finishRun(id, { summary, success = true, error_message = null } = {}) {
     const { rows } = await this.pool.query(
-      `UPDATE gpswox_sync_runs SET
+      `UPDATE tracker_sync_runs SET
         total = $2,
         created = $3,
         updated = $4,
@@ -44,7 +44,7 @@ class GpswoxSyncRunRepository {
 
   async getLastRun({ successOnly = false } = {}) {
     const sql = `
-      SELECT * FROM gpswox_sync_runs
+      SELECT * FROM tracker_sync_runs
       ${successOnly ? "WHERE success = true AND dry_run = false" : ''}
       ORDER BY started_at DESC
       LIMIT 1`;
@@ -54,7 +54,7 @@ class GpswoxSyncRunRepository {
 
   async listRecent(limit = 10) {
     const { rows } = await this.pool.query(
-      `SELECT * FROM gpswox_sync_runs
+      `SELECT * FROM tracker_sync_runs
        ORDER BY started_at DESC
        LIMIT $1`,
       [Math.min(limit, 50)],

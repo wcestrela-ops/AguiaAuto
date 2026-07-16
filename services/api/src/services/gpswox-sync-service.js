@@ -106,7 +106,7 @@ class GpswoxSyncService {
     }
 
     if (platformUserId) {
-      const user = await this.users.findByGpswoxUserId(String(platformUserId));
+      const user = await this.users.findByTrackerUserId(String(platformUserId));
       if (user) return user.id;
     }
 
@@ -143,14 +143,14 @@ class GpswoxSyncService {
         const trackerModelId = await this._resolveTrackerModelId(modelName);
 
         const payload = {
-          gpswox_device_id: deviceId,
-          gpswox_name: device.name || device.title || `Dispositivo ${deviceId}`,
+          tracker_device_id: deviceId,
+          tracker_name: device.name || device.title || `Dispositivo ${deviceId}`,
           tracker_phone: extractSimNumber(device),
           tracker_model: modelName,
           tracker_model_id: trackerModelId,
           tracker_imei: extractImei(device),
           plate: extractPlate(device),
-          gpswox_synced_at: new Date().toISOString(),
+          tracker_synced_at: new Date().toISOString(),
         };
 
         const existing = await this.vehicles.findByDeviceId(deviceId);
@@ -184,7 +184,7 @@ class GpswoxSyncService {
 
         await this.vehicles.create({
           user_id: userId,
-          plate: payload.plate || payload.gpswox_name.slice(0, 10).toUpperCase(),
+          plate: payload.plate || payload.tracker_name.slice(0, 10).toUpperCase(),
           brand: device.brand || null,
           model: device.vehicle_model || device.model || null,
           status: 'active',

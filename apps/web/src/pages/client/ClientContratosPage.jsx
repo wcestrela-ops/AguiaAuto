@@ -19,7 +19,7 @@ function InstallationPreview({ delivery }) {
       <dl className="detail-list compact">
         <div><dt>Placa</dt><dd>{delivery.plate}</dd></div>
         <div><dt>Instalador</dt><dd>{delivery.installer_name || '—'}</dd></div>
-        <div><dt>Device ID</dt><dd>{delivery.gpswox_device_id}</dd></div>
+        <div><dt>Device ID</dt><dd>{delivery.tracker_device_id}</dd></div>
         {delivery.imei && <div><dt>IMEI</dt><dd><code>{delivery.imei}</code></dd></div>}
         <div><dt>Duração</dt><dd>{formatDuration(delivery.duration_minutes)}</dd></div>
         <div><dt>Data</dt><dd>{new Date(delivery.finished_at || delivery.created_at).toLocaleString('pt-BR')}</dd></div>

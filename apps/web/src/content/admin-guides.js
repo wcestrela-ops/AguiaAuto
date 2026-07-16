@@ -126,7 +126,7 @@ export const ADMIN_GUIDES = {
       },
       {
         title: '5. Sincronizar veículos',
-        body: 'Após configurar, use sync automático (24h) ou Veículos → Sincronizar GPSWOX. Clientes precisam ter gpswox_user_id vinculado.',
+        body: 'Após configurar, use sync automático (24h) ou Veículos → Sincronizar GPSWOX. Clientes precisam ter tracker_user_id vinculado.',
       },
     ],
     links: [{ label: 'Veículos', to: '/admin/veiculos' }],
@@ -429,7 +429,7 @@ export const ADMIN_GUIDES = {
     steps: [
       {
         title: '1. Cliente cadastrado',
-        body: 'O veículo pertence a um cliente Águia. Cadastre o cliente antes ou use sync GPSWOX (requer gpswox_user_id no usuário).',
+        body: 'O veículo pertence a um cliente Águia. Cadastre o cliente antes ou use sync GPSWOX (requer tracker_user_id no usuário).',
       },
       {
         title: '2. Dados do veículo',
@@ -477,7 +477,7 @@ export const ADMIN_GUIDES = {
       { title: 'Sync automático', body: 'Ative em Integrações → GPSWOX. Padrão: a cada 24h a API importa/atualiza veículos.' },
       { title: 'Prévia', body: 'Dry-run manual: mostra quantos dispositivos seriam importados sem gravar.' },
       { title: 'Sincronizar', body: 'Manual imediato: cria veículos novos e atualiza existentes pelo device_id.' },
-      { title: 'Vínculo cliente', body: 'Novos veículos só são criados se o usuário Águia tiver gpswox_user_id correspondente.' },
+      { title: 'Vínculo cliente', body: 'Novos veículos só são criados se o usuário Águia tiver tracker_user_id correspondente.' },
       { title: 'Sem cliente', body: 'Dispositivos ignorados aparecem no dashboard operacional — vincule o cliente e aguarde o próximo sync.' },
       { title: 'Pré-requisito', body: 'GPSWOX configurado com API Hash + gateway interno rodando.' },
     ],

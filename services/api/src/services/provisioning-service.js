@@ -43,7 +43,7 @@ class ProvisioningService {
 
     const errors = [];
     let paymentOk = false;
-    let gpswoxOk = Boolean(user.gpswox_user_id);
+    let gpswoxOk = Boolean(user.tracker_user_id);
     let subscriptionOk = false;
 
     const customerResult = await this.payments.ensureCustomers(user, this.users);
@@ -51,7 +51,7 @@ class ProvisioningService {
     errors.push(...customerResult.errors.map(e => ({ step: `${e.provider}_customer`, error: e.error })));
 
     try {
-      if (!user.gpswox_user_id) {
+      if (!user.tracker_user_id) {
         const platform = await getActivePlatformSettings();
         const providerLabel = getProviderLabel(platform.provider);
         const password = generateGpswoxPassword();
@@ -61,11 +61,12 @@ class ProvisioningService {
           name: user.name || user.email,
           phone: user.phone || undefined,
           group_id: platform.settings.default_group_id || undefined,
+          aguia_user_id: userId,
         });
         const platformUserId = extractId(result, ['id', 'user_id']);
         if (!platformUserId) throw new Error(`${providerLabel} não retornou ID do usuário.`);
-        await this.users.updateProvisioning(userId, { gpswox_user_id: platformUserId });
-        user.gpswox_user_id = platformUserId;
+        await this.users.updateProvisioning(userId, { tracker_user_id: platformUserId });
+        user.tracker_user_id = platformUserId;
         gpswoxOk = true;
       }
     } catch (err) {
@@ -183,6 +184,8 @@ class ProvisioningService {
       status,
       asaas: Boolean(user.asaas_customer_id),
       mercadopago: Boolean(user.mercadopago_payer_id),
+      tracking: gpswoxOk,
+      /** @deprecated use tracking */
       gpswox: gpswoxOk,
       initial_payment: paymentOk,
       subscription: subscriptionOk,

@@ -5,7 +5,7 @@ async function migrateFinanceiro() {
 
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS asaas_customer_id VARCHAR(50);
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS gpswox_user_id VARCHAR(50);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS tracker_user_id VARCHAR(50);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS provisioning_status VARCHAR(30) NOT NULL DEFAULT 'pending';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS provisioning_errors JSONB DEFAULT '[]'::jsonb;
 

@@ -18,11 +18,11 @@ class AnchorRepository {
 
   async findActiveByDeviceId(deviceId) {
     const { rows } = await this.pool.query(
-      `SELECT va.*, v.gpswox_device_id, v.plate, v.brand, v.model, v.status AS vehicle_status
+      `SELECT va.*, v.tracker_device_id, v.plate, v.brand, v.model, v.status AS vehicle_status
        FROM vehicle_anchors va
        JOIN vehicles v ON v.id = va.vehicle_id
        WHERE va.active = true AND va.status = 'monitoring'
-         AND (v.gpswox_device_id = $1 OR v.gpswox_name = $1)
+         AND (v.tracker_device_id = $1 OR v.tracker_name = $1)
        LIMIT 1`,
       [String(deviceId)]
     );
@@ -31,7 +31,7 @@ class AnchorRepository {
 
   async listMonitoring() {
     const { rows } = await this.pool.query(
-      `SELECT va.*, v.gpswox_device_id, v.gpswox_name, v.plate, v.brand, v.model, v.status AS vehicle_status
+      `SELECT va.*, v.tracker_device_id, v.tracker_name, v.plate, v.brand, v.model, v.status AS vehicle_status
        FROM vehicle_anchors va
        JOIN vehicles v ON v.id = va.vehicle_id
        WHERE va.active = true AND va.status = 'monitoring'
