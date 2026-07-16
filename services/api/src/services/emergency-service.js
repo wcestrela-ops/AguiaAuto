@@ -8,7 +8,7 @@ const whatsapp = require('./whatsapp');
 const sms = require('./sms');
 const { normalizePhone } = require('../lib/phone');
 const gpswox = require('../integrations/gpswox-gateway');
-const { normalizeProviderName } = require('../lib/tracking-platform');
+const { normalizeProviderName, getProviderLabel } = require('../lib/tracking-platform');
 const logger = require('../logger');
 
 const NATIONAL_CONTACTS = {
@@ -200,7 +200,11 @@ class EmergencyService {
         lng = location.longitude ?? lng;
         address = location.endereco || location.address || null;
       } catch (err) {
-        logger.warn('Emergência: falha ao obter localização GPSWOX.', { vehicleId, err: err.message });
+        logger.warn('Emergência: falha ao obter localização do rastreador.', {
+          vehicleId,
+          provider: getProviderLabel(vehicle.tracking_provider),
+          err: err.message,
+        });
       }
     }
 

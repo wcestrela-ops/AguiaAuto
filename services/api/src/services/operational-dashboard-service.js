@@ -74,7 +74,7 @@ class OperationalDashboardService {
       alerts.push({
         severity: 'error',
         key: 'vehicles_missing_device',
-        title: 'Veículos sem Device ID GPSWOX',
+        title: 'Veículos sem device ID do rastreador',
         count: vehiclesMissingDevice.count,
         link: '/admin/veiculos',
       });

@@ -15,6 +15,7 @@ const {
   normalizeProviderName,
   defaultHistoryRange,
   normalizeHistoryRange,
+  missingTrackerDeviceError,
 } = require('../lib/tracking-platform');
 const logger = require('../logger');
 
@@ -451,7 +452,7 @@ class VehicleService {
     const vehicle = await this.repo.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
     if (!vehicle.tracker_device_id) {
-      throw new Error('Veículo sem device_id GPSWOX configurado.');
+      throw new Error(missingTrackerDeviceError(vehicle.tracking_provider));
     }
     return vehicle;
   }

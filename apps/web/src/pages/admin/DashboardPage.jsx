@@ -167,7 +167,7 @@ function OpsDetailsGrid({ ops }) {
 
   if (details.vehicles_missing_device?.length > 0) {
     sections.push(
-      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem Device ID GPSWOX" footerLink="/admin/veiculos?issue=missing_device">
+      <OpsDetailCard key="vehicles_missing_device" id="ops-vehicles_missing_device" title="Veículos sem device ID do rastreador" footerLink="/admin/veiculos?issue=missing_device">
         <VehicleRows rows={details.vehicles_missing_device} showStatus />
       </OpsDetailCard>,
     );

@@ -6,6 +6,8 @@ const COMMAND_MAP = {
   engine_resume: 'engineResume',
   engineStop: 'engineStop',
   engineResume: 'engineResume',
+  position_single: 'positionSingle',
+  positionSingle: 'positionSingle',
 };
 
 function knotsToKmh(knots) {

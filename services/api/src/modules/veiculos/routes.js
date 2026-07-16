@@ -147,7 +147,7 @@ router.post('/:id/compartilhar', async (req, res) => {
     const data = await getService().shareLocation(req.user.id, req.params.id, {
       duration_minutes: duration,
     });
-    res.json({ success: true, data, message: 'Link de compartilhamento GPSWOX gerado.' });
+    res.json({ success: true, data, message: 'Link de compartilhamento gerado.' });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });

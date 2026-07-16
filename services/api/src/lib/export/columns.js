@@ -52,7 +52,7 @@ const VEICULOS_COLUMNS = [
   { header: 'E-mail cliente', value: (r) => cell(r.user_email) },
   { header: 'Marca', value: (r) => cell(r.brand) },
   { header: 'Modelo', value: (r) => cell(r.model) },
-  { header: 'Device ID GPSWOX', value: (r) => cell(r.tracker_device_id) },
+  { header: 'Device ID rastreador', value: (r) => cell(r.tracker_device_id) },
   { header: 'Chip SIM', value: (r) => cell(r.tracker_phone) },
   { header: 'IMEI', value: (r) => cell(r.tracker_imei) },
   { header: 'Modelo rastreador', value: (r) => cell(r.tracker_model) },
@@ -130,7 +130,7 @@ const CLIENTE_VEICULOS_COLUMNS = [
   { header: 'Marca/Modelo', value: (r) => [r.brand, r.model].filter(Boolean).join(' ') },
   { header: 'Status', value: (r) => VEHICLE_STATUS_LABELS[r.status] || r.status },
   { header: 'Chip SMS', value: (r) => cell(r.tracker_phone) },
-  { header: 'Device GPSWOX', value: (r) => cell(r.tracker_device_id) },
+  { header: 'Device rastreador', value: (r) => cell(r.tracker_device_id) },
 ];
 
 const CLIENTE_FATURAS_COLUMNS = [

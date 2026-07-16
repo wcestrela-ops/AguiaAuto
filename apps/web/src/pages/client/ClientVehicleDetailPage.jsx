@@ -10,7 +10,7 @@ import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
 const LOCATION_MODES = [
   { id: 'mapa', label: 'Mapa ao vivo' },
-  { id: 'compartilhar', label: 'Compartilhar GPSWOX' },
+  { id: 'compartilhar', label: 'Compartilhar localização' },
 ];
 
 const HISTORY_PRESETS = [
@@ -277,11 +277,11 @@ export default function ClientVehicleDetailPage() {
               ) : (
                 <div className="share-panel">
                   <p className="muted">
-                    Gera um link temporário do GPSWOX para compartilhar a localização em tempo real
+                    Gera um link temporário para compartilhar a localização em tempo real
                     (válido por 60 minutos).
                   </p>
                   <button type="button" onClick={handleShare} disabled={shareLoading || !hasDevice}>
-                    {shareLoading ? 'Gerando...' : 'Gerar link GPSWOX'}
+                    {shareLoading ? 'Gerando...' : 'Gerar link de compartilhamento'}
                   </button>
                   {shareLink && (
                     <div className="share-link-box">
@@ -439,7 +439,7 @@ export default function ClientVehicleDetailPage() {
             </>
           ) : (
             <p className="muted">
-              {historyLoading ? 'Buscando histórico no GPSWOX...' : 'Selecione um período e clique em Carregar.'}
+              {historyLoading ? 'Buscando histórico...' : 'Selecione um período e clique em Carregar.'}
             </p>
           )}
         </section>

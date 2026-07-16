@@ -110,6 +110,13 @@ function platformUserIdColumn(provider) {
   return normalizeProviderName(provider) === 'traccar' ? 'traccar_user_id' : 'gpswox_user_id';
 }
 
+const MISSING_TRACKER_DEVICE_ERROR = 'Veículo sem device ID do rastreador configurado.';
+
+function missingTrackerDeviceError(provider) {
+  if (!provider) return MISSING_TRACKER_DEVICE_ERROR;
+  return `Veículo sem device ID configurado na plataforma ${getProviderLabel(provider)}.`;
+}
+
 function formatGpswoxDateTime(date) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
@@ -158,6 +165,8 @@ module.exports = {
   getAllSyncSettings,
   getActiveSyncSettings,
   platformUserIdColumn,
+  MISSING_TRACKER_DEVICE_ERROR,
+  missingTrackerDeviceError,
   formatGpswoxDateTime,
   formatHistoryDateTime,
   defaultHistoryRange,

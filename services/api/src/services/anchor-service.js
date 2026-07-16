@@ -8,7 +8,7 @@ const {
   isIgnitionOn,
   extractLocationFromPayload,
 } = require('../lib/geo');
-const { normalizeProviderName } = require('../lib/tracking-platform');
+const { normalizeProviderName, missingTrackerDeviceError } = require('../lib/tracking-platform');
 const logger = require('../logger');
 
 const DEFAULT_RADIUS_METERS = 10;
@@ -50,7 +50,7 @@ class AnchorService {
     const vehicle = await this.vehicles.findByIdForUser(vehicleId, userId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
     if (!vehicle.tracker_device_id) {
-      throw new Error('Veículo sem device_id GPSWOX configurado.');
+      throw new Error(missingTrackerDeviceError(vehicle.tracking_provider));
     }
     if (vehicle.status === VEHICLE_STATUS.PENDING_INSTALLATION) {
       throw new Error('Veículo aguardando instalação do rastreador.');

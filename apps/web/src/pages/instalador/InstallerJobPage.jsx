@@ -217,7 +217,7 @@ export default function InstallerJobPage() {
         <fieldset disabled={blocked || submitting}>
         <SectionTitleWithHelp title="Checklist de instalação" guideId="installer_job" scope="installer" />
         <ul className="installer-checklist">
-          <ChecklistItem done={checklist.device} label="Device ID GPSWOX preenchido" />
+          <ChecklistItem done={checklist.device} label="Device ID do rastreador preenchido" />
           <ChecklistItem done={checklist.imei} label="IMEI válido (15 dígitos)" />
           <ChecklistItem done={checklist.chip} label="Chip SIM do rastreador registrado" />
           <ChecklistItem done={checklist.model} label="Modelo do rastreador selecionado" />
@@ -407,7 +407,7 @@ export default function InstallerJobPage() {
             checked={form.create_in_tracker}
             onChange={(e) => updateForm('create_in_tracker', e.target.checked)}
           />
-          Criar veículo automaticamente no GPSWOX
+          Criar veículo automaticamente na plataforma de rastreamento
         </label>
 
         <button type="submit" disabled={submitting || blocked || !checklistComplete}>

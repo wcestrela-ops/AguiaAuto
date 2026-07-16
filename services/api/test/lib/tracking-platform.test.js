@@ -7,6 +7,8 @@ const {
   getSyncSettingsForProvider,
   formatHistoryDateTime,
   defaultHistoryRange,
+  missingTrackerDeviceError,
+  MISSING_TRACKER_DEVICE_ERROR,
 } = require('../../src/lib/tracking-platform');
 
 test('formatHistoryDateTime uses ISO for Traccar and GPSWOX format otherwise', () => {
@@ -20,6 +22,11 @@ test('defaultHistoryRange formats dates per provider', () => {
   const traccarRange = defaultHistoryRange(24, 'traccar');
   assert.match(gpswoxRange.from, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   assert.match(traccarRange.from, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('missingTrackerDeviceError includes provider label when given', () => {
+  assert.match(missingTrackerDeviceError('traccar'), /Traccar/);
+  assert.equal(missingTrackerDeviceError(), MISSING_TRACKER_DEVICE_ERROR);
 });
 
 test('normalizeProviderName defaults to gpswox', () => {
