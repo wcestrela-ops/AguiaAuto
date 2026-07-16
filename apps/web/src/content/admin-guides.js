@@ -613,6 +613,7 @@ export const ADMIN_GUIDES = {
       { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo, provisionamento e último acesso (7/30/60/90 dias ou nunca).' },
       { title: 'Inativos', body: 'O card "Sem acesso há 30+ dias" e o alerta do dashboard operacional listam clientes ativos que não usam o app.' },
       { title: 'Ordenação', body: 'Use "Último acesso (mais antigo)" para priorizar quem precisa de contato.' },
+      { title: 'Onboarding', body: 'Novos clientes entram via /cadastro com plano, veículo, contrato e provisionamento automático (POST /v1/onboarding/cadastro).' },
       { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app.' },
       { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
       { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },

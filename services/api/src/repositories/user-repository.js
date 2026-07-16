@@ -29,6 +29,18 @@ class UserRepository {
     return rows[0] || null;
   }
 
+  async findByCpfCnpj(cpfCnpj) {
+    const digits = String(cpfCnpj || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const { rows } = await this.pool.query(
+      `SELECT id, email, name, cpf_cnpj FROM users
+       WHERE regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') = $1
+       LIMIT 1`,
+      [digits],
+    );
+    return rows[0] || null;
+  }
+
   async findById(id) {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,

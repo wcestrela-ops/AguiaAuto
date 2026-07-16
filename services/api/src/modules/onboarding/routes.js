@@ -1,23 +1,27 @@
 const { Router } = require('express');
+const { getOnboardingService } = require('../../services/onboarding-service');
+const { authLoginLimiter } = require('../../middleware/rate-limit');
+const { getClientIp } = require('../../lib/client-ip');
 
 const router = Router();
 
-router.post('/cadastro', (req, res) => {
-  res.status(501).json({
-    success: false,
-    error: 'Fluxo de cadastro automatizado em desenvolvimento.',
-    etapas_previstas: [
-      'validacao_cpf_cnpj',
-      'confirmacao_email',
-      'confirmacao_whatsapp',
-      'escolha_plano',
-      'cadastro_veiculo',
-      'assinatura_contrato',
-      'pagamento_asaas',
-      'criacao_gpswox',
-      'liberacao_acesso',
-    ],
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    data: getOnboardingService().getFlowInfo(),
   });
+});
+
+router.post('/cadastro', authLoginLimiter, async (req, res) => {
+  try {
+    const data = await getOnboardingService().cadastro(req.body, {
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+    });
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;

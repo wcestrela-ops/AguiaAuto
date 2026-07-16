@@ -293,6 +293,14 @@ class AuthService {
     return sanitizeUser(user);
   }
 
+  async establishSession(user, { ip, forceAccess = true } = {}) {
+    const dbUser = await this.users.findById(user.id);
+    if (!dbUser || !dbUser.active) {
+      throw new Error('Usuário não encontrado ou inativo.');
+    }
+    return this._issueTokens(dbUser, { ip, forceAccess });
+  }
+
   async _issueTokens(user, { ip, forceAccess = false } = {}) {
     const accessToken = signAccessToken(user);
     const refreshToken = generateRefreshToken();

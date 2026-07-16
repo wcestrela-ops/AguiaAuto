@@ -137,6 +137,24 @@ class ApiClient {
     });
   }
 
+  getOnboardingInfo() {
+    return this.request('/v1/onboarding');
+  }
+
+  onboardingRegister(payload) {
+    return this.request('/v1/onboarding/cadastro', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then((res) => {
+      this.setClientTokens(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      if (res.data?.onboarding?.contract) {
+        this.setServiceContractAccepted(true);
+      }
+      return res;
+    });
+  }
+
   async logout() {
     try {
       if (this.refreshToken) {

@@ -95,6 +95,18 @@ class VehicleRepository {
     return rows[0];
   }
 
+  async findByPlate(plate) {
+    if (!plate?.trim()) return null;
+    const normalized = plate.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const { rows } = await this.pool.query(
+      `SELECT * FROM vehicles
+       WHERE UPPER(regexp_replace(plate, '[^A-Za-z0-9]', '', 'g')) = $1
+       LIMIT 1`,
+      [normalized],
+    );
+    return rows[0] || null;
+  }
+
   async listAll() {
     const { rows } = await this.pool.query(
       `SELECT v.*, u.email AS user_email, u.name AS user_name

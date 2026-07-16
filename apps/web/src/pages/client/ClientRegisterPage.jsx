@@ -2,8 +2,25 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 
+const BILLING_TYPES = [
+  { value: 'PIX', label: 'PIX (recomendado)' },
+  { value: 'UNDEFINED', label: 'Escolher no pagamento' },
+  { value: 'BOLETO', label: 'Boleto' },
+];
+
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function provisioningMessage(onboarding) {
+  const status = onboarding?.provisioning?.status;
+  if (status === 'completed') {
+    return 'Conta criada! Pagamento, GPSWOX e contrato configurados automaticamente.';
+  }
+  if (status === 'partial') {
+    return 'Conta criada. Alguns passos do provisionamento ficaram pendentes — nossa equipe pode ajudar.';
+  }
+  return 'Conta criada. Acompanhe cobrança e instalação pelo app.';
 }
 
 export default function ClientRegisterPage() {
@@ -11,8 +28,18 @@ export default function ClientRegisterPage() {
   const refFromUrl = (searchParams.get('ref') || '').trim().toUpperCase();
 
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', cpf_cnpj: '', password: '', plan_id: '', billing_type: 'UNDEFINED',
+    name: '',
+    email: '',
+    phone: '',
+    cpf_cnpj: '',
+    password: '',
+    plan_id: '',
+    billing_type: 'PIX',
     referral_code: refFromUrl,
+    plate: '',
+    brand: '',
+    model: '',
+    accept_terms: false,
   });
   const [plans, setPlans] = useState([]);
   const [referralInfo, setReferralInfo] = useState(null);
@@ -60,25 +87,38 @@ export default function ClientRegisterPage() {
     setLoading(true);
 
     try {
-      const payload = {
-        ...form,
-        plan_id: form.plan_id ? Number(form.plan_id) : undefined,
-        referral_code: form.referral_code?.trim() || undefined,
-      };
-      const res = await api.register(payload);
-
-      const prov = res.data?.provisioning;
-      if (prov?.status === 'completed') {
-        setMessage('Conta criada! Cliente registrado no Asaas e GPSWOX automaticamente.');
-      } else if (prov?.status === 'partial') {
-        setMessage('Conta criada com provisionamento parcial. Nossa equipe finalizará em breve.');
-      } else if (form.plan_id) {
-        setMessage('Conta criada. O provisionamento será concluído em breve.');
+      if (plans.length === 0) {
+        throw new Error('Cadastro online indisponível no momento. Entre em contato com a central.');
       }
 
-      const target = await api.getClientAppPath();
-      setTimeout(() => navigate(target), prov ? 1500 : 0);
-      if (!prov) navigate(target);
+      if (!form.accept_terms) {
+        throw new Error('Aceite o Contrato de Prestação de Serviços para continuar.');
+      }
+
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        cpf_cnpj: form.cpf_cnpj.trim(),
+        password: form.password,
+        plan_id: Number(form.plan_id),
+        billing_type: form.billing_type,
+        referral_code: form.referral_code?.trim() || undefined,
+        accept_terms: true,
+        vehicle: {
+          plate: form.plate.trim(),
+          brand: form.brand.trim() || undefined,
+          model: form.model.trim() || undefined,
+        },
+      };
+
+      const res = await api.onboardingRegister(payload);
+      const onboarding = res.data?.onboarding;
+
+      setMessage(provisioningMessage(onboarding));
+
+      const target = onboarding?.next_path || await api.getClientAppPath();
+      setTimeout(() => navigate(target), 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -88,11 +128,11 @@ export default function ClientRegisterPage() {
 
   return (
     <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
+      <form className="login-card register-card" onSubmit={handleSubmit}>
         <div className="brand">
           <span className="brand-icon">🦅</span>
           <h1>Criar conta</h1>
-          <p>Águia Gestão Veicular</p>
+          <p>Cadastro automatizado — plano, veículo, contrato e pagamento</p>
         </div>
 
         {referralInfo?.valido && (
@@ -105,8 +145,8 @@ export default function ClientRegisterPage() {
 
         <label>Nome<input value={form.name} onChange={(e) => update('name', e.target.value)} required /></label>
         <label>E-mail<input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} required /></label>
-        <label>Telefone<input value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label>
-        <label>CPF/CNPJ<input value={form.cpf_cnpj} onChange={(e) => update('cpf_cnpj', e.target.value)} required /></label>
+        <label>Telefone<input value={form.phone} onChange={(e) => update('phone', e.target.value)} required placeholder="(85) 99999-9999" /></label>
+        <label>CPF/CNPJ<input value={form.cpf_cnpj} onChange={(e) => update('cpf_cnpj', e.target.value)} required placeholder="Somente números ou formatado" /></label>
 
         <label>
           Código de indicação (opcional)
@@ -117,32 +157,78 @@ export default function ClientRegisterPage() {
             maxLength={12}
             readOnly={Boolean(refFromUrl && referralInfo?.valido)}
           />
-          <small className="hint">Quem te indicou ganha 50% de desconto na mensalidade do mês quando você concluir a instalação e aceitar o contrato. Duas indicações no mês = mensalidade isenta.</small>
         </label>
 
-        {plans.length > 0 && (
-          <label>
-            Plano
-            <select value={form.plan_id} onChange={(e) => update('plan_id', e.target.value)} required>
-              <option value="">Selecione um plano...</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} — {formatMoney(plan.price_monthly)}/mês
-                </option>
-              ))}
-            </select>
-            <small className="hint">Ao cadastrar, criamos sua conta no Asaas e GPSWOX automaticamente.</small>
-          </label>
+        {plans.length > 0 ? (
+          <>
+            <label>
+              Plano
+              <select value={form.plan_id} onChange={(e) => update('plan_id', e.target.value)} required>
+                <option value="">Selecione um plano...</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} — {formatMoney(plan.price_monthly)}/mês
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Forma de pagamento inicial
+              <select value={form.billing_type} onChange={(e) => update('billing_type', e.target.value)}>
+                {BILLING_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : (
+          <div className="alert warning">Nenhum plano disponível para cadastro online.</div>
         )}
 
+        <fieldset className="register-fieldset">
+          <legend>Seu veículo</legend>
+          <label>
+            Placa
+            <input
+              value={form.plate}
+              onChange={(e) => update('plate', e.target.value.toUpperCase())}
+              required
+              placeholder="ABC1D23"
+              maxLength={8}
+            />
+          </label>
+          <div className="form-row">
+            <label>
+              Marca
+              <input value={form.brand} onChange={(e) => update('brand', e.target.value)} placeholder="Ex.: Fiat" />
+            </label>
+            <label>
+              Modelo
+              <input value={form.model} onChange={(e) => update('model', e.target.value)} placeholder="Ex.: Argo" />
+            </label>
+          </div>
+          <small className="hint">O veículo ficará aguardando instalação do rastreador. Você receberá push quando o técnico finalizar.</small>
+        </fieldset>
+
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={form.accept_terms}
+            onChange={(e) => update('accept_terms', e.target.checked)}
+            required
+          />
+          Li e aceito o Contrato de Prestação de Serviços e autorizo a cobrança do plano selecionado.
+        </label>
+
         <label>Senha<input type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength={6} required /></label>
-        <small className="hint">Você receberá um e-mail com seu login e senha após o cadastro.</small>
+        <small className="hint">Enviaremos suas credenciais por e-mail. WhatsApp de boas-vindas se disponível.</small>
 
         {error && <div className="alert error">{error}</div>}
         {message && <div className="alert success">{message}</div>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Cadastrando...' : 'Cadastrar'}
+        <button type="submit" disabled={loading || plans.length === 0}>
+          {loading ? 'Cadastrando...' : 'Finalizar cadastro'}
         </button>
 
         <p className="text-center muted">
