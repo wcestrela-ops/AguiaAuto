@@ -27,6 +27,19 @@ class VehicleRepository {
     return rows[0] || null;
   }
 
+  async findByIdForAdmin(id) {
+    const { rows } = await this.pool.query(
+      `SELECT v.*, u.email AS user_email, u.name AS user_name,
+              inst.name AS assigned_installer_name, inst.email AS assigned_installer_email
+       FROM vehicles v
+       JOIN users u ON u.id = v.user_id
+       LEFT JOIN users inst ON inst.id = v.assigned_installer_id
+       WHERE v.id = $1`,
+      [id],
+    );
+    return rows[0] || null;
+  }
+
   async findByIdForUser(id, userId) {
     const { rows } = await this.pool.query(
       'SELECT * FROM vehicles WHERE id = $1 AND user_id = $2',
@@ -84,12 +97,18 @@ class VehicleRepository {
         tracker_model_id = COALESCE($12, tracker_model_id),
         tracker_imei = COALESCE($13, tracker_imei),
         gpswox_synced_at = COALESCE($14, gpswox_synced_at),
+        assigned_installer_id = CASE WHEN $15 = '__skip__' THEN assigned_installer_id ELSE $15 END,
+        installation_scheduled_at = CASE WHEN $16 = '__skip__' THEN installation_scheduled_at ELSE $16 END,
+        assigned_at = CASE WHEN $17 = '__skip__' THEN assigned_at ELSE $17 END,
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
         id, data.gpswox_device_id, data.gpswox_name, data.plate,
         data.brand, data.model, data.color, data.year, data.status,
         data.tracker_phone, data.tracker_model, data.tracker_model_id, data.tracker_imei, data.gpswox_synced_at,
+        Object.prototype.hasOwnProperty.call(data, 'assigned_installer_id') ? data.assigned_installer_id : '__skip__',
+        Object.prototype.hasOwnProperty.call(data, 'installation_scheduled_at') ? data.installation_scheduled_at : '__skip__',
+        Object.prototype.hasOwnProperty.call(data, 'assigned_at') ? data.assigned_at : '__skip__',
       ]
     );
     return rows[0];
@@ -174,9 +193,11 @@ class VehicleRepository {
     const { where, params } = this._buildAdminListQuery(filters);
     const orderBy = this._resolveAdminSort(filters.sort);
     const { rows } = await this.pool.query(
-      `SELECT v.*, u.email AS user_email, u.name AS user_name
+      `SELECT v.*, u.email AS user_email, u.name AS user_name,
+              inst.name AS assigned_installer_name, inst.email AS assigned_installer_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
+       LEFT JOIN users inst ON inst.id = v.assigned_installer_id
        ${where}
        ORDER BY ${orderBy}`,
       params,
@@ -196,15 +217,70 @@ class VehicleRepository {
     return rows[0]?.count || 0;
   }
 
-  async listPendingInstallations() {
+  async listPendingInstallations(installerId = null) {
+    const params = [];
+    let installerFilter = '';
+    if (installerId) {
+      params.push(installerId);
+      installerFilter = `AND (v.assigned_installer_id IS NULL OR v.assigned_installer_id = $1)`;
+    }
+
     const { rows } = await this.pool.query(
-      `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
+      `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone,
+              inst.name AS assigned_installer_name, inst.email AS assigned_installer_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
+       LEFT JOIN users inst ON inst.id = v.assigned_installer_id
        WHERE v.status = 'pending_installation'
-       ORDER BY v.created_at ASC`
+       ${installerFilter}
+       ORDER BY v.installation_scheduled_at ASC NULLS LAST, v.created_at ASC`,
+      params,
     );
     return rows;
+  }
+
+  async countPendingForInstaller(installerId) {
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM vehicles
+       WHERE status = 'pending_installation'
+         AND (assigned_installer_id IS NULL OR assigned_installer_id = $1)`,
+      [installerId],
+    );
+    return rows[0].count;
+  }
+
+  async assignInstaller(vehicleId, { installerId, scheduledAt }) {
+    const { rows } = await this.pool.query(
+      `UPDATE vehicles SET
+        assigned_installer_id = $2,
+        installation_scheduled_at = $3,
+        assigned_at = NOW(),
+        updated_at = NOW()
+       WHERE id = $1 AND status = 'pending_installation'
+       RETURNING *`,
+      [vehicleId, installerId, scheduledAt || null],
+    );
+    if (!rows[0]) {
+      throw new Error('Veículo não encontrado ou não está aguardando instalação.');
+    }
+    return rows[0];
+  }
+
+  async clearInstallerAssignment(vehicleId) {
+    const { rows } = await this.pool.query(
+      `UPDATE vehicles SET
+        assigned_installer_id = NULL,
+        installation_scheduled_at = NULL,
+        assigned_at = NULL,
+        updated_at = NOW()
+       WHERE id = $1 AND status = 'pending_installation'
+       RETURNING *`,
+      [vehicleId],
+    );
+    if (!rows[0]) {
+      throw new Error('Veículo não encontrado ou não está aguardando instalação.');
+    }
+    return rows[0];
   }
 
   async countByStatus(status) {

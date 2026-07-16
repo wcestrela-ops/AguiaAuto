@@ -33,6 +33,7 @@ const { migrateFleetReminders } = require('./db/migrate-fleet-reminders');
 const { migrateEmergencia } = require('./db/migrate-emergencia');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { migrateVehiclePlateOptional } = require('./db/migrate-vehicle-plate-optional');
+const { migrateVehicleInstallerAssignment } = require('./db/migrate-vehicle-installer-assignment');
 const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-channels');
 const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
@@ -216,6 +217,9 @@ async function bootstrap() {
 
     await migrateVehiclePlateOptional();
     logger.info('Veículos — placa opcional (veículos novos sem emplacamento) inicializado.');
+
+    await migrateVehicleInstallerAssignment();
+    logger.info('Veículos — atribuição de instalador inicializada.');
 
     await migrateFleetReminderChannels();
     logger.info('Lembretes de frota — canais WhatsApp/SMS inicializados.');

@@ -27,7 +27,7 @@ export const INSTALLER_GUIDES = {
     steps: [
       {
         title: 'Ordem',
-        body: 'Os mais antigos aparecem primeiro. Qualquer instalador logado pode finalizar qualquer pendência.',
+        body: 'Agendamentos com data/hora aparecem primeiro. Veículos no pool (sem instalador) ficam visíveis para todos; atribuídos só para o instalador designado.',
       },
       {
         title: 'Antes de ir a campo',

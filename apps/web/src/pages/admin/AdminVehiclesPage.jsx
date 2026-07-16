@@ -77,11 +77,109 @@ function readFiltersFromSearchParams(searchParams) {
   };
 }
 
+function toDatetimeLocalValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function InstallerAssignmentCell({ vehicle, installers, onChange, onError }) {
+  const [installerId, setInstallerId] = useState(
+    vehicle.assigned_installer_id ? String(vehicle.assigned_installer_id) : '',
+  );
+  const [scheduledAt, setScheduledAt] = useState(toDatetimeLocalValue(vehicle.installation_scheduled_at));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setInstallerId(vehicle.assigned_installer_id ? String(vehicle.assigned_installer_id) : '');
+    setScheduledAt(toDatetimeLocalValue(vehicle.installation_scheduled_at));
+  }, [vehicle.assigned_installer_id, vehicle.installation_scheduled_at]);
+
+  async function handleAssign() {
+    if (!installerId) {
+      onError('Selecione um instalador para atribuir.');
+      return;
+    }
+    setSaving(true);
+    onError('');
+    try {
+      await api.assignVehicleInstaller(vehicle.id, {
+        installer_id: Number(installerId),
+        installation_scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      });
+      await onChange();
+    } catch (err) {
+      onError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUnassign() {
+    setSaving(true);
+    onError('');
+    try {
+      await api.unassignVehicleInstaller(vehicle.id);
+      setInstallerId('');
+      setScheduledAt('');
+      await onChange();
+    } catch (err) {
+      onError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="installer-assignment-cell">
+      <select
+        value={installerId}
+        onChange={(e) => setInstallerId(e.target.value)}
+        disabled={saving}
+      >
+        <option value="">Pool (qualquer instalador)</option>
+        {installers.map((installer) => (
+          <option key={installer.id} value={installer.id}>
+            {installer.name || installer.email}
+          </option>
+        ))}
+      </select>
+      <input
+        type="datetime-local"
+        value={scheduledAt}
+        onChange={(e) => setScheduledAt(e.target.value)}
+        disabled={saving}
+        title="Agendamento opcional"
+      />
+      <div className="table-actions">
+        <button type="button" className="btn-sm" onClick={handleAssign} disabled={saving || !installerId}>
+          {saving ? '...' : 'Atribuir'}
+        </button>
+        {vehicle.assigned_installer_id ? (
+          <button type="button" className="btn-sm btn-secondary" onClick={handleUnassign} disabled={saving}>
+            Remover
+          </button>
+        ) : null}
+      </div>
+      {vehicle.assigned_installer_name && (
+        <small className="muted">
+          Atual: {vehicle.assigned_installer_name}
+          {vehicle.installation_scheduled_at
+            ? ` · ${new Date(vehicle.installation_scheduled_at).toLocaleString('pt-BR')}`
+            : ''}
+        </small>
+      )}
+    </div>
+  );
+}
+
 export default function AdminVehiclesPage() {
   const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [total, setTotal] = useState(0);
   const [users, setUsers] = useState([]);
+  const [installers, setInstallers] = useState([]);
   const [trackerModels, setTrackerModels] = useState([]);
   const [metaLoading, setMetaLoading] = useState(true);
   const [listLoading, setListLoading] = useState(true);
@@ -118,13 +216,15 @@ export default function AdminVehiclesPage() {
     async function loadMeta() {
       setMetaLoading(true);
       try {
-        const [usersRes, modelsRes, syncRes] = await Promise.all([
+        const [usersRes, installersRes, modelsRes, syncRes] = await Promise.all([
           api.getAdminUsers(),
+          api.getAdminInstallers(),
           api.getTrackerModels(),
           api.getGpswoxSyncStatus().catch(() => ({ data: null })),
         ]);
         if (cancelled) return;
         setUsers(usersRes.data || []);
+        setInstallers(installersRes.data || []);
         setTrackerModels(modelsRes.data || []);
         setSyncStatus(syncRes.data || null);
       } catch (err) {
@@ -522,13 +622,14 @@ export default function AdminVehiclesPage() {
               <th>Chip SIM</th>
               <th>IMEI</th>
               <th>Status</th>
+              <th>Instalador</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {!listLoading && vehicles.length === 0 ? (
               <tr>
-                <td colSpan={7} className="muted">Nenhum veículo encontrado.</td>
+                <td colSpan={8} className="muted">Nenhum veículo encontrado.</td>
               </tr>
             ) : (
               vehicles.map((vehicle) => (
@@ -549,6 +650,18 @@ export default function AdminVehiclesPage() {
                     <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
                       {vehicleStatusLabel(vehicle.status)}
                     </span>
+                  </td>
+                  <td>
+                    {vehicle.status === 'pending_installation' ? (
+                      <InstallerAssignmentCell
+                        vehicle={vehicle}
+                        installers={installers}
+                        onChange={loadVehicles}
+                        onError={setError}
+                      />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                   <td className="actions">
                     <button type="button" className="btn-sm btn-secondary" onClick={() => startEdit(vehicle)}>

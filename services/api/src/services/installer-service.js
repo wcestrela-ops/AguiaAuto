@@ -18,7 +18,11 @@ const {
 
 const MIN_PHOTOS = 1;
 
-function formatPendingJob(row) {
+function formatPendingJob(row, viewerInstallerId = null) {
+  const assignedToOther = row.assigned_installer_id
+    && viewerInstallerId
+    && row.assigned_installer_id !== viewerInstallerId;
+
   return {
     id: row.id,
     vehicle_id: row.id,
@@ -37,6 +41,15 @@ function formatPendingJob(row) {
       email: row.user_email,
       phone: row.user_phone,
     },
+    assigned_installer_id: row.assigned_installer_id || null,
+    assigned_installer_name: row.assigned_installer_name || null,
+    installation_scheduled_at: row.installation_scheduled_at || null,
+    assigned_at: row.assigned_at || null,
+    is_pool: !row.assigned_installer_id,
+    assigned_to_me: viewerInstallerId
+      ? (!row.assigned_installer_id || row.assigned_installer_id === viewerInstallerId)
+      : undefined,
+    can_finalize: viewerInstallerId ? !assignedToOther : true,
     created_at: row.created_at,
   };
 }
@@ -58,7 +71,7 @@ class InstallerService {
 
   async getDashboard(installerId) {
     const [pending, completed] = await Promise.all([
-      this.vehicles.countByStatus(VEHICLE_STATUS.PENDING_INSTALLATION),
+      this.vehicles.countPendingForInstaller(installerId),
       this.installations.listByInstaller(installerId, { limit: 5 }),
     ]);
 
@@ -77,24 +90,46 @@ class InstallerService {
     };
   }
 
-  async listPending() {
-    const rows = await this.vehicles.listPendingInstallations();
-    return rows.map(formatPendingJob);
+  async listPending(installerId) {
+    const rows = await this.vehicles.listPendingInstallations(installerId);
+    return rows.map((row) => formatPendingJob(row, installerId));
   }
 
-  async getJob(vehicleId) {
+  _assertInstallerAccess(vehicle, installerId, userRole) {
+    if (userRole === 'admin') return;
+    if (vehicle.status !== VEHICLE_STATUS.PENDING_INSTALLATION) {
+      throw new Error('Instalação não encontrada.');
+    }
+    if (vehicle.assigned_installer_id && vehicle.assigned_installer_id !== installerId) {
+      throw new Error('Esta instalação está atribuída a outro instalador.');
+    }
+  }
+
+  async getJob(vehicleId, installerId, userRole = 'installer') {
     const vehicle = await this.vehicles.findById(vehicleId);
-    if (!vehicle) throw new Error('Instalação não encontrada.');
+    if (!vehicle || vehicle.status !== VEHICLE_STATUS.PENDING_INSTALLATION) {
+      throw new Error('Instalação não encontrada.');
+    }
+
+    this._assertInstallerAccess(vehicle, installerId, userRole);
 
     const user = await this.users.findById(vehicle.user_id);
+    const installerRow = vehicle.assigned_installer_id
+      ? await this.users.findById(vehicle.assigned_installer_id)
+      : null;
+
     return {
       ...formatPendingJob({
         ...vehicle,
         user_name: user?.name,
         user_email: user?.email,
         user_phone: user?.phone,
+        assigned_installer_name: installerRow?.name || installerRow?.email || null,
+      }, installerId),
+      vehicle: formatVehicle({
+        ...vehicle,
+        assigned_installer_name: installerRow?.name || installerRow?.email || null,
       }),
-      vehicle: formatVehicle(vehicle),
     };
   }
 
@@ -102,7 +137,7 @@ class InstallerService {
     return getTrackerCommandService().listModelsWithCommands();
   }
 
-  async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = []) {
+  async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = [], userRole = 'installer') {
     const {
       gpswox_device_id,
       gpswox_name,
@@ -168,6 +203,8 @@ class InstallerService {
       throw new Error('Veículo não está aguardando instalação.');
     }
 
+    this._assertInstallerAccess(vehicle, installerId, userRole);
+
     const normalizedPlate = plate ? String(plate).trim().toUpperCase() : null;
     if (normalizedPlate) {
       const existing = await this.vehicles.findByPlate(normalizedPlate);
@@ -206,6 +243,9 @@ class InstallerService {
       tracker_phone: normalizedPhone,
       tracker_model_id: modelId,
       tracker_model: trackerModel.name,
+      assigned_installer_id: null,
+      installation_scheduled_at: null,
+      assigned_at: null,
     });
 
     const log = await this.installations.create({

@@ -155,6 +155,8 @@ export default function InstallerJobPage() {
   if (loading) return <p className="muted">Carregando...</p>;
   if (!job) return <div className="alert error">{error || 'Instalação não encontrada.'}</div>;
 
+  const blocked = job.can_finalize === false;
+
   return (
     <div>
       <p><Link to="/instalador/agendamentos">← Voltar aos agendamentos</Link></p>
@@ -165,6 +167,13 @@ export default function InstallerJobPage() {
         scope="installer"
         className="page-header"
       />
+
+      {blocked && (
+        <div className="alert warning">
+          Esta instalação está atribuída a {job.assigned_installer_name || 'outro instalador'}.
+          Entre em contato com o admin para reatribuição.
+        </div>
+      )}
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
@@ -177,6 +186,18 @@ export default function InstallerJobPage() {
             <div><dt>Marca / Modelo</dt><dd>{[job.brand, job.model].filter(Boolean).join(' ') || '—'}</dd></div>
             <div><dt>Cor</dt><dd>{job.color || '—'}</dd></div>
             <div><dt>Ano</dt><dd>{job.year || '—'}</dd></div>
+            {job.installation_scheduled_at && (
+              <div>
+                <dt>Agendamento</dt>
+                <dd>{new Date(job.installation_scheduled_at).toLocaleString('pt-BR')}</dd>
+              </div>
+            )}
+            {job.assigned_installer_name && (
+              <div>
+                <dt>Instalador</dt>
+                <dd>{job.assigned_installer_name}{job.is_pool ? ' (pool)' : ''}</dd>
+              </div>
+            )}
           </dl>
         </section>
 
@@ -191,6 +212,7 @@ export default function InstallerJobPage() {
       </div>
 
       <form className="card form-card installer-report-form" onSubmit={handleSubmit}>
+        <fieldset disabled={blocked || submitting}>
         <SectionTitleWithHelp title="Checklist de instalação" guideId="installer_job" scope="installer" />
         <ul className="installer-checklist">
           <ChecklistItem done={checklist.device} label="Device ID GPSWOX preenchido" />
@@ -373,9 +395,10 @@ export default function InstallerJobPage() {
           Criar veículo automaticamente no GPSWOX
         </label>
 
-        <button type="submit" disabled={submitting || !checklistComplete}>
-          {submitting ? 'Finalizando...' : checklistComplete ? 'Finalizar e enviar relatório' : 'Complete o checklist'}
+        <button type="submit" disabled={submitting || blocked || !checklistComplete}>
+          {submitting ? 'Finalizando...' : blocked ? 'Instalação atribuída a outro' : checklistComplete ? 'Finalizar e enviar relatório' : 'Complete o checklist'}
         </button>
+        </fieldset>
       </form>
     </div>
   );

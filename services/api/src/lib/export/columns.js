@@ -57,6 +57,8 @@ const VEICULOS_COLUMNS = [
   { header: 'IMEI', value: (r) => cell(r.tracker_imei) },
   { header: 'Modelo rastreador', value: (r) => cell(r.tracker_model) },
   { header: 'Status', value: (r) => VEHICLE_STATUS_LABELS[r.status] || r.status },
+  { header: 'Instalador', value: (r) => cell(r.assigned_installer_name || r.assigned_installer_email) },
+  { header: 'Agendamento', value: (r) => formatDateTimeBr(r.installation_scheduled_at) },
   { header: 'Cadastro', value: (r) => formatDateBr(r.created_at) },
 ];
 

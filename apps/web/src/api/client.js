@@ -531,6 +531,19 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
+  assignVehicleInstaller(id, data) {
+    return this.request(`/v1/admin/veiculos/${id}/instalador`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  unassignVehicleInstaller(id) {
+    return this.request(`/v1/admin/veiculos/${id}/instalador`, {
+      method: 'DELETE',
+    }, { useAdmin: true });
+  }
+
   getAdminUsers() {
     return this.request('/v1/admin/usuarios', {}, { useAdmin: true });
   }

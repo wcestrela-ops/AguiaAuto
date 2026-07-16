@@ -86,17 +86,30 @@ function OpsDetailCard({ id, title, children, footerLink, footerLabel = 'Ver tod
   );
 }
 
-function VehicleRows({ rows, showStatus = false }) {
+function VehicleRows({ rows, showStatus = false, showInstaller = false }) {
   return (
     <table>
       <thead>
-        <tr><th>Placa</th><th>Cliente</th>{showStatus && <th>Status</th>}<th /></tr>
+        <tr>
+          <th>Placa</th>
+          <th>Cliente</th>
+          {showInstaller && <th>Instalador</th>}
+          {showInstaller && <th>Agendamento</th>}
+          {showStatus && <th>Status</th>}
+          <th />
+        </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
           <tr key={row.id}>
             <td>{formatPlate(row.plate)}</td>
             <td>{clientLabel(row)}</td>
+            {showInstaller && (
+              <td>{row.assigned_installer_name || row.assigned_installer_email || 'Pool (todos)'}</td>
+            )}
+            {showInstaller && (
+              <td><small>{formatDateTime(row.installation_scheduled_at)}</small></td>
+            )}
             {showStatus && <td><small>{row.status}</small></td>}
             <td>
               <Link to="/admin/veiculos" className="btn-ghost btn-sm">Veículos</Link>
@@ -123,7 +136,7 @@ function OpsDetailsGrid({ ops }) {
         footerLink="/admin/veiculos?status=pending_installation"
         footerLabel="Ver veículos"
       >
-        <VehicleRows rows={details.pending_installations} showStatus />
+        <VehicleRows rows={details.pending_installations} showInstaller />
       </OpsDetailCard>,
     );
   }

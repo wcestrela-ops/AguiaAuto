@@ -409,6 +409,10 @@ export const ADMIN_GUIDES = {
         title: '8. Filtros',
         body: 'Busque por placa, cliente, Device ID, IMEI ou chip. Filtre por status, cliente, pendências (sem device/chip/IMEI/modelo) e exporte a lista filtrada.',
       },
+      {
+        title: '9. Atribuição de instalador',
+        body: 'Veículos "Aguardando instalação" podem ficar no pool (qualquer instalador) ou ser atribuídos a um instalador específico, com data/hora opcional. O instalador recebe push na atribuição.',
+      },
     ],
     links: [
       { label: 'SMS Rastreador', to: '/admin/sms' },
@@ -520,18 +524,22 @@ export const ADMIN_GUIDES = {
       },
       {
         title: '2. Veículo pendente',
-        body: 'Em Veículos, cadastre com status "Aguardando instalação". Device ID pode ficar vazio — o instalador preenche na finalização.',
+        body: 'Em Veículos, cadastre com status "Aguardando instalação". Device ID pode ficar vazio — o instalador preenche na finalização. Atribua um instalador ou deixe no pool.',
       },
       {
-        title: '3. Checklist na instalação',
+        title: '3. Atribuição',
+        body: 'Na lista de veículos pendentes, selecione instalador e opcionalmente data/hora. Sem atribuição = pool visível para todos os instaladores.',
+      },
+      {
+        title: '4. Checklist na instalação',
         body: 'Instalador informa Device ID, IMEI (15 dígitos), chip SIM, modelo do rastreador, mínimo 1 foto e teste de comunicação.',
       },
       {
-        title: '4. Cliente aceita',
+        title: '5. Cliente aceita',
         body: 'Após finalizar, o cliente recebe push e aceita contrato + dados de instalação em /app/contratos.',
       },
       {
-        title: '5. Veículo ativo',
+        title: '6. Veículo ativo',
         body: 'IMEI, chip e modelo são gravados no veículo automaticamente — habilita comandos 4G/SMS no app cliente.',
       },
     ],
@@ -545,7 +553,7 @@ export const ADMIN_GUIDES = {
     title: 'Painel operacional',
     summary: 'Indicadores do que trava a operação no dia a dia — veículos, comandos, SMS e financeiro.',
     steps: [
-      { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação em campo — veja Instaladores e Veículos.' },
+      { title: 'Aguardando instalação', body: 'Veículos pendentes de instalação — atribua instalador ou deixe no pool. Veja colunas Instalador e Agendamento.' },
       { title: 'Cobrança SMS fallback', body: 'Lembretes que foram para SMS porque WhatsApp falhou — veja Financeiro.' },
       { title: 'Lembretes falharam', body: 'Cobranças em que WhatsApp e SMS não entregaram o lembrete.' },
       { title: 'Veículos sem IMEI', body: 'Ativos/bloqueados sem tracker_imei — deveriam ser preenchidos no checklist do instalador.' },

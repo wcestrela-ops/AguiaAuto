@@ -396,11 +396,14 @@ class OperationalDashboardService {
 
   async _pendingInstallations() {
     const { rows } = await this.pool.query(
-      `SELECT v.id, v.plate, v.status, v.created_at, u.id AS user_id, u.email AS user_email, u.name AS user_name
+      `SELECT v.id, v.plate, v.status, v.created_at, v.installation_scheduled_at, v.assigned_at,
+              u.id AS user_id, u.email AS user_email, u.name AS user_name,
+              inst.id AS assigned_installer_id, inst.name AS assigned_installer_name, inst.email AS assigned_installer_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
+       LEFT JOIN users inst ON inst.id = v.assigned_installer_id
        WHERE v.status = 'pending_installation'
-       ORDER BY v.created_at DESC
+       ORDER BY v.installation_scheduled_at ASC NULLS LAST, v.created_at DESC
        LIMIT 15`,
     );
     const { rows: countRows } = await this.pool.query(

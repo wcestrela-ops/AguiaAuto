@@ -1059,6 +1059,23 @@ td.actions { white-space: nowrap; }
   justify-content: flex-end;
 }
 
+.installer-assignment-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 12rem;
+}
+
+.installer-assignment-cell select,
+.installer-assignment-cell input[type="datetime-local"] {
+  width: 100%;
+  max-width: 14rem;
+}
+
+.installer-assignment-cell .table-actions {
+  justify-content: flex-start;
+}
+
 .export-buttons {
   display: flex;
   flex-wrap: wrap;

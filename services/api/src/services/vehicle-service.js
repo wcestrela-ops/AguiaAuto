@@ -1,7 +1,9 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const { getVehicleCommandLogRepository } = require('../repositories/vehicle-command-log-repository');
+const { getUserRepository } = require('../repositories/user-repository');
 const gpswox = require('../integrations/gpswox-gateway');
 const sms = require('./sms');
+const firebase = require('./firebase');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const { getTrackerCommandService } = require('./tracker-command-service');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
@@ -39,6 +41,11 @@ function formatVehicle(v) {
     tracker_model_id: v.tracker_model_id || null,
     tracker_imei: v.tracker_imei || null,
     gpswox_synced_at: v.gpswox_synced_at || null,
+    assigned_installer_id: v.assigned_installer_id || null,
+    assigned_installer_name: v.assigned_installer_name || null,
+    assigned_installer_email: v.assigned_installer_email || null,
+    installation_scheduled_at: v.installation_scheduled_at || null,
+    assigned_at: v.assigned_at || null,
     label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate || 'Sem placa',
     created_at: v.created_at,
     updated_at: v.updated_at,
@@ -362,16 +369,76 @@ class VehicleService {
 
   async listForAdmin(filters = {}) {
     const vehicles = await this.repo.listForAdmin(filters);
-    return vehicles.map(v => ({
-      ...formatVehicle(v),
-      user_id: v.user_id,
-      user_email: v.user_email,
-      user_name: v.user_name,
-    }));
+    return vehicles.map((v) => this._formatAdminVehicle(v));
   }
 
   async countForAdmin(filters = {}) {
     return this.repo.countForAdmin(filters);
+  }
+
+  async assignInstaller(vehicleId, { installer_id: installerId, installation_scheduled_at: scheduledAt }) {
+    if (!installerId) {
+      throw new Error('installer_id é obrigatório.');
+    }
+
+    const installer = await getUserRepository().findById(installerId);
+    if (!installer || installer.role !== 'installer') {
+      throw new Error('Instalador não encontrado.');
+    }
+
+    const vehicle = await this.repo.findById(vehicleId);
+    if (!vehicle) throw new Error('Veículo não encontrado.');
+    if (vehicle.status !== VEHICLE_STATUS.PENDING_INSTALLATION) {
+      throw new Error('Só é possível atribuir instalador a veículos aguardando instalação.');
+    }
+
+    let parsedSchedule = null;
+    if (scheduledAt) {
+      parsedSchedule = new Date(scheduledAt);
+      if (Number.isNaN(parsedSchedule.getTime())) {
+        throw new Error('Data/hora de agendamento inválida.');
+      }
+    }
+
+    const updated = await this.repo.assignInstaller(vehicleId, {
+      installerId,
+      scheduledAt: parsedSchedule,
+    });
+
+    const client = await getUserRepository().findById(vehicle.user_id);
+    const label = updated.plate || [updated.brand, updated.model].filter(Boolean).join(' ') || `Veículo ${vehicleId}`;
+
+    try {
+      await firebase.sendPushToUser(installerId, {
+        title: 'Nova instalação atribuída',
+        body: `${label} — ${client?.name || client?.email || 'Cliente'}`,
+        data: {
+          type: 'installation_assigned',
+          vehicle_id: String(vehicleId),
+        },
+      });
+    } catch (err) {
+      logger.warn('Push de atribuição de instalador não enviado.', { installerId, vehicleId, err: err.message });
+    }
+
+    const full = await this.repo.findByIdForAdmin(vehicleId);
+    return this._formatAdminVehicle(full);
+  }
+
+  async unassignInstaller(vehicleId) {
+    await this.repo.clearInstallerAssignment(vehicleId);
+    const full = await this.repo.findByIdForAdmin(vehicleId);
+    if (!full) throw new Error('Veículo não encontrado.');
+    return this._formatAdminVehicle(full);
+  }
+
+  _formatAdminVehicle(v) {
+    return {
+      ...formatVehicle(v),
+      user_id: v.user_id,
+      user_email: v.user_email,
+      user_name: v.user_name,
+    };
   }
 
   async _requireDevice(vehicleId, userId) {

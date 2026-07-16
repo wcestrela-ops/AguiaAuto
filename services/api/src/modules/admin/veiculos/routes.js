@@ -137,6 +137,51 @@ router.post('/sync-gpswox', async (req, res) => {
   }
 });
 
+router.patch('/:id/instalador', async (req, res) => {
+  try {
+    const { installer_id, installation_scheduled_at } = req.body;
+
+    const data = await getVehicleService().assignInstaller(req.params.id, {
+      installer_id,
+      installation_scheduled_at,
+    });
+
+    await getAuditService().adminAction('vehicle.assign_installer', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: {
+        installer_id: data.assigned_installer_id,
+        installation_scheduled_at: data.installation_scheduled_at,
+        plate: data.plate,
+      },
+      req,
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/:id/instalador', async (req, res) => {
+  try {
+    const data = await getVehicleService().unassignInstaller(req.params.id);
+
+    await getAuditService().adminAction('vehicle.unassign_installer', {
+      resourceType: 'vehicle',
+      resourceId: data.id,
+      metadata: { plate: data.plate },
+      req,
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/sync-gpswox/status', async (req, res) => {
   try {
     const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
