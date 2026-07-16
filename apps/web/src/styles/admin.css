@@ -1131,6 +1131,14 @@ td.actions { white-space: nowrap; }
   padding-left: 1.1rem;
 }
 
+.client-inactive-card {
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+.client-row-inactive-access td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
 .emergency-summary-card {
   border-color: rgba(220, 53, 69, 0.35);
 }

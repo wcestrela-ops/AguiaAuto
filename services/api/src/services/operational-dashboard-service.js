@@ -3,6 +3,7 @@ const { getGpswoxSyncService } = require('./gpswox-sync-service');
 const { getBillingNotificationRepository } = require('../repositories/billing-notification-repository');
 const { getVehicleFleetService } = require('./vehicle-fleet-service');
 const { getEmergencyService } = require('./emergency-service');
+const { getUserRepository, INACTIVE_ACCESS_DAYS_DEFAULT } = require('../repositories/user-repository');
 
 class OperationalDashboardService {
   constructor() {
@@ -28,6 +29,7 @@ class OperationalDashboardService {
       gpswoxSync,
       fleetOps,
       emergencyOps,
+      inactiveAccessClients,
     ] = await Promise.all([
       this._vehiclesMissingChip(),
       this._vehiclesMissingDevice(),
@@ -49,6 +51,7 @@ class OperationalDashboardService {
       getGpswoxSyncService().getStatus().catch(() => null),
       getVehicleFleetService().getOperationalSummary().catch(() => null),
       getEmergencyService().getOperationalStats().catch(() => null),
+      this._inactiveAccessClients(INACTIVE_ACCESS_DAYS_DEFAULT),
     ]);
 
     const alerts = [];
@@ -204,6 +207,17 @@ class OperationalDashboardService {
       });
     }
 
+    if (inactiveAccessClients.count > 0) {
+      alerts.push({
+        severity: 'warning',
+        key: 'clients_inactive_access',
+        title: `Clientes sem acesso há ${INACTIVE_ACCESS_DAYS_DEFAULT}+ dias`,
+        count: inactiveAccessClients.count,
+        link: `/admin/clientes?access_inactive_days=${INACTIVE_ACCESS_DAYS_DEFAULT}&sort=last_access_asc`,
+        hint: 'Contas ativas que nunca entraram ou estão inativas no app.',
+      });
+    }
+
     if (pendingInstallations > 0) {
       alerts.push({
         severity: 'info',
@@ -269,6 +283,7 @@ class OperationalDashboardService {
         fleet_maintenance_due: fleetOps?.maintenance_due || 0,
         fleet_maintenance_overdue: fleetOps?.maintenance_overdue || 0,
         emergency_events_24h: emergencyOps?.count_24h || 0,
+        clients_inactive_access_30d: inactiveAccessClients.count,
       },
       gpswox_sync: gpswoxSync,
       fleet: fleetOps,
@@ -284,6 +299,7 @@ class OperationalDashboardService {
         recent_billing_sms_fallback: recentBillingFallbacks,
         fleet_expiring_documents: fleetOps?.recent_expiring_documents || [],
         fleet_due_maintenance: fleetOps?.recent_due_maintenance || [],
+        inactive_access_clients: inactiveAccessClients.items,
       },
     };
   }
@@ -429,6 +445,15 @@ class OperationalDashboardService {
       [limit],
     );
     return rows;
+  }
+
+  async _inactiveAccessClients(days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+    const users = getUserRepository();
+    const [count, items] = await Promise.all([
+      users.countInactiveAccessClients(days),
+      users.listInactiveAccessClients(days, 10),
+    ]);
+    return { count, items, days: Number(days) };
   }
 }
 

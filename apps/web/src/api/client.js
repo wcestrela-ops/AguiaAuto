@@ -521,6 +521,9 @@ class ApiClient {
     if (params.q) query.set('q', params.q);
     if (params.active) query.set('active', params.active);
     if (params.provisioning_status) query.set('provisioning_status', params.provisioning_status);
+    if (params.never_accessed) query.set('never_accessed', params.never_accessed);
+    if (params.access_inactive_days) query.set('access_inactive_days', params.access_inactive_days);
+    if (params.sort) query.set('sort', params.sort);
     const qs = query.toString();
     return this.request(`/v1/admin/usuarios/painel${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }

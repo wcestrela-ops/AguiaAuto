@@ -67,8 +67,45 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {(ops.details?.recent_failed_commands?.length > 0 || ops.details?.recent_failed_sms?.length > 0) && (
+            {(ops.details?.recent_failed_commands?.length > 0
+              || ops.details?.recent_failed_sms?.length > 0
+              || ops.details?.inactive_access_clients?.length > 0) && (
               <div className="ops-details-grid">
+                {ops.details.inactive_access_clients?.length > 0 && (
+                  <div className="table-card">
+                    <h4>Clientes sem acesso recente (30+ dias)</h4>
+                    <table>
+                      <thead>
+                        <tr><th>Cliente</th><th>Último acesso</th><th /></tr>
+                      </thead>
+                      <tbody>
+                        {ops.details.inactive_access_clients.map((row) => (
+                          <tr key={row.id}>
+                            <td>{row.name || row.email}</td>
+                            <td>
+                              <small>
+                                {row.last_access_at
+                                  ? new Date(row.last_access_at).toLocaleString('pt-BR')
+                                  : 'Nunca'}
+                              </small>
+                            </td>
+                            <td>
+                              <Link to={`/admin/clientes/${row.id}`} className="btn-ghost btn-sm">Ficha</Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '0.75rem 1rem' }}>
+                      <Link
+                        to="/admin/clientes?access_inactive_days=30&sort=last_access_asc"
+                        className="btn-ghost btn-sm"
+                      >
+                        Ver todos inativos
+                      </Link>
+                    </div>
+                  </div>
+                )}
                 {ops.details.recent_failed_commands?.length > 0 && (
                   <div className="table-card">
                     <h4>Últimos comandos com falha</h4>

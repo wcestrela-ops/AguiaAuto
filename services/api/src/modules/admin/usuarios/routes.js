@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
 
 router.get('/painel/resumo', async (req, res) => {
   try {
-    const data = await getAdminClientService().getPanelSummary();
+    const days = req.query.inactive_access_days;
+    const data = await getAdminClientService().getPanelSummary(days);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -29,6 +30,9 @@ router.get('/painel', async (req, res) => {
       q: req.query.q,
       active: req.query.active,
       provisioning_status: req.query.provisioning_status,
+      never_accessed: req.query.never_accessed,
+      access_inactive_days: req.query.access_inactive_days,
+      sort: req.query.sort,
       limit: req.query.limit,
       offset: req.query.offset,
     });

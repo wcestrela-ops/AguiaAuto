@@ -552,8 +552,10 @@ export const ADMIN_GUIDES = {
       { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
       { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
       { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — veja em Emergência no menu admin.' },
+      { title: 'Clientes inativos', body: 'Contas ativas sem login no app há 30+ dias (ou nunca acessaram) — filtre em Clientes.' },
     ],
     links: [
+      { label: 'Clientes', to: '/admin/clientes' },
       { label: 'Emergência (SOS)', to: '/admin/emergencia' },
       { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
@@ -608,7 +610,9 @@ export const ADMIN_GUIDES = {
     title: 'Painel de clientes',
     summary: 'Ficha completa com cadastro, veículos, financeiro, provisionamento e indicações.',
     steps: [
-      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo e provisionamento.' },
+      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo, provisionamento e último acesso (7/30/60/90 dias ou nunca).' },
+      { title: 'Inativos', body: 'O card "Sem acesso há 30+ dias" e o alerta do dashboard operacional listam clientes ativos que não usam o app.' },
+      { title: 'Ordenação', body: 'Use "Último acesso (mais antigo)" para priorizar quem precisa de contato.' },
       { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos, faturas recentes e último acesso ao app.' },
       { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
       { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },

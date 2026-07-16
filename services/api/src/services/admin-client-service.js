@@ -1,4 +1,4 @@
-const { getUserRepository } = require('../repositories/user-repository');
+const { getUserRepository, INACTIVE_ACCESS_DAYS_DEFAULT } = require('../repositories/user-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
 const { getSubscriptionRepository } = require('../repositories/subscription-repository');
@@ -46,8 +46,8 @@ class AdminClientService {
     this.financeiro = getFinanceiroService();
   }
 
-  async getPanelSummary() {
-    return this.users.getClientPanelStats();
+  async getPanelSummary(days = INACTIVE_ACCESS_DAYS_DEFAULT) {
+    return this.users.getClientPanelStats(days);
   }
 
   async listClients(filters = {}) {
