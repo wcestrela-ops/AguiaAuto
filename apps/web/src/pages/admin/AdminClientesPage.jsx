@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
   INACTIVE_ACCESS_DAYS_DEFAULT,
@@ -91,6 +92,19 @@ function readFiltersFromSearchParams(searchParams) {
     access: neverAccessed ? 'never' : (accessInactiveDays || ''),
     sort: sort || (neverAccessed || accessInactiveDays ? 'last_access_asc' : 'created_desc'),
   };
+}
+
+function buildExportParams(applied) {
+  const params = { sort: applied.sort || 'created_desc' };
+  if (applied.q) params.q = applied.q;
+  if (applied.active) params.active = applied.active;
+  if (applied.provisioning_status) params.provisioning_status = applied.provisioning_status;
+  if (applied.access === 'never') {
+    params.never_accessed = 'true';
+  } else if (applied.access) {
+    params.access_inactive_days = applied.access;
+  }
+  return params;
 }
 
 export default function AdminClientesPage() {
@@ -285,6 +299,7 @@ export default function AdminClientesPage() {
             <div className="audit-table-meta">
               <span>{total} cliente(s)</span>
               <span>Página {page} de {totalPages}</span>
+              <ExportButtons resource="clientes" params={buildExportParams(applied)} disabled={loading} />
             </div>
             <table>
               <thead>

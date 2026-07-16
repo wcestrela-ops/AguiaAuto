@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 import {
@@ -114,6 +115,7 @@ export default function AdminClienteDetailPage() {
         <Link to="/admin/financeiro" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
           Financeiro
         </Link>
+        <ExportButtons resource="cliente" params={{ user_id: id }} disabled={loading} />
       </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}

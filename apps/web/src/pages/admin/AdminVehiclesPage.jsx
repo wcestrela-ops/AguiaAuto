@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
+import ExportButtons from '../../components/ExportButtons';
 import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const STATUS_OPTIONS = [
@@ -321,6 +322,10 @@ export default function AdminVehiclesPage() {
       )}
 
       <div className="table-card">
+        <div className="section-header">
+          <h3>Veículos e dispositivos</h3>
+          <ExportButtons resource="veiculos" disabled={loading} />
+        </div>
         <table>
           <thead>
             <tr>

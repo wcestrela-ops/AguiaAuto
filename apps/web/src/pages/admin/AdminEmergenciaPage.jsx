@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const CHANNEL_LABELS = {
@@ -103,7 +104,10 @@ export default function AdminEmergenciaPage() {
       )}
 
       <div className="table-card">
-        <SectionTitleWithHelp title="Histórico completo" guideId="admin_emergencia" />
+        <div className="section-header">
+          <SectionTitleWithHelp title="Histórico completo" guideId="admin_emergencia" />
+          <ExportButtons resource="emergencia" disabled={loading} />
+        </div>
         {loading ? (
           <p className="muted" style={{ padding: '1rem' }}>Carregando...</p>
         ) : (

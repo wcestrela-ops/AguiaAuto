@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { fleetStatusBadgeClass, fleetStatusLabel } from '../../utils/fleet';
 
@@ -361,9 +362,12 @@ export default function AdminFrotaPage() {
         <>
           <div className="section-header">
             <h3>Documentos</h3>
-            <button type="button" onClick={() => (showDocForm && !editingDocId ? closeDocumentForm() : openCreateDocument())}>
-              {showDocForm && !editingDocId ? 'Cancelar' : 'Novo documento'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <ExportButtons resource="frota-documentos" />
+              <button type="button" onClick={() => (showDocForm && !editingDocId ? closeDocumentForm() : openCreateDocument())}>
+                {showDocForm && !editingDocId ? 'Cancelar' : 'Novo documento'}
+              </button>
+            </div>
           </div>
 
           {showDocForm && (
@@ -475,9 +479,12 @@ export default function AdminFrotaPage() {
         <>
           <div className="section-header">
             <h3>Manutenções</h3>
-            <button type="button" onClick={() => (showMaintForm && !editingMaintId ? closeMaintenanceForm() : openCreateMaintenance())}>
-              {showMaintForm && !editingMaintId ? 'Cancelar' : 'Nova manutenção'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <ExportButtons resource="frota-manutencao" />
+              <button type="button" onClick={() => (showMaintForm && !editingMaintId ? closeMaintenanceForm() : openCreateMaintenance())}>
+                {showMaintForm && !editingMaintId ? 'Cancelar' : 'Nova manutenção'}
+              </button>
+            </div>
           </div>
 
           {showMaintForm && (

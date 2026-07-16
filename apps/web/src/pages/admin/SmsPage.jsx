@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import FieldInput from '../../components/FieldInput';
 import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
@@ -583,7 +584,14 @@ export default function SmsPage() {
       <div className="table-card" style={{ marginTop: '1.5rem' }}>
         <div className="section-header">
           <h3>Últimos envios SMS</h3>
-          <div className="history-presets">
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <ExportButtons
+              resource="sms-dispatches"
+              params={{
+                action: dispatchFilter === 'billing' ? 'billing.reminder' : dispatchFilter === 'tracker' ? 'tracker.command' : undefined,
+              }}
+            />
+            <div className="history-presets">
             {[
               { id: 'all', label: 'Todos' },
               { id: 'billing', label: 'Cobrança' },
@@ -598,6 +606,7 @@ export default function SmsPage() {
                 {opt.label}
               </button>
             ))}
+            </div>
           </div>
         </div>
         <p className="guide-inline muted">

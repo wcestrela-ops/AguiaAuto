@@ -74,7 +74,7 @@ const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
 const adminSiteRoutes = require('./modules/admin/site/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
-const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
+const adminExportRoutes = require('./modules/admin/export/routes');
 const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
 const siteRoutes = require('./modules/site/routes');
@@ -138,6 +138,7 @@ app.use('/v1/contratos', jwtAuth, contratosRoutes);
 app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
 
 // Painel admin — ADMIN_SECRET
+app.use('/v1/admin/export', adminAuth, adminExportRoutes);
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
 app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);

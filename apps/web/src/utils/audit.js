@@ -19,6 +19,9 @@ export const AUDIT_ACTION_LABELS = {
   'plan.create': 'Plano criado',
   'plan.update': 'Plano atualizado',
   'site.landing.update': 'Landing page atualizada',
+  'export.download': 'Exportação de dados',
+  'fleet.document.update': 'Documento atualizado (admin)',
+  'fleet.maintenance.update': 'Manutenção atualizada (admin)',
 };
 
 export const AUDIT_ACTOR_LABELS = {

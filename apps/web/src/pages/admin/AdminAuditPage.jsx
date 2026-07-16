@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
   auditActionLabel,
@@ -110,6 +111,19 @@ export default function AdminAuditPage() {
     setAppliedFilters(EMPTY_FILTERS);
     setExpandedId(null);
     setOffset(0);
+  }
+
+  function buildExportParams() {
+    const params = {};
+    if (appliedFilters.action) params.action = appliedFilters.action;
+    if (appliedFilters.actor_type) params.actor_type = appliedFilters.actor_type;
+    if (appliedFilters.resource_type) params.resource_type = appliedFilters.resource_type;
+    if (appliedFilters.actor_id.trim()) params.actor_id = appliedFilters.actor_id.trim();
+    if (appliedFilters.resource_id.trim()) params.resource_id = appliedFilters.resource_id.trim();
+    if (appliedFilters.search.trim()) params.search = appliedFilters.search.trim();
+    if (appliedFilters.from) params.from = appliedFilters.from;
+    if (appliedFilters.to) params.to = appliedFilters.to;
+    return params;
   }
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
@@ -239,6 +253,7 @@ export default function AdminAuditPage() {
             <div className="audit-table-meta">
               <span>{total} registro(s)</span>
               <span>Página {page} de {totalPages}</span>
+              <ExportButtons resource="auditoria" params={buildExportParams()} disabled={loading} />
             </div>
             <table>
               <thead>

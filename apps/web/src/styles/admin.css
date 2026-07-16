@@ -1059,6 +1059,17 @@ td.actions { white-space: nowrap; }
   justify-content: flex-end;
 }
 
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.audit-table-meta .export-buttons {
+  margin-left: auto;
+}
+
 .tab-row {
   display: flex;
   flex-wrap: wrap;

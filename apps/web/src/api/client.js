@@ -952,6 +952,33 @@ class ApiClient {
     return this.request('/v1/admin/frota/lembretes/executar', { method: 'POST' }, { useAdmin: true });
   }
 
+  async downloadAdminExport(resource, format, params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value != null && value !== '') query.set(key, String(value));
+    });
+    query.set('format', format);
+
+    const token = this.adminToken || localStorage.getItem('admin_token');
+    const response = await fetch(`${BASE}/v1/admin/export/${resource}?${query}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Erro ${response.status}`);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || `${resource}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async uploadAdminForm(path, formData, method = 'POST') {
     const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}${path}`, {

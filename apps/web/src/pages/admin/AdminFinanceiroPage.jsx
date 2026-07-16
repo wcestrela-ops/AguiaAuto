@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import ExportButtons from '../../components/ExportButtons';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const BILLING_TYPES = [
@@ -361,6 +362,7 @@ export default function AdminFinanceiroPage() {
 
       <div className="section-header">
         <h2>Cobranças</h2>
+        <ExportButtons resource="financeiro-cobrancas" />
       </div>
 
       <div className="table-card">
