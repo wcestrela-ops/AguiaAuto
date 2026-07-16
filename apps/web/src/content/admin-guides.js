@@ -592,13 +592,30 @@ export const ADMIN_GUIDES = {
     title: 'Auditoria administrativa',
     summary: 'Histórico de ações sensíveis no painel e no app cliente.',
     steps: [
-      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), comandos remotos (cliente), sync GPSWOX e failover SMS.' },
+      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), edição de clientes, comandos remotos (cliente), sync GPSWOX e failover SMS.' },
       { title: 'Filtros', body: 'Filtre por ação, tipo de ator (admin/cliente/sistema), recurso ou ID do ator.' },
       { title: 'Detalhes', body: 'Clique em JSON para ver metadados completos (placa, canal, totais do sync, etc.).' },
     ],
     links: [
+      { label: 'Clientes', to: '/admin/clientes' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Integrações GPSWOX', to: '/admin/integracoes/gpswox' },
+    ],
+  },
+
+  admin_clientes: {
+    title: 'Painel de clientes',
+    summary: 'Ficha completa com cadastro, veículos, financeiro, provisionamento e indicações.',
+    steps: [
+      { title: 'Lista', body: 'Busque por nome, e-mail, telefone ou CPF. Filtre por status ativo e provisionamento.' },
+      { title: 'Ficha do cliente', body: 'Edite nome, telefone e bloqueie acesso desativando a conta. Veja veículos e faturas recentes.' },
+      { title: 'Provisionamento', body: 'Use Reprovisionar para retentar Asaas + GPSWOX quando houver falha parcial ou pendência.' },
+      { title: 'Atalhos', body: 'Links rápidos para Financeiro, Veículos e Indique e Ganhe a partir da ficha.' },
+    ],
+    links: [
+      { label: 'Financeiro', to: '/admin/financeiro' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Indicações', to: '/admin/indicacoes' },
     ],
   },
 

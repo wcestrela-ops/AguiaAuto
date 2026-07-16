@@ -510,6 +510,32 @@ class ApiClient {
     return this.request('/v1/admin/usuarios', {}, { useAdmin: true });
   }
 
+  getAdminClientsSummary() {
+    return this.request('/v1/admin/usuarios/painel/resumo', {}, { useAdmin: true });
+  }
+
+  getAdminClientsPanel(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.offset != null) query.set('offset', String(params.offset));
+    if (params.q) query.set('q', params.q);
+    if (params.active) query.set('active', params.active);
+    if (params.provisioning_status) query.set('provisioning_status', params.provisioning_status);
+    const qs = query.toString();
+    return this.request(`/v1/admin/usuarios/painel${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getAdminClientDetail(userId) {
+    return this.request(`/v1/admin/usuarios/${userId}`, {}, { useAdmin: true });
+  }
+
+  updateAdminClient(userId, data) {
+    return this.request(`/v1/admin/usuarios/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   getAdminCharges() {
     return this.request('/v1/admin/financeiro/cobrancas', {}, { useAdmin: true });
   }

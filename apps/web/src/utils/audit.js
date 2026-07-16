@@ -1,4 +1,5 @@
 export const AUDIT_ACTION_LABELS = {
+  'client.update': 'Cliente atualizado (admin)',
   'vehicle.create': 'Veículo criado (admin)',
   'vehicle.update': 'Veículo atualizado (admin)',
   'vehicle.command': 'Comando enviado (cliente)',
@@ -13,6 +14,7 @@ export const AUDIT_ACTOR_LABELS = {
 };
 
 export const AUDIT_RESOURCE_LABELS = {
+  user: 'Cliente',
   vehicle: 'Veículo',
 };
 

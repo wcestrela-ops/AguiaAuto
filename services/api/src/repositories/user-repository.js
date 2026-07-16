@@ -116,6 +116,110 @@ class UserRepository {
     return rows;
   }
 
+  _buildClientListQuery(filters = {}) {
+    const params = [];
+    const conditions = ["u.role = 'client'"];
+    let idx = 1;
+
+    if (filters.q) {
+      conditions.push(`(
+        u.name ILIKE $${idx}
+        OR u.email ILIKE $${idx}
+        OR COALESCE(u.phone, '') ILIKE $${idx}
+        OR COALESCE(u.cpf_cnpj, '') ILIKE $${idx}
+      )`);
+      params.push(`%${filters.q}%`);
+      idx += 1;
+    }
+
+    if (filters.active === 'true' || filters.active === true) {
+      conditions.push('u.active = true');
+    } else if (filters.active === 'false' || filters.active === false) {
+      conditions.push('u.active = false');
+    }
+
+    if (filters.provisioning_status) {
+      conditions.push(`COALESCE(u.provisioning_status, 'pending') = $${idx++}`);
+      params.push(filters.provisioning_status);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    return { where, params, nextIdx: idx };
+  }
+
+  async listClients(filters = {}) {
+    const limit = Math.min(Math.max(parseInt(filters.limit || '50', 10), 1), 200);
+    const offset = Math.max(parseInt(filters.offset || '0', 10), 0);
+    const { where, params, nextIdx } = this._buildClientListQuery(filters);
+
+    params.push(limit, offset);
+    const { rows } = await this.pool.query(
+      `SELECT
+         u.id, u.email, u.name, u.phone, u.cpf_cnpj, u.role, u.active,
+         u.asaas_customer_id, u.mercadopago_payer_id, u.gpswox_user_id,
+         u.provisioning_status, u.provisioning_errors, u.referral_code, u.created_at,
+         COUNT(DISTINCT v.id)::int AS vehicles_count,
+         COUNT(DISTINCT v.id) FILTER (WHERE v.status = 'active')::int AS vehicles_active,
+         COUNT(DISTINCT i.id) FILTER (WHERE i.status IN ('pending', 'overdue'))::int AS open_invoices
+       FROM users u
+       LEFT JOIN vehicles v ON v.user_id = u.id
+       LEFT JOIN invoices i ON i.user_id = u.id
+       ${where}
+       GROUP BY u.id
+       ORDER BY u.created_at DESC
+       LIMIT $${nextIdx} OFFSET $${nextIdx + 1}`,
+      params,
+    );
+    return rows;
+  }
+
+  async countClients(filters = {}) {
+    const { where, params } = this._buildClientListQuery(filters);
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM users u ${where}`,
+      params,
+    );
+    return rows[0]?.count || 0;
+  }
+
+  async getClientPanelStats() {
+    const { rows } = await this.pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE role = 'client')::int AS total,
+         COUNT(*) FILTER (WHERE role = 'client' AND active = true)::int AS active,
+         COUNT(*) FILTER (WHERE role = 'client' AND active = false)::int AS inactive,
+         COUNT(*) FILTER (
+           WHERE role = 'client'
+             AND COALESCE(provisioning_status, 'pending') NOT IN ('completed')
+         )::int AS provisioning_pending,
+         COUNT(*) FILTER (
+           WHERE role = 'client'
+             AND id IN (
+               SELECT DISTINCT user_id FROM invoices WHERE status IN ('pending', 'overdue')
+             )
+         )::int AS with_open_invoices
+       FROM users`,
+    );
+    return rows[0];
+  }
+
+  async updateAdminProfile(userId, { name, phone, active }) {
+    const { rows } = await this.pool.query(
+      `UPDATE users SET
+        name = COALESCE($2, name),
+        phone = COALESCE($3, phone),
+        active = COALESCE($4, active),
+        updated_at = NOW()
+       WHERE id = $1 AND role = 'client'
+       RETURNING id, email, name, phone, cpf_cnpj, role, active,
+                 asaas_customer_id, mercadopago_payer_id, gpswox_user_id,
+                 provisioning_status, provisioning_errors, referral_code,
+                 created_at, updated_at`,
+      [userId, name, phone, active],
+    );
+    return rows[0] || null;
+  }
+
   async updateProvisioning(userId, data) {
     const { rows } = await this.pool.query(
       `UPDATE users SET
