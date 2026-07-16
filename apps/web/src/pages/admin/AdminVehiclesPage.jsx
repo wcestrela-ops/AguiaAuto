@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
+import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const STATUS_OPTIONS = [
   { value: 'pending_installation', label: 'Aguardando instalação' },
@@ -151,28 +152,35 @@ export default function AdminVehiclesPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Veículos</h1>
-          <p>Cadastre veículos, importe do GPSWOX (chip SIM, IMEI, modelo) e vincule ao cliente.</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Veículos"
+        subtitle="Cadastre veículos, importe do GPSWOX (chip SIM, IMEI, modelo) e vincule ao cliente."
+        guideId="vehicles"
+      >
         <div className="row" style={{ gap: '0.5rem' }}>
           <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(true)}>
             Prévia GPSWOX
           </button>
+          <HelpButton guideId="vehicles_sync" size="sm" label="Ajuda: sincronizar GPSWOX" />
           <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(false)}>
             Sincronizar GPSWOX
           </button>
           <button type="button" onClick={startCreate}>Novo veículo</button>
         </div>
-      </header>
+      </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>
-          <h3>{editingId ? 'Editar veículo' : 'Novo veículo'}</h3>
+          <SectionTitleWithHelp
+            title={editingId ? 'Editar veículo' : 'Novo veículo / rastreador'}
+            guideId="vehicles"
+          />
+          <p className="guide-inline">
+            Preencha GPSWOX Device ID, chip SIM e modelo da biblioteca para comandos e failover 4G→SMS.
+          </p>
 
           {!editingId && (
             <label>

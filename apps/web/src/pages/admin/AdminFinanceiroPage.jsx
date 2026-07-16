@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const BILLING_TYPES = [
   { value: 'PIX', label: 'PIX (recomendado)' },
@@ -130,20 +131,21 @@ export default function AdminFinanceiroPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Financeiro</h1>
-          <p>Crie cobranças manualmente e gerencie provisionamento Asaas + GPSWOX.</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Financeiro"
+        subtitle="Crie cobranças manualmente e gerencie provisionamento Asaas + GPSWOX."
+        guideId="financeiro"
+      >
         <button type="button" onClick={() => setShowForm(true)}>Nova cobrança</button>
-      </header>
+      </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
 
       {showForm && (
         <form className="form-card" onSubmit={handleCreate}>
-          <h3>Nova cobrança</h3>
+          <SectionTitleWithHelp title="Nova cobrança" guideId="financeiro" />
+          <p className="guide-inline">Adesão inicial usa Mercado Pago; mensalidade recorrente prefere Asaas (ajuste em Gateways de Pagamento).</p>
 
           <label>
             Cliente <span className="required">*</span>

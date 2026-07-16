@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import FieldInput from '../../components/FieldInput';
+import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const PROVIDER_LABELS = {
   fake: 'Simulado (dev)',
@@ -176,17 +178,15 @@ export default function SmsPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>SMS Rastreador</h1>
-          <p>
-            Gateway Android (celular com chip), biblioteca de comandos por modelo e envio manual.
-          </p>
-        </div>
+      <PageHeaderWithHelp
+        title="SMS Rastreador"
+        subtitle="Gateway Android (celular com chip), biblioteca de comandos por modelo e envio manual."
+        guideId="sms"
+      >
         <button type="button" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancelar' : '+ Novo Gateway'}
         </button>
-      </header>
+      </PageHeaderWithHelp>
 
       <div className="info-box">
         <strong>Gateway Android:</strong> instale o agente no smartphone com chip SMS, informe URL + chave + device_id.
@@ -196,11 +196,11 @@ export default function SmsPage() {
 
       {gpswoxGateway && (
         <div className="form-card" style={{ marginTop: '1rem' }}>
-          <h3>Gateway SMS GPSWOX (entrada HTTP)</h3>
-          <p className="muted">
+          <SectionTitleWithHelp title="Gateway SMS GPSWOX (entrada HTTP)" guideId="sms_gpswox_gateway" />
+          <p className="guide-inline">
             Cole esta URL no painel GPSWOX (Configurações → Gateway SMS/WhatsApp).
             Variáveis: <code>%NUMBER%</code>, <code>%MESSAGE%</code>.
-            Credenciais em <strong>Integrações → Gateway SMS GPSWOX (entrada)</strong>.
+            {' '}<Link to="/admin/integracoes/sms_gpswox_gateway">Configurar credenciais</Link>
           </p>
           <label>
             URL para o GPSWOX
@@ -221,7 +221,8 @@ export default function SmsPage() {
       {error && <div className="alert error">{error}</div>}
 
       <form className="form-card" onSubmit={handleSendSms}>
-        <h3>Enviar SMS</h3>
+        <SectionTitleWithHelp title="Enviar SMS" guideId="sms" />
+        <p className="guide-inline">Informe o número do chip e a mensagem, ou escolha modelo + comando da biblioteca.</p>
         <label>
           Número do chip / telefone
           <input
@@ -279,8 +280,8 @@ export default function SmsPage() {
       </form>
 
       <div className="form-card" style={{ marginTop: '1.5rem' }}>
-        <h3>Modelos de rastreador e comandos</h3>
-        <p className="muted">
+        <SectionTitleWithHelp title="Modelos de rastreador e comandos" guideId="sms_tracker_models" />
+        <p className="guide-inline">
           Cadastre cada modelo (GT06, Joker, etc.) com comandos SMS editáveis. Veículos usam o modelo vinculado em Veículos.
         </p>
 
@@ -370,7 +371,7 @@ export default function SmsPage() {
 
       {showForm && (
         <form className="form-card" onSubmit={handleCreateGateway}>
-          <h3>Novo Gateway SMS</h3>
+          <SectionTitleWithHelp title="Novo Gateway SMS" guideId="sms" />
           {form.provider === 'android' && (
             <div className="info-box">
               <strong>Gateway Android:</strong> use um smartphone com chip SMS e agente HTTP instalado.
