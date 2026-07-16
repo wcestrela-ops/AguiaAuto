@@ -6,6 +6,8 @@ import { HelpButton, PageHeaderWithHelp } from '../../components/HelpGuide';
 import { getIntegrationGuide } from '../../content/admin-guides';
 
 const ICONS = {
+  rastreamento: '🔀',
+  traccar: '🛰️',
   gpswox: '📍',
   asaas: '💰',
   mercadopago: '🛒',
@@ -22,6 +24,8 @@ const ICONS = {
 };
 
 const INTEGRATION_GUIDE_MAP = {
+  rastreamento: 'rastreamento',
+  traccar: 'traccar',
   gpswox: 'gpswox',
   asaas: 'asaas',
   mercadopago: 'mercadopago',

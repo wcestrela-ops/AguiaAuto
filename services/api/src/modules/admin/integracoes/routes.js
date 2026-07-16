@@ -4,7 +4,7 @@ const { getAuditService } = require('../../../services/audit-service');
 
 const router = Router();
 
-const SECRET_FIELDS = ['api_key', 'pass', 'secret', 'private_key', 'web_api_key', 'vapid_key', 'access_token', 'app_secret', 'verify_token'];
+const SECRET_FIELDS = ['api_key', 'pass', 'secret', 'private_key', 'web_api_key', 'vapid_key', 'access_token', 'app_secret', 'verify_token', 'api_token', 'api_hash', 'password'];
 
 function stripMaskedSecrets(body, currentSettings) {
   const cleaned = { ...body };
@@ -52,6 +52,19 @@ router.put('/:key', async (req, res) => {
     const current = await store.get(req.params.key, { useCache: false });
     const { settings = {}, enabled } = req.body;
     const cleaned = stripMaskedSecrets(settings, current.settings);
+
+    if (req.params.key === 'rastreamento' && cleaned.provider === 'traccar') {
+      const traccar = await store.get('traccar', { useCache: false });
+      const ts = traccar.settings || {};
+      const hasAuth = Boolean(ts.api_token || (ts.email && ts.password));
+      if (!ts.url || !hasAuth) {
+        return res.status(400).json({
+          success: false,
+          error: 'Configure Traccar (URL + e-mail/senha ou token API) antes de selecioná-lo como plataforma ativa.',
+        });
+      }
+    }
+
     const updated = await store.update(req.params.key, cleaned, {
       enabled,
       updatedBy: req.headers['x-admin-user'] || 'admin',
@@ -89,6 +102,64 @@ router.post('/:key/test', async (req, res) => {
   try {
     const store = getStore();
     const settings = await store.getSettings(key);
+
+    if (key === 'traccar') {
+      if (!settings.url) {
+        return res.status(400).json({
+          success: false,
+          error: 'Configure a URL do Traccar para testar.',
+        });
+      }
+      const hasAuth = Boolean(settings.api_token || (settings.email && settings.password));
+      if (!hasAuth) {
+        return res.status(400).json({
+          success: false,
+          error: 'Configure e-mail/senha ou token API do Traccar.',
+        });
+      }
+
+      const baseUrl = settings.url.replace(/\/$/, '');
+      const headers = settings.api_token
+        ? { Authorization: `Bearer ${settings.api_token}` }
+        : { Authorization: `Basic ${Buffer.from(`${settings.email}:${settings.password}`).toString('base64')}` };
+
+      const healthRes = await fetch(`${baseUrl}/api/health`, { headers });
+      if (!healthRes.ok) {
+        return res.json({
+          success: false,
+          message: `Health check Traccar falhou (${healthRes.status}).`,
+          status: healthRes.status,
+        });
+      }
+
+      const devicesUrl = new URL(`${baseUrl}/api/devices`);
+      devicesUrl.searchParams.set('limit', '1');
+      const devicesRes = await fetch(devicesUrl, { headers });
+      return res.json({
+        success: devicesRes.ok,
+        message: devicesRes.ok ? 'Conexão Traccar OK.' : 'Autenticação Traccar falhou.',
+        status: devicesRes.status,
+      });
+    }
+
+    if (key === 'rastreamento') {
+      const provider = settings.provider || 'gpswox';
+      if (provider === 'traccar') {
+        const traccar = await store.getSettings('traccar');
+        const hasAuth = Boolean(traccar.api_token || (traccar.email && traccar.password));
+        if (!traccar.url || !hasAuth) {
+          return res.status(400).json({
+            success: false,
+            error: 'Traccar não está configurado. Configure credenciais antes de ativar.',
+          });
+        }
+      }
+      return res.json({
+        success: true,
+        message: `Plataforma de rastreamento ativa: ${provider === 'traccar' ? 'Traccar' : 'GPSWOX'}.`,
+        data: { provider },
+      });
+    }
 
     if (key === 'gpswox') {
       if (!settings.url || !settings.api_hash) {

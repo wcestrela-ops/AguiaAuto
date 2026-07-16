@@ -1,5 +1,8 @@
-const { GpswoxApiClient } = require('../clients/gpswox-api');
-const { getGpswoxConfig } = require('../config/provider');
+const {
+  getActiveTrackingClient,
+  getActiveProviderName,
+  gpswoxOnlyFeature,
+} = require('../config/provider');
 const { getVehicleLocation } = require('../playwright/tracker');
 const { enqueue } = require('../queue');
 const logger = require('../logger');
@@ -10,14 +13,26 @@ const {
   extractEventItems,
 } = require('../lib/geofence');
 
-async function getApiClient() {
-  const settings = await getGpswoxConfig();
-  return new GpswoxApiClient(settings);
+async function requireGpswoxClient() {
+  const name = await getActiveProviderName();
+  if (name !== 'gpswox') {
+    throw new Error(gpswoxOnlyFeature('Este recurso'));
+  }
+  const { client } = await getActiveTrackingClient();
+  return client;
 }
 
 async function getLocation({ deviceId, veiculo }) {
-  const api = await getApiClient();
+  const { name, client } = await getActiveTrackingClient();
 
+  if (name === 'traccar') {
+    if (!deviceId) {
+      throw new Error('Traccar requer device_id para localização.');
+    }
+    return client.getDeviceLocation(deviceId);
+  }
+
+  const api = client;
   if (deviceId && api.enabled) {
     try {
       return await api.getDeviceLocation(deviceId);
@@ -34,33 +49,48 @@ async function getLocation({ deviceId, veiculo }) {
 }
 
 async function blockDevice(deviceId) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Bloqueio requer api_hash configurado no painel admin.');
-  return api.blockDevice(deviceId);
+  const { name, client } = await getActiveTrackingClient();
+  if (name === 'traccar') {
+    return client.blockDevice(deviceId);
+  }
+  if (!client.enabled) throw new Error('Bloqueio requer api_hash configurado no painel admin.');
+  return client.blockDevice(deviceId);
 }
 
 async function unblockDevice(deviceId) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Desbloqueio requer api_hash configurado no painel admin.');
-  return api.unblockDevice(deviceId);
+  const { name, client } = await getActiveTrackingClient();
+  if (name === 'traccar') {
+    return client.unblockDevice(deviceId);
+  }
+  if (!client.enabled) throw new Error('Desbloqueio requer api_hash configurado no painel admin.');
+  return client.unblockDevice(deviceId);
 }
 
 async function sendCommand(deviceId, command) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Comandos requerem api_hash configurado no painel admin.');
-  return api.sendCommand(deviceId, command);
+  const { name, client } = await getActiveTrackingClient();
+  if (name === 'traccar') {
+    return client.sendCommand(deviceId, command);
+  }
+  if (!client.enabled) throw new Error('Comandos requerem api_hash configurado no painel admin.');
+  return client.sendCommand(deviceId, command);
 }
 
 async function createCliente(payload) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Criação de cliente requer api_hash configurado no painel admin.');
-  return api.createUser(payload);
+  const { name, client } = await getActiveTrackingClient();
+  if (name === 'traccar') {
+    return client.createUser(payload);
+  }
+  if (!client.enabled) throw new Error('Criação de cliente requer api_hash configurado no painel admin.');
+  return client.createUser(payload);
 }
 
 async function createVeiculo(payload) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Criação de veículo requer api_hash configurado no painel admin.');
-  return api.createDevice(payload);
+  const { name, client } = await getActiveTrackingClient();
+  if (name === 'traccar') {
+    return client.createDevice(payload);
+  }
+  if (!client.enabled) throw new Error('Criação de veículo requer api_hash configurado no painel admin.');
+  return client.createDevice(payload);
 }
 
 function extractSharingUrl(response, baseUrl) {
@@ -77,9 +107,14 @@ function extractSharingUrl(response, baseUrl) {
 }
 
 async function getHistory(deviceId, from, to) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Histórico requer api_hash configurado no painel admin.');
-  const data = await api.getHistory(deviceId, from, to);
+  const { name, client } = await getActiveTrackingClient();
+
+  if (name === 'traccar') {
+    return client.getHistory(deviceId, from, to);
+  }
+
+  if (!client.enabled) throw new Error('Histórico requer api_hash configurado no painel admin.');
+  const data = await client.getHistory(deviceId, from, to);
   const items = data?.items || data?.data || data?.history || data || [];
   const points = (Array.isArray(items) ? items : Object.values(items)).map((point) => ({
     latitude: parseFloat(point.lat ?? point.latitude),
@@ -100,11 +135,15 @@ async function getHistory(deviceId, from, to) {
 }
 
 async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Compartilhamento requer api_hash configurado no painel admin.');
+  const { name, client, settings } = await getActiveTrackingClient();
 
-  const settings = await getGpswoxConfig();
-  const response = await api.createSharing({
+  if (name === 'traccar') {
+    return client.createSharing(deviceId, { durationMinutes });
+  }
+
+  if (!client.enabled) throw new Error('Compartilhamento requer api_hash configurado no painel admin.');
+
+  const response = await client.createSharing({
     deviceId,
     durationMinutes,
     deleteAfterExpiration: true,
@@ -124,37 +163,42 @@ async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
 }
 
 async function listDevices() {
-  const api = await getApiClient();
-  if (!api.enabled) throw new Error('Listagem requer api_hash configurado no painel admin.');
-  return api.getDevices();
+  const { name, client } = await getActiveTrackingClient();
+
+  if (name === 'traccar') {
+    return client.getDevices();
+  }
+
+  if (!client.enabled) throw new Error('Listagem requer api_hash configurado no painel admin.');
+  return client.getDevices();
 }
 
 async function listSmsTemplates(lang = 'en') {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
   return api.getUserSmsTemplates(lang);
 }
 
 async function createSmsTemplate(payload) {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
   return api.addUserSmsTemplate(payload);
 }
 
 async function updateSmsTemplate(payload) {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
   return api.editUserSmsTemplate(payload);
 }
 
 async function getSmsTemplateMessage(templateId, lang = 'en') {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
   return api.getUserSmsTemplateMessage(templateId, lang);
 }
 
 async function manageGeofence(payload = {}) {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Cercas requerem api_hash configurado no painel admin.');
 
   const action = String(payload.action || 'list').toLowerCase();
@@ -231,7 +275,7 @@ async function manageGeofence(payload = {}) {
 }
 
 async function manageEvents(payload = {}) {
-  const api = await getApiClient();
+  const api = await requireGpswoxClient();
   if (!api.enabled) throw new Error('Eventos requerem api_hash configurado no painel admin.');
 
   const action = String(payload.action || 'list').toLowerCase();
@@ -281,4 +325,5 @@ module.exports = {
   getSmsTemplateMessage,
   manageGeofence,
   manageEvents,
+  getActiveProviderName,
 };

@@ -1,4 +1,35 @@
 const INTEGRATIONS = {
+  rastreamento: {
+    label: 'Plataforma de Rastreamento',
+    description: 'Escolha GPSWOX ou Traccar. Credenciais ficam nos cards de cada plataforma.',
+    fields: [
+      {
+        key: 'provider',
+        label: 'Plataforma ativa',
+        type: 'select',
+        default: 'gpswox',
+        options: [
+          { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
+          { value: 'traccar', label: 'Traccar' },
+        ],
+        hint: 'Altere aqui para trocar de plataforma — sem deploy. Depois use Recarregar integrações.',
+      },
+    ],
+  },
+  traccar: {
+    label: 'Traccar',
+    description: 'Motor de rastreamento alternativo (API REST — sem Playwright)',
+    fields: [
+      { key: 'url', label: 'URL do servidor Traccar', type: 'url', required: true, env: 'TRACCAR_URL', hint: 'Ex.: https://traccar.seudominio.com' },
+      { key: 'email', label: 'E-mail admin', type: 'text', env: 'TRACCAR_EMAIL', hint: 'Usuário administrador (autenticação Basic)' },
+      { key: 'password', label: 'Senha admin', type: 'password', secret: true, env: 'TRACCAR_PASSWORD' },
+      { key: 'api_token', label: 'Token API (alternativa)', type: 'password', secret: true, env: 'TRACCAR_API_TOKEN', hint: 'Opcional — use em vez de e-mail/senha se configurado no Traccar' },
+      { key: 'default_group_id', label: 'Group ID padrão (novos devices)', type: 'number', env: 'TRACCAR_DEFAULT_GROUP_ID' },
+      { key: 'auto_sync_enabled', label: 'Sync automático de veículos', type: 'boolean', default: true, hint: 'Importa/atualiza veículos do Traccar periodicamente' },
+      { key: 'auto_sync_interval_hours', label: 'Intervalo do sync (horas)', type: 'number', default: 24, env: 'TRACCAR_AUTO_SYNC_INTERVAL_HOURS' },
+      { key: 'webhook_secret', label: 'Segredo webhook alertas', type: 'password', secret: true, env: 'TRACCAR_WEBHOOK_SECRET', hint: 'Fase 2 — notificador HTTP no Traccar' },
+    ],
+  },
   gpswox: {
     label: 'GPSWOX',
     description: 'Motor de rastreamento (invisível ao cliente)',

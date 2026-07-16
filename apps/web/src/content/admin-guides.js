@@ -54,6 +54,56 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  rastreamento: {
+    title: 'Plataforma de rastreamento',
+    summary: 'Escolha GPSWOX ou Traccar sem alterar código — só mudar aqui e recarregar integrações.',
+    steps: [
+      {
+        title: '1. Configure as duas (opcional)',
+        body: 'Cadastre credenciais em GPSWOX e/ou Traccar. Só a plataforma ativa será usada pela API e pelo gateway.',
+      },
+      {
+        title: '2. Selecione a ativa',
+        body: 'Em Plataforma ativa, escolha GPSWOX ou Traccar. Salve e use Integrações → Recarregar cache.',
+      },
+      {
+        title: '3. Provisionamento e sync',
+        body: 'Novos clientes e sync de veículos usam a plataforma selecionada. Veículos antigos mantêm IDs da plataforma original até migração.',
+      },
+    ],
+    links: [
+      { label: 'GPSWOX', to: '/admin/integracoes/gpswox' },
+      { label: 'Traccar', to: '/admin/integracoes/traccar' },
+    ],
+  },
+
+  traccar: {
+    title: 'Como conectar o Traccar',
+    summary: 'Servidor Traccar self-hosted ou cloud — API REST nativa, sem Playwright.',
+    steps: [
+      {
+        title: '1. URL e credenciais',
+        body: 'Informe a URL base (ex.: https://traccar.seudominio.com) e e-mail/senha de administrador, ou token API se configurado.',
+      },
+      {
+        title: '2. Teste a conexão',
+        body: 'Use Testar Conexão — verifica /api/health e autenticação em /api/devices.',
+      },
+      {
+        title: '3. Ative no roteamento',
+        body: 'Em Plataforma de Rastreamento, selecione Traccar como plataforma ativa e recarregue o cache.',
+      },
+      {
+        title: '4. Group ID',
+        body: 'Opcional: ID do grupo Traccar onde novos devices serão criados no provisionamento.',
+      },
+    ],
+    links: [
+      { label: 'Plataforma de Rastreamento', to: '/admin/integracoes/rastreamento' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+    ],
+  },
+
   gpswox: {
     title: 'Como conectar o GPSWOX',
     summary: 'Motor de rastreamento usado internamente — o cliente vê apenas o app Águia.',
@@ -767,6 +817,8 @@ export const ADMIN_GUIDES = {
 
 /** Guia por chave de integração (IntegrationEditPage) */
 export const INTEGRATION_GUIDE_KEYS = {
+  rastreamento: 'rastreamento',
+  traccar: 'traccar',
   gpswox: 'gpswox',
   asaas: 'asaas',
   mercadopago: 'mercadopago',

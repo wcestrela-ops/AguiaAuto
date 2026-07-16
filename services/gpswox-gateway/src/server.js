@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const logger = require('./logger');
 const { closeBrowser } = require('./browser');
-const { getGatewayConfig } = require('./config/provider');
+const { getGatewayConfig, getActiveProviderName } = require('./config/provider');
 const { getStore } = require('@aguia/integrations');
 const {
   getLocation,
@@ -50,10 +50,18 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let provider = 'gpswox';
+  try {
+    provider = await getActiveProviderName();
+  } catch {
+    provider = 'gpswox';
+  }
+
   res.json({
     status: 'ok',
-    service: 'gpswox-gateway',
+    service: 'tracking-gateway',
+    provider,
     timestamp: new Date().toISOString(),
   });
 });
@@ -284,7 +292,7 @@ async function bootstrap() {
   const PORT = gatewayConfig.port || process.env.GATEWAY_PORT || 3001;
 
   app.listen(PORT, () => {
-    logger.info(`Gateway GPSWOX rodando na porta ${PORT}`);
+    logger.info(`Gateway de rastreamento rodando na porta ${PORT}`);
   });
 }
 
