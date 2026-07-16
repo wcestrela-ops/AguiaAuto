@@ -440,7 +440,11 @@ export const ADMIN_GUIDES = {
       },
       {
         title: 'Lembrete ao cliente',
-        body: 'Após criar a cobrança, o sistema envia lembrete por WhatsApp. Se falhar, usa SMS automaticamente.',
+        body: 'Configure dias e templates em Integrações → Cobrança. WhatsApp primeiro; SMS opcional para não duplicar outros envios.',
+      },
+      {
+        title: 'Baixa manual',
+        body: 'Para pagamento em dinheiro/espécie, use "Baixa manual" na cobrança. Opcionalmente notifica o cliente com template personalizado.',
       },
       {
         title: 'Coluna Notificação',
@@ -456,10 +460,35 @@ export const ADMIN_GUIDES = {
       },
     ],
     links: [
+      { label: 'Cobrança e lembretes', to: '/admin/integracoes/cobranca' },
       { label: 'Mercado Pago', to: '/admin/integracoes/mercadopago' },
       { label: 'Asaas', to: '/admin/integracoes/asaas' },
       { label: 'Failover', to: '/admin/integracoes/payment_gateways' },
     ],
+  },
+
+  cobranca: {
+    title: 'Cobrança e lembretes automáticos',
+    summary: 'Dias de lembrete, templates personalizados, SMS opcional e confirmação de pagamento.',
+    steps: [
+      {
+        title: 'Dias de lembrete',
+        body: 'Ative vencimento (dia 0), +1, +2, +3 e +15 dias após o vencimento. O job roda periodicamente conforme intervalo configurado.',
+      },
+      {
+        title: 'SMS opcional',
+        body: 'Desative "Permitir SMS nos lembretes" se você envia cobrança por outro canal. Ative "somente SMS" para lembretes agendados sem WhatsApp.',
+      },
+      {
+        title: 'Templates',
+        body: 'Personalize mensagens com {{cliente}}, {{valor}}, {{vencimento}}, {{link}}, {{descricao}}, {{dias_atraso}}, {{data_pagamento}}.',
+      },
+      {
+        title: 'Pagamento recebido',
+        body: 'Webhook automático e baixa manual podem enviar confirmação usando template_payment_received.',
+      },
+    ],
+    links: [{ label: 'Financeiro', to: '/admin/financeiro' }],
   },
 
   admin_alerts: {
@@ -536,6 +565,7 @@ export const INTEGRATION_GUIDE_KEYS = {
   smtp: 'smtp',
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
+  cobranca: 'cobranca',
 };
 
 export function getAdminGuide(guideId) {

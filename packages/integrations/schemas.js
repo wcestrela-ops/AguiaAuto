@@ -108,6 +108,53 @@ const INTEGRATIONS = {
       { key: 'public_base_url', label: 'URL pública da API (ex.: https://api.seudominio.com)', type: 'url', env: 'SMS_GPSWOX_GATEWAY_PUBLIC_URL', hint: 'Usada para gerar o link em SMS Rastreador' },
     ],
   },
+  cobranca: {
+    label: 'Cobrança e lembretes',
+    description: 'Lembretes automáticos por vencimento/atraso, templates de mensagem e confirmação de pagamento',
+    fields: [
+      { key: 'auto_reminders_enabled', label: 'Lembretes automáticos agendados', type: 'boolean', default: true, hint: 'Envia nos dias configurados abaixo (vencimento e atrasos)' },
+      { key: 'reminder_check_interval_hours', label: 'Verificar lembretes a cada (horas)', type: 'number', default: 1, env: 'BILLING_REMINDER_CHECK_HOURS' },
+      { key: 'remind_on_due_date', label: 'No dia do vencimento', type: 'boolean', default: true },
+      { key: 'remind_day_1', label: '1 dia após o vencimento', type: 'boolean', default: true },
+      { key: 'remind_day_2', label: '2 dias após o vencimento', type: 'boolean', default: true },
+      { key: 'remind_day_3', label: '3 dias após o vencimento', type: 'boolean', default: true },
+      { key: 'remind_day_15', label: '15 dias após o vencimento', type: 'boolean', default: true },
+      { key: 'reminder_sms_enabled', label: 'Permitir SMS nos lembretes', type: 'boolean', default: false, hint: 'Opcional — desative se envia cobrança por outro canal para não duplicar' },
+      { key: 'reminder_sms_only', label: 'Lembretes agendados somente via SMS', type: 'boolean', default: false, hint: 'Quando ativo, lembretes automáticos não usam WhatsApp' },
+      { key: 'notify_on_new_charge', label: 'Enviar mensagem ao criar cobrança manual', type: 'boolean', default: true },
+      { key: 'notify_payment_received_auto', label: 'Notificar pagamento confirmado (webhook)', type: 'boolean', default: true },
+      { key: 'notify_payment_received_manual', label: 'Notificar na baixa manual', type: 'boolean', default: true },
+      { key: 'payment_received_sms_enabled', label: 'Permitir SMS na confirmação de pagamento', type: 'boolean', default: true, hint: 'Fallback SMS se WhatsApp falhar' },
+      {
+        key: 'template_new_charge',
+        label: 'Mensagem — nova cobrança',
+        type: 'textarea',
+        default: '💰 Nova cobrança Águia\nOlá {{cliente}},\nValor: R$ {{valor}}\nVencimento: {{vencimento}}\n{{link}}',
+        hint: 'Variáveis: {{cliente}}, {{valor}}, {{vencimento}}, {{link}}, {{descricao}}',
+      },
+      {
+        key: 'template_due',
+        label: 'Mensagem — dia do vencimento',
+        type: 'textarea',
+        default: '💰 Lembrete Águia — vence hoje\nOlá {{cliente}}, sua mensalidade vence hoje ({{vencimento}}).\nValor: R$ {{valor}}\n{{link}}',
+        hint: 'Variáveis: {{cliente}}, {{valor}}, {{vencimento}}, {{link}}, {{descricao}}',
+      },
+      {
+        key: 'template_overdue',
+        label: 'Mensagem — após vencimento (atraso)',
+        type: 'textarea',
+        default: '⚠️ Mensalidade em atraso\nOlá {{cliente}}, sua fatura está {{dias_atraso}} dia(s) em atraso.\nValor: R$ {{valor}}\nVencimento: {{vencimento}}\n{{link}}',
+        hint: 'Variáveis: {{cliente}}, {{valor}}, {{vencimento}}, {{link}}, {{descricao}}, {{dias_atraso}}',
+      },
+      {
+        key: 'template_payment_received',
+        label: 'Mensagem — pagamento recebido',
+        type: 'textarea',
+        default: '✅ Pagamento confirmado\nOlá {{cliente}}, recebemos o pagamento de R$ {{valor}} referente a {{descricao}}.\nData: {{data_pagamento}}\nObrigado!',
+        hint: 'Variáveis: {{cliente}}, {{valor}}, {{descricao}}, {{data_pagamento}}, {{vencimento}}',
+      },
+    ],
+  },
 };
 
 function getSchema(key) {

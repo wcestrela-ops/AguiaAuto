@@ -13,6 +13,7 @@ const ICONS = {
   firebase: '🔔',
   smtp: '✉️',
   sms_gpswox_gateway: '📲',
+  cobranca: '💬',
   gateway: '🔒',
   gateway_client: '🔗',
 };
@@ -26,6 +27,7 @@ const INTEGRATION_GUIDE_MAP = {
   smtp: 'smtp',
   alertas: 'alertas',
   sms_gpswox_gateway: 'sms_gpswox_gateway',
+  cobranca: 'cobranca',
 };
 
 export default function IntegrationsPage() {

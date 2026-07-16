@@ -26,11 +26,13 @@ const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
 const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
+const { migrateBillingAutomation } = require('./db/migrate-billing-automation');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
+const { startBillingReminderPoller } = require('./services/billing-reminder-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -201,6 +203,9 @@ async function bootstrap() {
     await migrateBillingNotifications();
     logger.info('Notificações de cobrança (WhatsApp/SMS) inicializadas.');
 
+    await migrateBillingAutomation();
+    logger.info('Automação de lembretes e baixa manual inicializada.');
+
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');
 
@@ -224,7 +229,10 @@ async function bootstrap() {
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
       startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
-      logger.info('Pollers de âncora, indicações e sync GPSWOX iniciados.');
+      startBillingReminderPoller(
+        parseInt(process.env.BILLING_REMINDER_CHECK_MS || '0', 10) || undefined,
+      );
+      logger.info('Pollers de âncora, indicações, sync GPSWOX e lembretes de cobrança iniciados.');
     }
   });
 }

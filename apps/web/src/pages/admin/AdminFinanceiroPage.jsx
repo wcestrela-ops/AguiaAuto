@@ -82,22 +82,29 @@ export default function AdminFinanceiroPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [reprovisioning, setReprovisioning] = useState(null);
+  const [billingAutomation, setBillingAutomation] = useState(null);
+  const [manualPayment, setManualPayment] = useState(null);
+  const [manualNotes, setManualNotes] = useState('');
+  const [manualNotify, setManualNotify] = useState(true);
+  const [submittingManual, setSubmittingManual] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [chargesRes, usersRes, plansRes, gatewaysRes, notificationsRes] = await Promise.all([
+      const [chargesRes, usersRes, plansRes, gatewaysRes, notificationsRes, automationRes] = await Promise.all([
         api.getAdminCharges(),
         api.getAdminUsers(),
         api.getAdminPlans(),
         api.getPaymentGateways(),
         api.getAdminBillingNotifications({ limit: 30 }),
+        api.getBillingAutomationStatus().catch(() => ({ data: null })),
       ]);
       setCharges(chargesRes.data || []);
       setUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
       setGateways(gatewaysRes.data);
       setBillingNotifications(notificationsRes.data || []);
+      setBillingAutomation(automationRes.data || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -139,6 +146,33 @@ export default function AdminFinanceiroPage() {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleManualPayment(e) {
+    e.preventDefault();
+    if (!manualPayment) return;
+    setSubmittingManual(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.markManualPayment(manualPayment.id, {
+        notes: manualNotes.trim() || undefined,
+        send_notification: manualNotify,
+      });
+      const badge = notificationBadge(res.data?.notification);
+      setMessage(
+        res.data?.notification
+          ? `Baixa manual registrada. Cliente notificado via ${badge.label}.`
+          : 'Baixa manual registrada.',
+      );
+      setManualPayment(null);
+      setManualNotes('');
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmittingManual(false);
     }
   }
 
@@ -266,8 +300,20 @@ export default function AdminFinanceiroPage() {
       )}
 
       <div className="info-box">
-        <strong>Lembretes de cobrança:</strong> WhatsApp primeiro; se falhar, SMS automaticamente.
-        A coluna <em>Notificação</em> abaixo mostra o canal usado em cada cobrança.
+        <strong>Lembretes automáticos:</strong> configure dias (vencimento, +1, +2, +3, +15), templates e SMS opcional em{' '}
+        <Link to="/admin/integracoes/cobranca">Integrações → Cobrança e lembretes</Link>.
+        {billingAutomation && (
+          <>
+            {' '}Última execução: {billingAutomation.last_run
+              ? `${billingAutomation.last_run.reminders_sent} enviados · ${formatDateTime(billingAutomation.last_run.finished_at)}`
+              : 'ainda não rodou'}
+            {' '}· Dias ativos: {(billingAutomation.enabled_offsets || []).join(', ') || 'nenhum'}
+          </>
+        )}
+      </div>
+
+      <div className="info-box">
+        <strong>Lembretes de cobrança:</strong> WhatsApp primeiro; SMS opcional (admin). Baixa manual disponível para pagamento em dinheiro/espécie.
       </div>
 
       <div className="info-box">
@@ -328,22 +374,24 @@ export default function AdminFinanceiroPage() {
               <th>Gateway</th>
               <th>Status</th>
               <th>Notificação</th>
-              <th>Link</th>
+              <th>Pagamento</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {charges.length === 0 ? (
-              <tr><td colSpan={8} className="muted">Nenhuma cobrança.</td></tr>
+              <tr><td colSpan={10} className="muted">Nenhuma cobrança.</td></tr>
             ) : (
               charges.map((charge) => {
                 const notify = notificationBadge(charge.last_notification);
+                const canManualPay = !['paid', 'waived', 'refunded'].includes(charge.status);
                 return (
                 <tr key={charge.id}>
                   <td>{charge.user_name || charge.user_email}</td>
                   <td>{charge.description}</td>
                   <td>{formatMoney(charge.amount)}</td>
                   <td>{formatDate(charge.due_date)}</td>
-                  <td><span className="badge info">{PROVIDER_LABELS[charge.payment_provider] || charge.payment_provider}</span></td>
+                  <td><span className="badge info">{PROVIDER_LABELS[charge.payment_provider] || charge.payment_provider || '—'}</span></td>
                   <td><span className="badge info">{charge.status}</span></td>
                   <td>
                     <span className={`badge ${notify.badge}`}>{notify.label}</span>
@@ -354,9 +402,28 @@ export default function AdminFinanceiroPage() {
                     )}
                   </td>
                   <td>
-                    {charge.invoice_url ? (
-                      <a href={charge.invoice_url} target="_blank" rel="noreferrer">Abrir</a>
-                    ) : '—'}
+                    {charge.paid_via === 'manual' && <span className="badge warning">Manual</span>}
+                    {charge.paid_via === 'gateway' && <span className="badge success">Automático</span>}
+                    {charge.status === 'paid' && !charge.paid_via && <span className="badge success">Pago</span>}
+                    {charge.status !== 'paid' && '—'}
+                  </td>
+                  <td className="actions">
+                    {charge.invoice_url && (
+                      <a href={charge.invoice_url} target="_blank" rel="noreferrer" className="btn-sm btn-secondary">Link</a>
+                    )}
+                    {canManualPay && (
+                      <button
+                        type="button"
+                        className="btn-sm"
+                        onClick={() => {
+                          setManualPayment(charge);
+                          setManualNotes('');
+                          setManualNotify(true);
+                        }}
+                      >
+                        Baixa manual
+                      </button>
+                    )}
                   </td>
                 </tr>
                 );
@@ -365,6 +432,39 @@ export default function AdminFinanceiroPage() {
           </tbody>
         </table>
       </div>
+
+      {manualPayment && (
+        <form className="form-card" onSubmit={handleManualPayment}>
+          <h3>Baixa manual — {manualPayment.description}</h3>
+          <p className="muted">
+            {manualPayment.user_name || manualPayment.user_email} · {formatMoney(manualPayment.amount)} · venc. {formatDate(manualPayment.due_date)}
+          </p>
+          <label>
+            Observações (opcional)
+            <input
+              value={manualNotes}
+              onChange={(e) => setManualNotes(e.target.value)}
+              placeholder="Ex.: Pago em dinheiro na loja"
+            />
+          </label>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={manualNotify}
+              onChange={(e) => setManualNotify(e.target.checked)}
+            />
+            Enviar mensagem de pagamento recebido (WhatsApp / SMS conforme configuração)
+          </label>
+          <div className="form-actions">
+            <button type="submit" disabled={submittingManual}>
+              {submittingManual ? 'Registrando...' : 'Confirmar baixa manual'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setManualPayment(null)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="section-header" style={{ marginTop: '1.5rem' }}>
         <SectionTitleWithHelp title="Histórico de lembretes (WhatsApp / SMS)" guideId="financeiro" />

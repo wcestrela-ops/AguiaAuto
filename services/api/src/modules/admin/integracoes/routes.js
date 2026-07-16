@@ -157,6 +157,19 @@ router.post('/:key/test', async (req, res) => {
       });
     }
 
+    if (key === 'cobranca') {
+      const { getBillingReminderService } = require('../../../services/billing-reminder-service');
+      const { getBillingConfig, getEnabledReminderOffsets } = require('../../../lib/billing-templates');
+      const settings = await getBillingConfig();
+      const status = await getBillingReminderService().getStatus();
+      const offsets = getEnabledReminderOffsets(settings);
+      return res.json({
+        success: true,
+        message: `Cobrança configurada. Lembretes nos dias: ${offsets.map((o) => o.days).join(', ') || 'nenhum'}.`,
+        data: status,
+      });
+    }
+
     res.status(400).json({ success: false, error: `Teste automático não disponível para "${key}".` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

@@ -30,8 +30,8 @@ class BillingNotificationRepository {
     const { rows } = await this.pool.query(
       `INSERT INTO billing_notifications (
         invoice_id, user_id, phone, channel, used_fallback, status,
-        trigger, provider_type, external_ref, error_message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        trigger, provider_type, external_ref, error_message, reminder_offset_days
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
         data.invoice_id || null,
@@ -44,9 +44,21 @@ class BillingNotificationRepository {
         data.provider_type || null,
         data.external_ref || null,
         data.error_message || null,
+        data.reminder_offset_days ?? null,
       ],
     );
     return rows[0];
+  }
+
+  async hasSentForTrigger(invoiceId, trigger) {
+    if (!invoiceId || !trigger) return false;
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM billing_notifications
+       WHERE invoice_id = $1 AND trigger = $2 AND status = 'sent'
+       LIMIT 1`,
+      [invoiceId, trigger],
+    );
+    return rows.length > 0;
   }
 
   async listRecent({ limit = 50, channel, invoiceId } = {}) {

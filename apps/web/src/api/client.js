@@ -519,6 +519,17 @@ class ApiClient {
     return this.request(`/v1/admin/financeiro/notificacoes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
+  getBillingAutomationStatus() {
+    return this.request('/v1/admin/financeiro/cobranca/status', {}, { useAdmin: true });
+  }
+
+  markManualPayment(invoiceId, data) {
+    return this.request(`/v1/admin/financeiro/cobrancas/${invoiceId}/baixa-manual`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   createAdminCharge(data) {
     return this.request('/v1/admin/financeiro/cobrancas', {
       method: 'POST',
