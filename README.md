@@ -110,7 +110,7 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | `POST /v1/auth/logout` | Encerrar sessão |
 | `GET /v1/auth/me` | Dados do usuário logado |
 
-PWA cliente: `http://localhost:8080/login` · Admin: `http://localhost:8080/admin`
+PWA cliente: `http://localhost:8080/login` · Cadastro: `/cadastro` · Landing: `/` · Admin: `http://localhost:8080/admin`
 
 ### Meu Veículo
 
@@ -183,7 +183,7 @@ Se o gateway principal falhar, o backup é usado automaticamente. Configure em `
 | Mercado Pago | `POST /webhooks/mercadopago` |
 | GPSWOX (alertas) | `POST /webhooks/gpswox` |
 
-### Motor de Alertas (Fase 4)
+### Motor de Alertas
 
 GPSWOX envia eventos para `POST /webhooks/gpswox`. O motor identifica o veículo e dispara notificações.
 
@@ -419,6 +419,21 @@ npm run dev:api        # API na porta 3000
 npm run dev:gateway    # Gateway na porta 3001
 npm run diagnostico    # Descobrir seletores GPSWOX
 ```
+
+## Testes automatizados
+
+```bash
+npm test               # API + PWA (31 testes)
+npm run test:api       # Apenas API (node:test)
+npm run test:web       # Apenas PWA (vitest + jsdom)
+```
+
+| Pacote | Runner | Cobertura inicial |
+|--------|--------|-------------------|
+| `@aguia/api` | Node.js `node:test` | IMEI/chip, export formatters, atribuição instalador (`formatPendingJob`), bloqueio `CONTRACT_REQUIRED` |
+| `@aguia/web` | Vitest | IMEI, status veículo, `CONTRACT_REQUIRED` no client API, `setClientPageError` |
+
+Testes ficam em `services/api/test/` e `apps/web/src/**/*.test.js`. Não exigem PostgreSQL — foco em regras de negócio e utilitários. Para CI, execute `npm test` após `npm install`.
 
 ## Roadmap de implementação
 

@@ -15,6 +15,9 @@
     "start:api": "npm run start -w @aguia/api",
     "start:gateway": "npm run start -w @aguia/gpswox-gateway",
     "build:web": "npm run build -w @aguia/web",
+    "test": "npm run test -w @aguia/api && npm run test -w @aguia/web",
+    "test:api": "npm run test -w @aguia/api",
+    "test:web": "npm run test -w @aguia/web",
     "diagnostico": "npm run diagnostico -w @aguia/gpswox-gateway"
   }
 }
