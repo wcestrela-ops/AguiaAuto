@@ -23,6 +23,37 @@ const EMPTY_MAINT = {
   notes: '',
 };
 
+function toDateInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
+function docToForm(doc) {
+  return {
+    vehicle_id: String(doc.vehicle_id || ''),
+    doc_type: doc.doc_type || 'crlv',
+    title: doc.title || '',
+    expiry_date: toDateInput(doc.expiry_date),
+    notes: doc.notes || '',
+  };
+}
+
+function maintToForm(item) {
+  return {
+    vehicle_id: String(item.vehicle_id || ''),
+    service_type: item.service_type || 'revisao',
+    title: item.title || '',
+    performed_at: toDateInput(item.performed_at),
+    odometer_km: item.odometer_km != null ? String(item.odometer_km) : '',
+    cost: item.cost != null ? String(item.cost) : '',
+    next_due_date: toDateInput(item.next_due_date),
+    next_due_km: item.next_due_km != null ? String(item.next_due_km) : '',
+    notes: item.notes || '',
+  };
+}
+
 export default function ClientFrotaPage() {
   const [tab, setTab] = useState('documentos');
   const [overview, setOverview] = useState(null);
@@ -31,6 +62,10 @@ export default function ClientFrotaPage() {
   const [message, setMessage] = useState('');
   const [showDocForm, setShowDocForm] = useState(false);
   const [showMaintForm, setShowMaintForm] = useState(false);
+  const [editingDocId, setEditingDocId] = useState(null);
+  const [editingMaintId, setEditingMaintId] = useState(null);
+  const [editingDocHasFile, setEditingDocHasFile] = useState(false);
+  const [editingDocFilename, setEditingDocFilename] = useState('');
   const [docForm, setDocForm] = useState(EMPTY_DOC);
   const [docFile, setDocFile] = useState(null);
   const [maintForm, setMaintForm] = useState(EMPTY_MAINT);
@@ -51,6 +86,60 @@ export default function ClientFrotaPage() {
 
   useEffect(() => { load(); }, []);
 
+  function openCreateDocument() {
+    setEditingDocId(null);
+    setEditingDocHasFile(false);
+    setEditingDocFilename('');
+    setDocForm(EMPTY_DOC);
+    setDocFile(null);
+    setShowDocForm(true);
+  }
+
+  function openEditDocument(doc) {
+    setEditingDocId(doc.id);
+    setEditingDocHasFile(Boolean(doc.has_file));
+    setEditingDocFilename(doc.original_filename || '');
+    setDocForm(docToForm(doc));
+    setDocFile(null);
+    setShowDocForm(true);
+  }
+
+  function closeDocumentForm() {
+    setShowDocForm(false);
+    setEditingDocId(null);
+    setEditingDocHasFile(false);
+    setEditingDocFilename('');
+    setDocForm(EMPTY_DOC);
+    setDocFile(null);
+  }
+
+  function openCreateMaintenance() {
+    setEditingMaintId(null);
+    setMaintForm(EMPTY_MAINT);
+    setShowMaintForm(true);
+  }
+
+  function openEditMaintenance(item) {
+    setEditingMaintId(item.id);
+    setMaintForm(maintToForm(item));
+    setShowMaintForm(true);
+  }
+
+  function closeMaintenanceForm() {
+    setShowMaintForm(false);
+    setEditingMaintId(null);
+    setMaintForm(EMPTY_MAINT);
+  }
+
+  async function openDocumentFile(id) {
+    setError('');
+    try {
+      await api.openFrotaDocumentFile(id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function submitDocument(e) {
     e.preventDefault();
     if (!docForm.vehicle_id) return;
@@ -65,11 +154,16 @@ export default function ClientFrotaPage() {
       if (docForm.notes) formData.append('notes', docForm.notes);
       if (docFile) formData.append('file', docFile);
 
-      await api.createFrotaDocument(docForm.vehicle_id, formData);
-      setMessage('Documento cadastrado.');
-      setDocForm(EMPTY_DOC);
-      setDocFile(null);
-      setShowDocForm(false);
+      if (editingDocId) {
+        formData.append('vehicle_id', docForm.vehicle_id);
+        await api.updateFrotaDocument(editingDocId, formData);
+        setMessage('Documento atualizado.');
+      } else {
+        await api.createFrotaDocument(docForm.vehicle_id, formData);
+        setMessage('Documento cadastrado.');
+      }
+
+      closeDocumentForm();
       await load();
     } catch (err) {
       setError(err.message);
@@ -85,7 +179,7 @@ export default function ClientFrotaPage() {
     setError('');
     setMessage('');
     try {
-      await api.createFrotaMaintenance(maintForm.vehicle_id, {
+      const payload = {
         service_type: maintForm.service_type,
         title: maintForm.title,
         performed_at: maintForm.performed_at,
@@ -94,10 +188,17 @@ export default function ClientFrotaPage() {
         next_due_date: maintForm.next_due_date || undefined,
         next_due_km: maintForm.next_due_km || undefined,
         notes: maintForm.notes || undefined,
-      });
-      setMessage('Manutenção registrada.');
-      setMaintForm(EMPTY_MAINT);
-      setShowMaintForm(false);
+      };
+
+      if (editingMaintId) {
+        await api.updateFrotaMaintenance(editingMaintId, payload);
+        setMessage('Manutenção atualizada.');
+      } else {
+        await api.createFrotaMaintenance(maintForm.vehicle_id, payload);
+        setMessage('Manutenção registrada.');
+      }
+
+      closeMaintenanceForm();
       await load();
     } catch (err) {
       setError(err.message);
@@ -108,9 +209,11 @@ export default function ClientFrotaPage() {
 
   async function removeDocument(id) {
     if (!window.confirm('Excluir este documento?')) return;
+    setError('');
     try {
       await api.deleteFrotaDocument(id);
       setMessage('Documento removido.');
+      if (editingDocId === id) closeDocumentForm();
       await load();
     } catch (err) {
       setError(err.message);
@@ -119,9 +222,11 @@ export default function ClientFrotaPage() {
 
   async function removeMaintenance(id) {
     if (!window.confirm('Excluir este registro?')) return;
+    setError('');
     try {
       await api.deleteFrotaMaintenance(id);
       setMessage('Registro removido.');
+      if (editingMaintId === id) closeMaintenanceForm();
       await load();
     } catch (err) {
       setError(err.message);
@@ -189,19 +294,21 @@ export default function ClientFrotaPage() {
         <section>
           <div className="section-header">
             <SectionTitleWithHelp title="Documentos do veículo" guideId="client_frota_docs" scope="client" />
-            <button type="button" onClick={() => setShowDocForm((v) => !v)}>
-              {showDocForm ? 'Cancelar' : 'Novo documento'}
+            <button type="button" onClick={() => (showDocForm && !editingDocId ? closeDocumentForm() : openCreateDocument())}>
+              {showDocForm && !editingDocId ? 'Cancelar' : 'Novo documento'}
             </button>
           </div>
 
           {showDocForm && (
             <form className="form-card" onSubmit={submitDocument}>
+              <h4>{editingDocId ? 'Editar documento' : 'Novo documento'}</h4>
               <label>
                 Veículo
                 <select
                   value={docForm.vehicle_id}
                   onChange={(e) => setDocForm((p) => ({ ...p, vehicle_id: e.target.value }))}
                   required
+                  disabled={Boolean(editingDocId)}
                 >
                   <option value="">Selecione</option>
                   {veiculos.map((v) => (
@@ -241,6 +348,16 @@ export default function ClientFrotaPage() {
               <label>
                 Anexo (PDF ou imagem)
                 <input type="file" accept=".pdf,image/*" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+                {editingDocId && editingDocHasFile && !docFile && (
+                  <small className="muted" style={{ display: 'block', marginTop: '0.35rem' }}>
+                    Anexo atual: {editingDocFilename || 'arquivo'}
+                    {' · '}
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openDocumentFile(editingDocId)}>
+                      Ver anexo
+                    </button>
+                    {' · '}envie um novo arquivo para substituir
+                  </small>
+                )}
               </label>
               <label>
                 Observações
@@ -250,7 +367,12 @@ export default function ClientFrotaPage() {
                   onChange={(e) => setDocForm((p) => ({ ...p, notes: e.target.value }))}
                 />
               </label>
-              <button type="submit" disabled={submitting}>{submitting ? 'Salvando...' : 'Salvar documento'}</button>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? 'Salvando...' : editingDocId ? 'Salvar alterações' : 'Salvar documento'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={closeDocumentForm}>Cancelar</button>
+              </div>
             </form>
           )}
 
@@ -282,14 +404,19 @@ export default function ClientFrotaPage() {
                         </span>
                       </td>
                       <td>
-                        {doc.has_file && (
-                          <button type="button" className="btn-ghost btn-sm" onClick={() => api.openFrotaDocumentFile(doc.id)}>
-                            Ver arquivo
+                        <div className="table-actions">
+                          {doc.has_file && (
+                            <button type="button" className="btn-ghost btn-sm" onClick={() => openDocumentFile(doc.id)}>
+                              Ver arquivo
+                            </button>
+                          )}
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => openEditDocument(doc)}>
+                            Editar
                           </button>
-                        )}
-                        <button type="button" className="btn-ghost btn-sm" onClick={() => removeDocument(doc.id)}>
-                          Excluir
-                        </button>
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => removeDocument(doc.id)}>
+                            Excluir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -304,19 +431,21 @@ export default function ClientFrotaPage() {
         <section>
           <div className="section-header">
             <SectionTitleWithHelp title="Histórico de manutenção" guideId="client_frota_maint" scope="client" />
-            <button type="button" onClick={() => setShowMaintForm((v) => !v)}>
-              {showMaintForm ? 'Cancelar' : 'Registrar manutenção'}
+            <button type="button" onClick={() => (showMaintForm && !editingMaintId ? closeMaintenanceForm() : openCreateMaintenance())}>
+              {showMaintForm && !editingMaintId ? 'Cancelar' : 'Registrar manutenção'}
             </button>
           </div>
 
           {showMaintForm && (
             <form className="form-card" onSubmit={submitMaintenance}>
+              <h4>{editingMaintId ? 'Editar manutenção' : 'Nova manutenção'}</h4>
               <label>
                 Veículo
                 <select
                   value={maintForm.vehicle_id}
                   onChange={(e) => setMaintForm((p) => ({ ...p, vehicle_id: e.target.value }))}
                   required
+                  disabled={Boolean(editingMaintId)}
                 >
                   <option value="">Selecione</option>
                   {veiculos.map((v) => (
@@ -398,7 +527,12 @@ export default function ClientFrotaPage() {
                   onChange={(e) => setMaintForm((p) => ({ ...p, notes: e.target.value }))}
                 />
               </label>
-              <button type="submit" disabled={submitting}>{submitting ? 'Salvando...' : 'Salvar manutenção'}</button>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? 'Salvando...' : editingMaintId ? 'Salvar alterações' : 'Salvar manutenção'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={closeMaintenanceForm}>Cancelar</button>
+              </div>
             </form>
           )}
 
@@ -432,9 +566,14 @@ export default function ClientFrotaPage() {
                         ) : '—'}
                       </td>
                       <td>
-                        <button type="button" className="btn-ghost btn-sm" onClick={() => removeMaintenance(item.id)}>
-                          Excluir
-                        </button>
+                        <div className="table-actions">
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => openEditMaintenance(item)}>
+                            Editar
+                          </button>
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => removeMaintenance(item.id)}>
+                            Excluir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -227,7 +227,8 @@ export const CLIENT_GUIDES = {
     summary: 'Anexe CRLV, seguro e IPVA com vencimento.',
     steps: [
       { title: 'Cadastro', body: 'Escolha o veículo, tipo e vencimento. PDF ou foto opcional.' },
-      { title: 'Consulta', body: 'Toque em "Ver arquivo" para abrir o anexo.' },
+      { title: 'Editar', body: 'Use "Editar" para alterar dados ou substituir o anexo. O veículo não pode ser trocado após o cadastro.' },
+      { title: 'Consulta', body: 'Toque em "Ver arquivo" para abrir o anexo em nova aba.' },
     ],
   },
 
@@ -236,6 +237,7 @@ export const CLIENT_GUIDES = {
     summary: 'Histórico e próximas revisões.',
     steps: [
       { title: 'Registrar', body: 'Informe data, KM e próxima revisão prevista.' },
+      { title: 'Editar', body: 'Corrija datas, KM, custo ou observações pelo botão "Editar" na lista.' },
       { title: 'Lembretes', body: 'Revisões próximas ou atrasadas aparecem com badge de alerta.' },
     ],
   },
