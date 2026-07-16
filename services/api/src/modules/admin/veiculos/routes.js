@@ -118,4 +118,14 @@ router.post('/sync-gpswox', async (req, res) => {
   }
 });
 
+router.get('/sync-gpswox/status', async (req, res) => {
+  try {
+    const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
+    const data = await getGpswoxSyncService().getStatus();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

@@ -484,6 +484,10 @@ class ApiClient {
     }, { useAdmin: true });
   }
 
+  getGpswoxSyncStatus() {
+    return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
+  }
+
   getAdminVehicles() {
     return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
   }

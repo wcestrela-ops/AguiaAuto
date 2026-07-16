@@ -58,6 +58,8 @@ Content-Type: application/json
 
 Importa: `gpswox_device_id`, nome, chip SIM, IMEI, modelo. Vincula ao cliente Águia via `users.gpswox_user_id`.
 
+**Sync automático:** ative em Integrações → GPSWOX (padrão 24h). A API verifica a cada 15 min e executa quando devido. Status: `GET /v1/admin/veiculos/sync-gpswox/status`.
+
 ## Gateways Android
 
 Cadastre em `/admin/sms` → **Gateway Android (chip no aparelho)**:

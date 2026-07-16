@@ -24,10 +24,12 @@ const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { migrateAdminAudit } = require('./db/migrate-admin-audit');
 const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
+const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
+const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -192,6 +194,9 @@ async function bootstrap() {
     await migrateTrackerGpswoxSms();
     logger.info('Comandos SMS — vínculo gpswox_sms_template_id inicializado.');
 
+    await migrateGpswoxSyncRuns();
+    logger.info('Histórico de sync GPSWOX agendado inicializado.');
+
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');
 
@@ -214,7 +219,8 @@ async function bootstrap() {
     if (process.env.DATABASE_URL) {
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
-      logger.info('Pollers de âncora e indicações iniciados.');
+      startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
+      logger.info('Pollers de âncora, indicações e sync GPSWOX iniciados.');
     }
   });
 }

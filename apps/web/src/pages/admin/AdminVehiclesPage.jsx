@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
@@ -36,18 +37,21 @@ export default function AdminVehiclesPage() {
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [syncStatus, setSyncStatus] = useState(null);
 
   async function load() {
     setLoading(true);
     try {
-      const [vehiclesRes, usersRes, modelsRes] = await Promise.all([
+      const [vehiclesRes, usersRes, modelsRes, syncRes] = await Promise.all([
         api.getAdminVehicles(),
         api.getAdminUsers(),
         api.getTrackerModels(),
+        api.getGpswoxSyncStatus().catch(() => ({ data: null })),
       ]);
       setVehicles(vehiclesRes.data || []);
       setUsers(usersRes.data || []);
       setTrackerModels(modelsRes.data || []);
+      setSyncStatus(syncRes.data || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -171,6 +175,38 @@ export default function AdminVehiclesPage() {
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
+
+      {syncStatus && (
+        <div className="form-card" style={{ marginBottom: '1rem' }}>
+          <SectionTitleWithHelp title="Sync GPSWOX automático" guideId="vehicles_sync" />
+          <div className="row" style={{ gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className={`badge ${syncStatus.auto_sync_enabled ? 'success' : 'warning'}`}>
+              {syncStatus.auto_sync_enabled ? 'Ativo' : 'Desligado'}
+            </span>
+            {syncStatus.in_progress && <span className="badge info">Sincronizando...</span>}
+            <span className="guide-inline" style={{ margin: 0 }}>
+              Intervalo: {syncStatus.interval_hours}h
+              {syncStatus.next_due_at && (
+                <> · Próximo: {new Date(syncStatus.next_due_at).toLocaleString('pt-BR')}</>
+              )}
+            </span>
+          </div>
+          {syncStatus.last_success && (
+            <p className="guide-inline">
+              Último sync: {new Date(syncStatus.last_success.finished_at).toLocaleString('pt-BR')}
+              {' '}— {syncStatus.last_success.created} criados, {syncStatus.last_success.updated} atualizados
+              {syncStatus.unlinked_devices_last_success > 0 && (
+                <>, <strong>{syncStatus.unlinked_devices_last_success} sem cliente Águia</strong></>
+              )}
+            </p>
+          )}
+          {!syncStatus.auto_sync_enabled && (
+            <p className="guide-inline">
+              Ative em <Link to="/admin/integracoes/gpswox">Integrações → GPSWOX</Link> (Sync automático de veículos).
+            </p>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>

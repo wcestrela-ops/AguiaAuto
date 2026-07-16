@@ -10,6 +10,8 @@ const INTEGRATIONS = {
       { key: 'default_group_id', label: 'Group ID padrão (novos clientes)', type: 'number', env: 'GPSWOX_DEFAULT_GROUP_ID', hint: 'Grupo onde novos clientes serão criados' },
       { key: 'headless', label: 'Modo headless (Playwright)', type: 'boolean', default: true, env: 'HEADLESS', hint: 'Mantenha ativo em produção' },
       { key: 'nav_timeout', label: 'Timeout de navegação (ms)', type: 'number', default: 30000, env: 'NAV_TIMEOUT' },
+      { key: 'auto_sync_enabled', label: 'Sync automático de veículos', type: 'boolean', default: true, hint: 'Importa/atualiza veículos do GPSWOX periodicamente' },
+      { key: 'auto_sync_interval_hours', label: 'Intervalo do sync (horas)', type: 'number', default: 24, env: 'GPSWOX_AUTO_SYNC_INTERVAL_HOURS', hint: 'Padrão: 1× por dia (24h)' },
     ],
   },
   gateway: {

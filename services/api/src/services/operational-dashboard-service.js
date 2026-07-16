@@ -1,4 +1,5 @@
 const { getPool } = require('../db/pool');
+const { getGpswoxSyncService } = require('./gpswox-sync-service');
 
 class OperationalDashboardService {
   constructor() {
@@ -17,6 +18,7 @@ class OperationalDashboardService {
       overdueInvoices,
       recentFailedCommands,
       recentFailedSms,
+      gpswoxSync,
     ] = await Promise.all([
       this._vehiclesMissingChip(),
       this._vehiclesMissingDevice(),
@@ -28,6 +30,7 @@ class OperationalDashboardService {
       this._countOverdueInvoices(),
       this._recentFailedCommands(10),
       this._recentFailedSms(10),
+      getGpswoxSyncService().getStatus().catch(() => null),
     ]);
 
     const alerts = [];
@@ -103,6 +106,41 @@ class OperationalDashboardService {
       });
     }
 
+    if (gpswoxSync) {
+      if (gpswoxSync.auto_sync_enabled && gpswoxSync.due_now) {
+        alerts.push({
+          severity: 'info',
+          key: 'gpswox_sync_due',
+          title: 'Sync GPSWOX pendente',
+          count: 1,
+          link: '/admin/veiculos',
+          hint: 'O sync automático deve rodar em breve (intervalo configurado).',
+        });
+      }
+
+      if (gpswoxSync.last_run && !gpswoxSync.last_run.success) {
+        alerts.push({
+          severity: 'error',
+          key: 'gpswox_sync_failed',
+          title: 'Último sync GPSWOX falhou',
+          count: 1,
+          link: '/admin/veiculos',
+          hint: gpswoxSync.last_run.error_message || 'Verifique API Hash e gateway.',
+        });
+      }
+
+      if (gpswoxSync.unlinked_devices_last_success > 0) {
+        alerts.push({
+          severity: 'warning',
+          key: 'gpswox_unlinked_devices',
+          title: 'Dispositivos GPSWOX sem cliente Águia',
+          count: gpswoxSync.unlinked_devices_last_success,
+          link: '/admin/veiculos',
+          hint: 'Vincule users.gpswox_user_id ou cadastre o cliente.',
+        });
+      }
+    }
+
     return {
       generated_at: new Date().toISOString(),
       counts: {
@@ -114,7 +152,9 @@ class OperationalDashboardService {
         failed_commands_24h: failedCommands24h,
         failed_sms_24h: failedSms24h,
         overdue_invoices: overdueInvoices,
+        gpswox_unlinked_devices: gpswoxSync?.unlinked_devices_last_success || 0,
       },
+      gpswox_sync: gpswoxSync,
       alerts,
       details: {
         vehicles_missing_chip: vehiclesMissingChip.items,
