@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getVehicleService } = require('../../services/vehicle-service');
 const { getAnchorService } = require('../../services/anchor-service');
+const { vehicleCommandLimiter } = require('../../middleware/rate-limit');
 
 const router = Router();
 
@@ -72,19 +73,38 @@ router.get('/:id/localizacao', async (req, res) => {
   }
 });
 
-router.post('/:id/bloqueio', async (req, res) => {
+router.post('/:id/bloqueio', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().block(req.user.id, req.params.id);
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data,
+      message: data.message || data.command_feedback?.message || 'Bloqueio enviado.',
+    });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });
   }
 });
 
-router.post('/:id/desbloqueio', async (req, res) => {
+router.post('/:id/desbloqueio', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().unblock(req.user.id, req.params.id);
+    res.json({
+      success: true,
+      data,
+      message: data.message || data.command_feedback?.message || 'Desbloqueio enviado.',
+    });
+  } catch (err) {
+    const status = err.message.includes('não encontrado') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/:id/comandos/historico', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '15', 10);
+    const data = await getService().getCommandHistory(req.user.id, req.params.id, { limit });
     res.json({ success: true, data });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
@@ -92,10 +112,14 @@ router.post('/:id/desbloqueio', async (req, res) => {
   }
 });
 
-router.post('/:id/comandos/:action', async (req, res) => {
+router.post('/:id/comandos/:action', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().runCommand(req.user.id, req.params.id, req.params.action);
-    res.json({ success: true, data, message: `${data.label} enviado.` });
+    res.json({
+      success: true,
+      data,
+      message: data.message || data.command_feedback?.message || `${data.label} enviado.`,
+    });
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });

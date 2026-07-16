@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 export default function InstallerHistoryPage() {
   const [history, setHistory] = useState([]);
@@ -15,10 +16,13 @@ export default function InstallerHistoryPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Histórico</h1>
-        <p>Instalações realizadas por você.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Histórico"
+        subtitle="Instalações realizadas por você."
+        guideId="installer_history"
+        scope="installer"
+        className="page-header"
+      />
 
       {error && <div className="alert error">{error}</div>}
 
@@ -36,6 +40,7 @@ export default function InstallerHistoryPage() {
                 <th>Placa</th>
                 <th>Cliente</th>
                 <th>Device ID</th>
+                <th>IMEI</th>
                 <th>Data</th>
               </tr>
             </thead>
@@ -45,6 +50,7 @@ export default function InstallerHistoryPage() {
                   <td>{item.plate}</td>
                   <td>{item.client_name}</td>
                   <td><code>{item.gpswox_device_id}</code></td>
+                  <td><code>{item.imei || '—'}</code></td>
                   <td>{new Date(item.created_at).toLocaleString('pt-BR')}</td>
                 </tr>
               ))}

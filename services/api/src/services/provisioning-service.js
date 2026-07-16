@@ -6,6 +6,7 @@ const { getPlanRepository } = require('../repositories/plan-repository');
 const { getSubscriptionRepository } = require('../repositories/subscription-repository');
 const { getInvoiceRepository } = require('../repositories/invoice-repository');
 const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
+const { sendBillingReminder } = require('./billing-notifications');
 const whatsapp = require('./whatsapp');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
@@ -92,11 +93,16 @@ class ProvisioningService {
             paymentOk = true;
 
             if (user.phone && (initialInvoice.pix_copy_paste || initialInvoice.invoice_url)) {
-              await whatsapp.sendBillingReminder(normalizePhone(user.phone), {
+              await sendBillingReminder(normalizePhone(user.phone), {
                 valor: Number(initialInvoice.amount).toFixed(2),
                 vencimento: initialInvoice.due_date,
                 link: initialInvoice.invoice_url || 'Use o código PIX no app',
-              }, { user: user.email });
+              }, {
+                userId,
+                user: user.email,
+                invoiceId: initialInvoice.id,
+                trigger: 'billing.initial',
+              });
             }
           } catch (err) {
             errors.push({ step: 'initial_charge', error: err.message });
@@ -126,11 +132,15 @@ class ProvisioningService {
             }
 
             if (provider === 'mercadopago' && recurring.init_point && user.phone) {
-              await whatsapp.sendBillingReminder(normalizePhone(user.phone), {
+              await sendBillingReminder(normalizePhone(user.phone), {
                 valor: Number(plan.price_monthly).toFixed(2),
                 vencimento: 'Assinatura recorrente',
                 link: recurring.init_point,
-              }, { user: user.email });
+              }, {
+                userId,
+                user: user.email,
+                trigger: 'billing.subscription',
+              });
             }
 
             subscriptionOk = true;

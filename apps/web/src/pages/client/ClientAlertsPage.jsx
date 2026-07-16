@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import { ALERT_TYPE_LABELS, CHANNEL_LABELS } from '../../utils/alerts';
 
 function formatDate(value) {
@@ -80,11 +81,12 @@ export default function ClientAlertsPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Alertas</h1>
-          <p>Notificações do rastreador via push no app.</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Alertas"
+        subtitle="Notificações do rastreador via push no app."
+        guideId="client_alerts"
+        scope="client"
+      >
         <div className="form-actions">
           {unread > 0 && (
             <button type="button" className="btn-secondary" onClick={markAllRead}>
@@ -95,7 +97,7 @@ export default function ClientAlertsPage() {
             {showPrefs ? 'Fechar' : 'Configurar'}
           </button>
         </div>
-      </header>
+      </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}

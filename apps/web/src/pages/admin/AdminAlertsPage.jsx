@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { ALERT_TYPE_LABELS, CHANNEL_LABELS } from '../../utils/alerts';
+import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -74,15 +75,15 @@ export default function AdminAlertsPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Alertas</h1>
-          <p>Motor GPSWOX → Push (veículo) · WhatsApp só transacional</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Alertas"
+        subtitle="Motor GPSWOX → Push (veículo) · WhatsApp só transacional"
+        guideId="admin_alerts"
+      >
         <Link to="/admin/integracoes/alertas" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
           Configurar motor
         </Link>
-      </header>
+      </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
@@ -100,8 +101,8 @@ export default function AdminAlertsPage() {
       )}
 
       <div className="form-card">
-        <h3>Promoção via WhatsApp</h3>
-        <p className="muted">Envio manual pelo admin — não use para alertas de veículo.</p>
+        <SectionTitleWithHelp title="Promoção via WhatsApp" guideId="admin_alerts" />
+        <p className="guide-inline">Envio manual pelo admin — não use para alertas de veículo.</p>
         <label>
           Mensagem
           <textarea

@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import FieldInput from '../../components/FieldInput';
+import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const PROVIDER_LABELS = {
   evolution: 'Evolution API',
   waha: 'WAHA',
   meta_cloud: 'Meta Cloud API',
+};
+
+const PROVIDER_GUIDES = {
+  evolution: 'whatsapp_evolution',
+  waha: 'whatsapp_waha',
+  meta_cloud: 'whatsapp_meta',
 };
 
 export default function WhatsAppPage() {
@@ -81,26 +88,29 @@ export default function WhatsAppPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Configurações → Integrações → WhatsApp</h1>
-          <p>Multi-provedor com failover automático (principal → backup).</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Configurações → Integrações → WhatsApp"
+        subtitle="Multi-provedor com failover automático (principal → backup)."
+        guideId="whatsapp"
+      >
         <button type="button" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancelar' : '+ Novo Provedor'}
         </button>
-      </header>
+      </PageHeaderWithHelp>
 
       <div className="info-box">
         <strong>Failover:</strong> Principal{' '}
         {data.primary ? PROVIDER_LABELS[data.primary.provider] || data.primary.provider : '—'}
         {' · '}Backup{' '}
         {data.backup ? PROVIDER_LABELS[data.backup.provider] || data.backup.provider : '—'}
+        <p className="guide-inline" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+          WhatsApp é usado em cadastro, cobrança e promoções — não em alertas de veículo (anti-ban).
+        </p>
       </div>
 
       {showForm && (
         <form className="form-card" onSubmit={handleCreate}>
-          <h3>Novo Provedor WhatsApp</h3>
+          <SectionTitleWithHelp title="Novo Provedor WhatsApp" guideId="whatsapp" />
 
           <label>
             Tipo de provedor
@@ -109,6 +119,11 @@ export default function WhatsAppPage() {
                 <option key={t.type} value={t.type}>{t.label}</option>
               ))}
             </select>
+            {PROVIDER_GUIDES[form.provider] && (
+              <span style={{ display: 'inline-flex', marginLeft: '0.5rem', verticalAlign: 'middle' }}>
+                <HelpButton guideId={PROVIDER_GUIDES[form.provider]} size="sm" label="Ajuda deste provedor" />
+              </span>
+            )}
           </label>
 
           {selectedType?.fields.map((field) => (
@@ -128,6 +143,9 @@ export default function WhatsAppPage() {
       {error && <div className="alert error">{error}</div>}
 
       <div className="table-card">
+        <div style={{ padding: '1rem 1rem 0' }}>
+          <SectionTitleWithHelp title="Provedores configurados" guideId="whatsapp" />
+        </div>
         <table>
           <thead>
             <tr>

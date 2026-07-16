@@ -4,7 +4,8 @@ const { getInvoiceRepository } = require('../repositories/invoice-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
 const { getProvisioningService } = require('./provisioning-service');
 const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
-const whatsapp = require('./whatsapp');
+const { sendBillingReminder } = require('./billing-notifications');
+const { getBillingNotificationRepository, formatNotification } = require('../repositories/billing-notification-repository');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
 
@@ -153,29 +154,52 @@ class FinanceiroService {
     });
 
     const link = invoice.invoice_url || (invoice.pix_copy_paste ? 'Código PIX no app' : null);
+    let notification = null;
     if (refreshed.phone && link) {
       try {
-        await whatsapp.sendBillingReminder(normalizePhone(refreshed.phone), {
-          valor: Number(invoice.amount).toFixed(2),
-          vencimento: invoice.due_date,
-          link,
-        }, { user: refreshed.email });
+        const result = await sendBillingReminder(
+          normalizePhone(refreshed.phone),
+          {
+            valor: Number(invoice.amount).toFixed(2),
+            vencimento: invoice.due_date,
+            link,
+          },
+          {
+            userId: user_id,
+            user: refreshed.email,
+            invoiceId: invoice.id,
+            trigger: 'billing.reminder',
+          },
+        );
+        notification = formatNotification(result.notification);
       } catch (err) {
-        logger.warn('Falha ao enviar cobrança via WhatsApp.', { userId: user_id, err: err.message });
+        logger.warn('Falha ao enviar lembrete de cobrança.', { userId: user_id, err: err.message });
       }
     }
 
-    return formatInvoice(invoice);
+    return {
+      ...formatInvoice(invoice),
+      notification,
+    };
   }
 
   async listAllCharges() {
     const rows = await this.invoices.listAll();
-    return rows.map(row => ({
+    const invoiceIds = rows.map((row) => row.id);
+    const latestNotifications = await getBillingNotificationRepository()
+      .mapLatestByInvoiceIds(invoiceIds);
+
+    return rows.map((row) => ({
       ...formatInvoice(row),
       user_id: row.user_id,
       user_email: row.user_email,
       user_name: row.user_name,
+      last_notification: latestNotifications.get(row.id) || null,
     }));
+  }
+
+  async listBillingNotifications(options = {}) {
+    return getBillingNotificationRepository().listRecent(options);
   }
 
   async processWebhookEvent({ provider, event, payment }) {

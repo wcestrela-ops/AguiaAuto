@@ -1,9 +1,9 @@
 const VEHICLE_COMMANDS = {
-  bloquear: { gpswox: 'engine_stop', label: 'Bloquear veículo' },
-  desbloquear: { gpswox: 'engine_resume', label: 'Desbloquear veículo' },
-  ligar: { gpswox: 'engine_resume', label: 'Ligar motor' },
-  desligar: { gpswox: 'engine_stop', label: 'Desligar motor' },
-  localizar: { gpswox: 'position_single', label: 'Solicitar localização' },
+  bloquear: { gpswox: 'engine_stop', sms: 'RELAY,1#', label: 'Bloquear veículo' },
+  desbloquear: { gpswox: 'engine_resume', sms: 'RELAY,0#', label: 'Desbloquear veículo' },
+  ligar: { gpswox: 'engine_resume', sms: 'RELAY,0#', label: 'Ligar motor' },
+  desligar: { gpswox: 'engine_stop', sms: 'RELAY,1#', label: 'Desligar motor' },
+  localizar: { gpswox: 'position_single', sms: 'WHERE#', label: 'Solicitar localização' },
 };
 
 function normalizeVehicleAction(action) {

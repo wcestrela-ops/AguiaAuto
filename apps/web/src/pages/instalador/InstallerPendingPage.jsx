@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 export default function InstallerPendingPage() {
   const [jobs, setJobs] = useState([]);
@@ -16,10 +17,13 @@ export default function InstallerPendingPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Agendamentos</h1>
-        <p>Veículos aguardando instalação do rastreador.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Agendamentos"
+        subtitle="Veículos aguardando instalação do rastreador."
+        guideId="installer_pending"
+        scope="installer"
+        className="page-header"
+      />
 
       {error && <div className="alert error">{error}</div>}
 

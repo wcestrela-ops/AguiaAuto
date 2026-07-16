@@ -20,8 +20,17 @@ const { migrateContratos } = require('./db/migrate-contratos');
 const { migrateContratosSnapshot } = require('./db/migrate-contratos-snapshot');
 const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
+const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
+const { migrateAdminAudit } = require('./db/migrate-admin-audit');
+const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
+const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
+const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
+const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
+const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
+const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
+const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -47,6 +56,12 @@ const adminAlertasRoutes = require('./modules/admin/alertas/routes');
 const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
+const adminAuditRoutes = require('./modules/admin/audit/routes');
+const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
+const adminSmsRoutes = require('./modules/admin/sms/routes');
+const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
+const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
+const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -85,6 +100,9 @@ app.use('/v1/config', configRoutes);
 // Webhooks públicos
 app.use('/webhooks', webhooksRoutes);
 
+// Gateway SMS GPSWOX (entrada HTTP — padrão %NUMBER% / %MESSAGE%)
+app.use('/v1/sms/gateway', gpswoxGatewayRoutes);
+
 // Onboarding (parcialmente público durante cadastro)
 app.use('/v1/onboarding', onboardingRoutes);
 
@@ -105,6 +123,9 @@ app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instalador
 // Painel admin — ADMIN_SECRET
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);
+app.use('/v1/admin/sms/gpswox-templates', adminAuth, adminSmsGpswoxTemplatesRoutes);
+app.use('/v1/admin/sms', adminAuth, adminSmsRoutes);
 app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
 app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
 app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
@@ -113,6 +134,8 @@ app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
 app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
 app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
+app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
+app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });
@@ -160,9 +183,35 @@ async function bootstrap() {
     await migrateIndicacoes();
     logger.info('Indique e Ganhe (indicações + desconto) inicializado.');
 
+    await migrateVehicleSms();
+    logger.info('Veículos — chip SMS e logs de comando inicializados.');
+
+    await migrateVehicleTracker();
+    logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
+
+    await migrateTrackerLibrary();
+    logger.info('Biblioteca de modelos e comandos SMS de rastreadores inicializada.');
+
+    await migrateTrackerGpswoxSms();
+    logger.info('Comandos SMS — vínculo gpswox_sms_template_id inicializado.');
+
+    await migrateGpswoxSyncRuns();
+    logger.info('Histórico de sync GPSWOX agendado inicializado.');
+
+    await migrateBillingNotifications();
+    logger.info('Notificações de cobrança (WhatsApp/SMS) inicializadas.');
+
+    await migrateAdminAudit();
+    logger.info('Auditoria administrativa inicializada.');
+
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
     logger.info('Módulo WhatsApp multi-provedor inicializado.');
+
+    const smsRepo = getSmsRepository();
+    await smsRepo.migrate();
+    await smsRepo.ensureDefaultProvider();
+    logger.info('Módulo SMS interno (gateways + dispatches) inicializado.');
   } else {
     logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
   }
@@ -174,7 +223,8 @@ async function bootstrap() {
     if (process.env.DATABASE_URL) {
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
-      logger.info('Pollers de âncora e indicações iniciados.');
+      startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
+      logger.info('Pollers de âncora, indicações e sync GPSWOX iniciados.');
     }
   });
 }

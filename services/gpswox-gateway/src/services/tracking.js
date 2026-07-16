@@ -117,6 +117,36 @@ async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
   };
 }
 
+async function listDevices() {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Listagem requer api_hash configurado no painel admin.');
+  return api.getDevices();
+}
+
+async function listSmsTemplates(lang = 'en') {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
+  return api.getUserSmsTemplates(lang);
+}
+
+async function createSmsTemplate(payload) {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
+  return api.addUserSmsTemplate(payload);
+}
+
+async function updateSmsTemplate(payload) {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
+  return api.editUserSmsTemplate(payload);
+}
+
+async function getSmsTemplateMessage(templateId, lang = 'en') {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Templates SMS requerem api_hash configurado no painel admin.');
+  return api.getUserSmsTemplateMessage(templateId, lang);
+}
+
 module.exports = {
   getLocation,
   blockDevice,
@@ -126,4 +156,9 @@ module.exports = {
   createVeiculo,
   getHistory,
   createSharing,
+  listDevices,
+  listSmsTemplates,
+  createSmsTemplate,
+  updateSmsTemplate,
+  getSmsTemplateMessage,
 };

@@ -28,6 +28,7 @@ import InstallerHistoryPage from './pages/instalador/InstallerHistoryPage';
 import InstallerJobPage from './pages/instalador/InstallerJobPage';
 import AdminInstaladoresPage from './pages/admin/AdminInstaladoresPage';
 import AdminContratosPage from './pages/admin/AdminContratosPage';
+import SmsPage from './pages/admin/SmsPage';
 
 function AdminRoute({ children }) {
   const token = api.adminToken || localStorage.getItem('admin_token');
@@ -102,6 +103,7 @@ export default function App() {
         <Route path="integracoes" element={<IntegrationsPage />} />
         <Route path="integracoes/:key" element={<IntegrationEditPage />} />
         <Route path="whatsapp" element={<WhatsAppPage />} />
+        <Route path="sms" element={<SmsPage />} />
         <Route path="veiculos" element={<AdminVehiclesPage />} />
         <Route path="financeiro" element={<AdminFinanceiroPage />} />
         <Route path="alertas" element={<AdminAlertsPage />} />

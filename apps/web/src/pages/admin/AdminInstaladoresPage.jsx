@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 const EMPTY_FORM = {
   email: '',
@@ -56,15 +57,15 @@ export default function AdminInstaladoresPage() {
 
   return (
     <div>
-      <header className="page-header row">
-        <div>
-          <h1>Instaladores</h1>
-          <p>Contas com acesso à área de instalação de rastreadores.</p>
-        </div>
+      <PageHeaderWithHelp
+        title="Instaladores"
+        subtitle="Contas com acesso à área de instalação de rastreadores."
+        guideId="instaladores"
+      >
         <button type="button" onClick={() => setShowForm((v) => !v)}>
           {showForm ? 'Cancelar' : 'Novo instalador'}
         </button>
-      </header>
+      </PageHeaderWithHelp>
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}

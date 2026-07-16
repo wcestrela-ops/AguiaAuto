@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import VehicleMap from '../../components/VehicleMap';
 import VehicleRouteMap from '../../components/VehicleRouteMap';
+import CommandFeedback, { CommandHistoryList } from '../../components/CommandFeedback';
+import { HelpButton, InlineGuide, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
 const LOCATION_MODES = [
@@ -32,6 +34,8 @@ export default function ClientVehicleDetailPage() {
   const [anchorLoading, setAnchorLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [lastCommandFeedback, setLastCommandFeedback] = useState(null);
+  const [commandHistory, setCommandHistory] = useState([]);
 
   const loadLocation = useCallback(async () => {
     setRefreshing(true);
@@ -70,6 +74,15 @@ export default function ClientVehicleDetailPage() {
     }
   }, [id, historyPreset]);
 
+  const loadCommandHistory = useCallback(async () => {
+    try {
+      const res = await api.getVehicleCommandHistory(id, { limit: 8 });
+      setCommandHistory(res.data || []);
+    } catch {
+      setCommandHistory([]);
+    }
+  }, [id]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -80,6 +93,7 @@ export default function ClientVehicleDetailPage() {
         if (vehicleRes.data.status === 'active' || vehicleRes.data.status === 'blocked') {
           await loadLocation();
           await loadAnchor();
+          await loadCommandHistory();
         }
       } catch (err) {
         setError(err.message);
@@ -88,15 +102,18 @@ export default function ClientVehicleDetailPage() {
       }
     }
     load();
-  }, [id, loadLocation, loadAnchor]);
+  }, [id, loadLocation, loadAnchor, loadCommandHistory]);
 
   async function runCommand(action) {
     setMessage('');
     setError('');
+    setLastCommandFeedback(null);
     setCommandLoading(action);
     try {
       const res = await api.sendVehicleCommand(id, action);
-      setMessage(res.message || 'Comando enviado.');
+      const feedback = res.data?.command_feedback || null;
+      setLastCommandFeedback(feedback);
+      setMessage(res.message || feedback?.message || 'Comando enviado.');
       if (action === 'bloquear' || action === 'desbloquear') {
         const vehicleRes = await api.getVehicle(id);
         setVehicle(vehicleRes.data);
@@ -104,6 +121,7 @@ export default function ClientVehicleDetailPage() {
       if (action === 'localizar' || action === 'desbloquear') {
         await loadLocation();
       }
+      await loadCommandHistory();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -160,7 +178,11 @@ export default function ClientVehicleDetailPage() {
     <div>
       <header className="page-header">
         <Link to="/app/veiculos" className="back-link">← Voltar</Link>
-        <h1>{vehicle.label}</h1>
+        <div className="page-title-row">
+          <h1>{vehicle.label}</h1>
+          <HelpButton guideId="client_vehicle_detail" scope="client" label="Ajuda: detalhes do veículo" />
+        </div>
+        <InlineGuide guideId="client_vehicle_detail" scope="client" />
         <p>
           <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
             {vehicleStatusLabel(vehicle.status)}
@@ -180,6 +202,9 @@ export default function ClientVehicleDetailPage() {
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
+      {lastCommandFeedback && (
+        <CommandFeedback feedback={lastCommandFeedback} />
+      )}
 
       <div className="vehicle-detail-grid">
         <div className="form-card vehicle-info-card">
@@ -198,7 +223,7 @@ export default function ClientVehicleDetailPage() {
 
         <div className="map-card">
           <div className="map-card-header">
-            <h3>Localização</h3>
+            <SectionTitleWithHelp title="Localização" guideId="client_vehicle_detail" scope="client" />
             {canTrack && locationMode === 'mapa' && (
               <button type="button" className="btn-secondary btn-sm" onClick={loadLocation} disabled={refreshing}>
                 {refreshing ? 'Atualizando...' : 'Atualizar'}
@@ -281,8 +306,8 @@ export default function ClientVehicleDetailPage() {
 
       {canTrack && hasDevice && (
         <section className="card vehicle-controls-card">
-          <h3>Comandos do rastreador</h3>
-          <p className="muted">Enviados via API GPSWOX (bloqueio, desbloqueio e motor).</p>
+          <SectionTitleWithHelp title="Comandos do rastreador" guideId="client_vehicle_commands" scope="client" />
+          <InlineGuide guideId="client_vehicle_commands" scope="client" />
           <div className="command-grid">
             {vehicle.status !== 'blocked' && (
               <button
@@ -340,12 +365,23 @@ export default function ClientVehicleDetailPage() {
               {commandLoading === 'localizar' ? 'Enviando...' : 'Localizar agora'}
             </button>
           </div>
+          <p className="muted" style={{ marginTop: '0.75rem' }}>
+            <HelpButton guideId="client_vehicle_anchor" scope="client" size="sm" label="Ajuda: âncora" />
+            {' '}A âncora fixa o veículo em um ponto — toque em ? para entender o bloqueio automático.
+          </p>
           {anchorActive && (
             <p className="muted anchor-hint">
               O veículo está em alerta. Se ligar e sair mais de {anchor.radius_meters || 10} metros
               deste ponto sem desativar a âncora, o bloqueio automático será enviado.
             </p>
           )}
+        </section>
+      )}
+
+      {canTrack && hasDevice && (
+        <section className="card vehicle-controls-card">
+          <h3>Histórico de comandos</h3>
+          <CommandHistoryList items={commandHistory} />
         </section>
       )}
 

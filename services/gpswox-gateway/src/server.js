@@ -14,6 +14,11 @@ const {
   createVeiculo,
   getHistory,
   createSharing,
+  listDevices,
+  listSmsTemplates,
+  createSmsTemplate,
+  updateSmsTemplate,
+  getSmsTemplateMessage,
 } = require('./services/tracking');
 
 const app = express();
@@ -155,6 +160,68 @@ app.post('/compartilhar', async (req, res) => {
 
   try {
     const resultado = await createSharing(deviceId, { durationMinutes: durationMinutes || 60 });
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/dispositivos', async (req, res) => {
+  try {
+    const resultado = await listDevices();
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/sms-templates/list', async (req, res) => {
+  try {
+    const lang = req.body?.lang || 'en';
+    const resultado = await listSmsTemplates(lang);
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/sms-templates', async (req, res) => {
+  const { title, message, lang } = req.body || {};
+  if (!title || !message) {
+    return res.status(400).json({ success: false, error: 'title e message são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await createSmsTemplate({ title, message, lang: lang || 'en' });
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/sms-templates/:id', async (req, res) => {
+  const { title, message, lang } = req.body || {};
+  if (!title || !message) {
+    return res.status(400).json({ success: false, error: 'title e message são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await updateSmsTemplate({
+      id: req.params.id,
+      title,
+      message,
+      lang: lang || 'en',
+    });
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/sms-templates/:id/message', async (req, res) => {
+  try {
+    const lang = req.body?.lang || 'en';
+    const resultado = await getSmsTemplateMessage(req.params.id, lang);
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

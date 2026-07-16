@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import FieldInput from '../../components/FieldInput';
+import { HelpButton, InlineGuide } from '../../components/HelpGuide';
+import { getIntegrationGuide, INTEGRATION_GUIDE_KEYS } from '../../content/admin-guides';
 
 export default function IntegrationEditPage() {
   const { key } = useParams();
@@ -13,6 +15,9 @@ export default function IntegrationEditPage() {
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const guide = getIntegrationGuide(key);
+  const guideId = INTEGRATION_GUIDE_KEYS[key];
 
   useEffect(() => {
     api.getIntegration(key)
@@ -67,15 +72,22 @@ export default function IntegrationEditPage() {
     <div>
       <header className="page-header">
         <Link to="/admin/integracoes" className="back-link">← Integrações</Link>
-        <h1>{data.label}</h1>
+        <div className="page-title-row">
+          <h1>{data.label}</h1>
+          {guideId && <HelpButton guideId={guideId} label={`Como configurar ${data.label}`} />}
+        </div>
         <p>{data.description}</p>
+        {guide && <InlineGuide text={guide.summary} />}
       </header>
 
-      {key === 'firebase' && (
-        <div className="info-box">
-          Configure aqui todas as credenciais do Firebase para notificações push no PWA e apps.
-          O Service Account (client_email + private_key) é usado no servidor. As chaves Web
-          (web_api_key, messaging_sender_id, app_id, vapid_key) são usadas no cliente.
+      {guide && (
+        <div className="integration-guide-box">
+          <HelpButton guideId={guideId} size="sm" />
+          <p>
+            Clique em <strong>?</strong> para ver o passo a passo completo de configuração.
+            {key === 'payment_gateways' && ' Configure Asaas e Mercado Pago antes de definir o failover.'}
+            {key === 'sms_gpswox_gateway' && ' Depois copie a URL em SMS Rastreador e cole no painel GPSWOX.'}
+          </p>
         </div>
       )}
 
@@ -84,6 +96,7 @@ export default function IntegrationEditPage() {
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           Integração habilitada
         </label>
+        <p className="guide-inline">Desmarque para pausar a integração sem apagar as credenciais salvas.</p>
 
         {data.fields?.map((field) => (
           <FieldInput

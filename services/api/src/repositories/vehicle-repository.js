@@ -14,7 +14,8 @@ class VehicleRepository {
 
   async listByUser(userId) {
     const { rows } = await this.pool.query(
-      `SELECT id, user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status, created_at, updated_at
+      `SELECT id, user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status,
+              tracker_phone, tracker_model, tracker_model_id, tracker_imei, gpswox_synced_at, created_at, updated_at
        FROM vehicles WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
@@ -45,13 +46,20 @@ class VehicleRepository {
 
   async create(data) {
     const { rows } = await this.pool.query(
-      `INSERT INTO vehicles (user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `INSERT INTO vehicles (
+        user_id, gpswox_device_id, gpswox_name, plate, brand, model, color, year, status,
+        tracker_phone, tracker_model, tracker_model_id, tracker_imei, gpswox_synced_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
         data.user_id, data.gpswox_device_id, data.gpswox_name,
         data.plate, data.brand, data.model, data.color, data.year,
         data.status || VEHICLE_STATUS.PENDING_INSTALLATION,
+        data.tracker_phone || null,
+        data.tracker_model || null,
+        data.tracker_model_id || null,
+        data.tracker_imei || null,
+        data.gpswox_synced_at || null,
       ]
     );
     return rows[0];
@@ -71,11 +79,17 @@ class VehicleRepository {
         color = COALESCE($7, color),
         year = COALESCE($8, year),
         status = COALESCE($9, status),
+        tracker_phone = COALESCE($10, tracker_phone),
+        tracker_model = COALESCE($11, tracker_model),
+        tracker_model_id = COALESCE($12, tracker_model_id),
+        tracker_imei = COALESCE($13, tracker_imei),
+        gpswox_synced_at = COALESCE($14, gpswox_synced_at),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
         id, data.gpswox_device_id, data.gpswox_name, data.plate,
         data.brand, data.model, data.color, data.year, data.status,
+        data.tracker_phone, data.tracker_model, data.tracker_model_id, data.tracker_imei, data.gpswox_synced_at,
       ]
     );
     return rows[0];

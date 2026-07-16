@@ -1,6 +1,13 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
+const { getVehicleCommandLogRepository } = require('../repositories/vehicle-command-log-repository');
 const gpswox = require('../integrations/gpswox-gateway');
+const sms = require('./sms');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
+const { getTrackerCommandService } = require('./tracker-command-service');
+const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
+const { buildCommandFeedback, formatCommandLogRow, normalizeSmsStatus } = require('../lib/command-feedback');
+const { buildSmsIdempotencyKey } = require('../lib/idempotency');
+const { getAuditService } = require('./audit-service');
 const logger = require('../logger');
 
 function formatDateTime(date) {
@@ -26,6 +33,12 @@ function formatVehicle(v) {
     status: v.status,
     gpswox_device_id: v.gpswox_device_id,
     gpswox_name: v.gpswox_name,
+    tracker_phone: v.tracker_phone || null,
+    tracker_phone_masked: v.tracker_phone ? maskPhone(v.tracker_phone) : null,
+    tracker_model: v.tracker_model || null,
+    tracker_model_id: v.tracker_model_id || null,
+    tracker_imei: v.tracker_imei || null,
+    gpswox_synced_at: v.gpswox_synced_at || null,
     label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate,
     created_at: v.created_at,
     updated_at: v.updated_at,
@@ -35,6 +48,7 @@ function formatVehicle(v) {
 class VehicleService {
   constructor() {
     this.repo = getVehicleRepository();
+    this.commandLogs = getVehicleCommandLogRepository();
   }
 
   async listForUser(userId) {
@@ -72,17 +86,11 @@ class VehicleService {
   }
 
   async block(userId, vehicleId) {
-    const vehicle = await this._requireDevice(vehicleId, userId);
-    const data = await gpswox.blockDevice(vehicle.gpswox_device_id);
-    await this.repo.update(vehicleId, { status: VEHICLE_STATUS.BLOCKED });
-    return { success: true, data };
+    return this.runCommand(userId, vehicleId, 'bloquear');
   }
 
   async unblock(userId, vehicleId) {
-    const vehicle = await this._requireDevice(vehicleId, userId);
-    const data = await gpswox.unblockDevice(vehicle.gpswox_device_id);
-    await this.repo.update(vehicleId, { status: VEHICLE_STATUS.ACTIVE });
-    return { success: true, data };
+    return this.runCommand(userId, vehicleId, 'desbloquear');
   }
 
   async runCommand(userId, vehicleId, action) {
@@ -92,22 +100,197 @@ class VehicleService {
     }
 
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const command = VEHICLE_COMMANDS[normalized];
+    const command = await getTrackerCommandService().resolveCommand(vehicle, normalized);
+    if (!command) {
+      throw new Error(`Comando "${action}" não configurado para este rastreador.`);
+    }
 
+    try {
+      return await this._executeTrackerCommand(userId, vehicle, normalized, command);
+    } catch (err) {
+      await this._logCommand({
+        vehicle_id: vehicle.id,
+        user_id: userId,
+        action: normalized,
+        channel: err.command_channel || '4g',
+        status: 'failed',
+        failover: Boolean(err.failover_attempted),
+        error_message: err.message,
+      });
+      throw err;
+    }
+  }
+
+  async getCommandHistory(userId, vehicleId, { limit = 15 } = {}) {
+    const vehicle = await this.repo.findByIdForUser(vehicleId, userId);
+    if (!vehicle) throw new Error('Veículo não encontrado.');
+
+    const rows = await this.commandLogs.listByVehicle(vehicleId, { userId, limit });
+    return rows.map(formatCommandLogRow);
+  }
+
+  async _executeTrackerCommand(userId, vehicle, normalized, command) {
+    try {
+      const data = await this._sendViaGps(vehicle, normalized, command);
+
+      if (normalized === 'bloquear') {
+        await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.BLOCKED });
+      } else if (normalized === 'desbloquear') {
+        await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.ACTIVE });
+      }
+
+      await this._logCommand({
+        vehicle_id: vehicle.id,
+        user_id: userId,
+        action: normalized,
+        channel: '4g',
+        status: 'sent',
+        failover: false,
+      });
+
+      await getAuditService().userAction('vehicle.command', {
+        userId,
+        resourceType: 'vehicle',
+        resourceId: vehicle.id,
+        metadata: { action: normalized, channel: '4g', plate: vehicle.plate },
+      });
+
+      const commandFeedback = buildCommandFeedback({
+        action: normalized,
+        label: command.label,
+        channel: '4g',
+        failover: false,
+        status: 'sent',
+        hasTrackerPhone: Boolean(vehicle.tracker_phone),
+      });
+
+      return {
+        success: true,
+        action: normalized,
+        label: command.label,
+        channel: '4g',
+        failover: false,
+        data,
+        message: commandFeedback.message,
+        command_feedback: commandFeedback,
+      };
+    } catch (gpsError) {
+      logger.warn('Comando 4G falhou', {
+        vehicleId: vehicle.id,
+        action: normalized,
+        error: gpsError.message,
+      });
+
+      if (!command.sms || !isGpsFailoverEligible(gpsError)) {
+        const err = new Error(gpsError.message);
+        err.command_channel = '4g';
+        throw err;
+      }
+
+      if (!vehicle.tracker_phone) {
+        const err = new Error(
+          'Comando 4G indisponível e veículo sem número do chip cadastrado para envio SMS.',
+        );
+        err.failover_attempted = true;
+        err.command_channel = '4g';
+        throw err;
+      }
+
+      const idempotencyKey = buildSmsIdempotencyKey(userId, vehicle.id, normalized);
+
+      let smsData;
+      try {
+        smsData = await sms.sendTrackerCommand({
+          phone: vehicle.tracker_phone,
+          message: command.sms,
+          action: normalized,
+          vehicle_id: String(vehicle.id),
+          user_id: String(userId),
+          idempotencyKey,
+        });
+      } catch (smsError) {
+        smsError.failover_attempted = true;
+        smsError.command_channel = 'sms';
+        throw smsError;
+      }
+
+      const smsStatus = normalizeSmsStatus(smsData);
+      if (smsStatus === 'failed') {
+        const err = new Error('Falha ao enviar SMS para o chip do rastreador.');
+        err.failover_attempted = true;
+        err.command_channel = 'sms';
+        throw err;
+      }
+
+      if (normalized === 'bloquear' && smsStatus === 'sent') {
+        await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.BLOCKED });
+      } else if (normalized === 'desbloquear' && smsStatus === 'sent') {
+        await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.ACTIVE });
+      }
+
+      await this._logCommand({
+        vehicle_id: vehicle.id,
+        user_id: userId,
+        action: normalized,
+        channel: 'sms',
+        status: smsStatus === 'duplicate' ? 'duplicate' : smsStatus === 'queued' ? 'queued' : 'sent',
+        failover: true,
+        error_message: gpsError.message,
+        external_ref: smsData?.dispatch_id || smsData?.id || null,
+      });
+
+      await getAuditService().userAction('vehicle.command.sms_failover', {
+        userId,
+        resourceType: 'vehicle',
+        resourceId: vehicle.id,
+        metadata: {
+          action: normalized,
+          channel: 'sms',
+          dispatch_id: smsData?.dispatch_id,
+          status: smsData?.status,
+          duplicate: smsData?.duplicate,
+        },
+      });
+
+      const commandFeedback = buildCommandFeedback({
+        action: normalized,
+        label: command.label,
+        channel: 'sms',
+        failover: true,
+        status: smsStatus,
+        smsData,
+        hasTrackerPhone: true,
+      });
+
+      return {
+        success: commandFeedback.success,
+        action: normalized,
+        label: command.label,
+        channel: 'sms',
+        failover: true,
+        data: smsData,
+        message: commandFeedback.message,
+        command_feedback: commandFeedback,
+      };
+    }
+  }
+
+  async _sendViaGps(vehicle, normalized, command) {
     if (normalized === 'bloquear') {
-      return this.block(userId, vehicleId);
+      return gpswox.blockDevice(vehicle.gpswox_device_id);
     }
     if (normalized === 'desbloquear') {
-      return this.unblock(userId, vehicleId);
+      return gpswox.unblockDevice(vehicle.gpswox_device_id);
     }
+    return gpswox.sendCommand(vehicle.gpswox_device_id, command.gpswox);
+  }
 
-    const data = await gpswox.sendCommand(vehicle.gpswox_device_id, command.gpswox);
-    return {
-      success: true,
-      action: normalized,
-      label: command.label,
-      data,
-    };
+  async _logCommand(entry) {
+    try {
+      await this.commandLogs.create(entry);
+    } catch (err) {
+      logger.error('Falha ao registrar log de comando', { error: err.message });
+    }
   }
 
   async getHistory(userId, vehicleId, { from, to, hours } = {}) {
@@ -117,7 +300,7 @@ class VehicleService {
     const response = await gpswox.getHistory(
       vehicle.gpswox_device_id,
       range.from,
-      range.to
+      range.to,
     );
 
     return {
@@ -142,6 +325,7 @@ class VehicleService {
     return Object.entries(VEHICLE_COMMANDS).map(([action, meta]) => ({
       action,
       label: meta.label,
+      sms_available: Boolean(meta.sms),
     }));
   }
 

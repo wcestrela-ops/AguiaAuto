@@ -1,5 +1,6 @@
 export default function FieldInput({ field, value, onChange }) {
   const id = `field-${field.key}`;
+  const hint = field.hint || field.description;
 
   if (field.type === 'boolean') {
     return (
@@ -11,6 +12,7 @@ export default function FieldInput({ field, value, onChange }) {
           onChange={(e) => onChange(e.target.checked)}
         />
         {field.label}
+        {hint && <small className="hint">{hint}</small>}
       </label>
     );
   }
@@ -25,9 +27,11 @@ export default function FieldInput({ field, value, onChange }) {
           type="password"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={field.secret ? '••••••••' : ''}
+          placeholder={field.placeholder || (field.secret ? '••••••••' : '')}
         />
-        <small className="hint">Deixe em branco para manter o valor atual (campos secretos).</small>
+        <small className="hint">
+          {hint || 'Deixe em branco para manter o valor atual (campos secretos).'}
+        </small>
       </label>
     );
   }
@@ -41,7 +45,9 @@ export default function FieldInput({ field, value, onChange }) {
         type={field.type === 'number' ? 'number' : field.type === 'url' ? 'url' : 'text'}
         value={value}
         onChange={(e) => onChange(field.type === 'number' ? parseInt(e.target.value, 10) : e.target.value)}
+        placeholder={field.placeholder || ''}
       />
+      {hint && <small className="hint">{hint}</small>}
     </label>
   );
 }

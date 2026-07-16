@@ -40,4 +40,14 @@ module.exports = {
   createSharing: (deviceId, durationMinutes) => gatewayRequest('/compartilhar', {
     body: { device_id: deviceId, duration_minutes: durationMinutes },
   }),
+  listDevices: () => gatewayRequest('/dispositivos', { body: {} }),
+  listSmsTemplates: (lang = 'en') => gatewayRequest('/sms-templates/list', { body: { lang } }),
+  createSmsTemplate: (payload) => gatewayRequest('/sms-templates', { body: payload }),
+  updateSmsTemplate: (id, payload) => gatewayRequest(`/sms-templates/${id}`, {
+    method: 'PUT',
+    body: payload,
+  }),
+  getSmsTemplateMessage: (id, lang = 'en') => gatewayRequest(`/sms-templates/${id}/message`, {
+    body: { lang },
+  }),
 };

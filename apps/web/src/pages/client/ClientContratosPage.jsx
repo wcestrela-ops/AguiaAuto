@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '../../api/client';
 import AuthenticatedImage from '../../components/AuthenticatedImage';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 function formatDuration(minutes) {
   if (!minutes) return '—';
@@ -19,6 +20,7 @@ function InstallationPreview({ delivery }) {
         <div><dt>Placa</dt><dd>{delivery.plate}</dd></div>
         <div><dt>Instalador</dt><dd>{delivery.installer_name || '—'}</dd></div>
         <div><dt>Device ID</dt><dd>{delivery.gpswox_device_id}</dd></div>
+        {delivery.imei && <div><dt>IMEI</dt><dd><code>{delivery.imei}</code></dd></div>}
         <div><dt>Duração</dt><dd>{formatDuration(delivery.duration_minutes)}</dd></div>
         <div><dt>Data</dt><dd>{new Date(delivery.finished_at || delivery.created_at).toLocaleString('pt-BR')}</dd></div>
       </dl>
@@ -136,10 +138,13 @@ export default function ClientContratosPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Contratos</h1>
-        <p>Contrato de serviço com dados de instalação. Baixe sua cópia a qualquer momento.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Contratos"
+        subtitle="Contrato de serviço com dados de instalação. Baixe sua cópia a qualquer momento."
+        guideId="client_contract"
+        scope="client"
+        className="page-header"
+      />
 
       {data?.contrato_servico && !data.contrato_servico.accepted && (
         <div className="alert warning contract-block-banner">

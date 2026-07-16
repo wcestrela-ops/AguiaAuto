@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
 export default function ClientVehiclesPage() {
@@ -19,10 +20,13 @@ export default function ClientVehiclesPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Meus Veículos</h1>
-        <p>Acompanhe a localização e o status dos seus veículos.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Meus Veículos"
+        subtitle="Acompanhe a localização e o status dos seus veículos."
+        guideId="client_vehicles"
+        scope="client"
+        className="page-header"
+      />
 
       {error && <div className="alert error">{error}</div>}
 

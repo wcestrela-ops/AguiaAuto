@@ -5,6 +5,18 @@ const { getUserRepository } = require('../../../repositories/user-repository');
 
 const router = Router();
 
+router.get('/notificacoes', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '50', 10);
+    const channel = req.query.channel || undefined;
+    const invoiceId = req.query.invoice_id ? parseInt(req.query.invoice_id, 10) : undefined;
+    const data = await getFinanceiroService().listBillingNotifications({ limit, channel, invoiceId });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/cobrancas', async (req, res) => {
   try {
     const data = await getFinanceiroService().listAllCharges();

@@ -206,6 +206,15 @@ class ApiClient {
     return this.request(`/v1/veiculos/${id}/comandos/${action}`, { method: 'POST' }, { useClient: true });
   }
 
+  getVehicleCommandHistory(id, { limit = 15 } = {}) {
+    const qs = new URLSearchParams({ limit: String(limit) }).toString();
+    return this.request(`/v1/veiculos/${id}/comandos/historico?${qs}`, {}, { useClient: true });
+  }
+
+  getAdminOperationsDashboard() {
+    return this.request('/v1/admin/dashboard/operations', {}, { useAdmin: true });
+  }
+
   getVehicleHistory(id, { from, to, hours } = {}) {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
@@ -357,6 +366,128 @@ class ApiClient {
     return this.request(`/v1/admin/whatsapp/${id}`, { method: 'DELETE' }, { useAdmin: true });
   }
 
+  getSmsProviders() {
+    return this.request('/v1/admin/sms', {}, { useAdmin: true });
+  }
+
+  getSmsTypes() {
+    return this.request('/v1/admin/sms/types', {}, { useAdmin: true });
+  }
+
+  getSmsDispatches(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/sms/dispatches${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  getSmsGpswoxGatewayInfo() {
+    return this.request('/v1/sms/gateway/info', {}, { useAdmin: false, useClient: false });
+  }
+
+  getGpswoxSmsTemplates(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/sms/gpswox-templates${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  importGpswoxSmsTemplates(data) {
+    return this.request('/v1/admin/sms/gpswox-templates/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  pushGpswoxSmsTemplates(data) {
+    return this.request('/v1/admin/sms/gpswox-templates/push', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  createSmsProvider(data) {
+    return this.request('/v1/admin/sms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  setSmsPrimary(id) {
+    return this.request(`/v1/admin/sms/${id}/primary`, { method: 'PUT' }, { useAdmin: true });
+  }
+
+  setSmsBackup(id) {
+    return this.request(`/v1/admin/sms/${id}/backup`, { method: 'PUT' }, { useAdmin: true });
+  }
+
+  testSms(id) {
+    return this.request(`/v1/admin/sms/${id}/test`, { method: 'POST' }, { useAdmin: true });
+  }
+
+  deleteSms(id) {
+    return this.request(`/v1/admin/sms/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  sendSmsManual(data) {
+    return this.request('/v1/admin/sms/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  sendSmsCommand(data) {
+    return this.request('/v1/admin/sms/send-command', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getTrackerModels() {
+    return this.request('/v1/admin/sms/models', {}, { useAdmin: true });
+  }
+
+  createTrackerModel(data) {
+    return this.request('/v1/admin/sms/models', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateTrackerModel(id, data) {
+    return this.request(`/v1/admin/sms/models/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  createTrackerCommand(modelId, data) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateTrackerCommand(modelId, commandId, data) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands/${commandId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  deleteTrackerCommand(modelId, commandId) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands/${commandId}`, {
+      method: 'DELETE',
+    }, { useAdmin: true });
+  }
+
+  syncGpswoxVehicles(data = {}) {
+    return this.request('/v1/admin/veiculos/sync-gpswox', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getGpswoxSyncStatus() {
+    return this.request('/v1/admin/veiculos/sync-gpswox/status', {}, { useAdmin: true });
+  }
+
   getAdminVehicles() {
     return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
   }
@@ -381,6 +512,11 @@ class ApiClient {
 
   getAdminCharges() {
     return this.request('/v1/admin/financeiro/cobrancas', {}, { useAdmin: true });
+  }
+
+  getAdminBillingNotifications(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/financeiro/notificacoes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
   createAdminCharge(data) {
@@ -470,6 +606,10 @@ class ApiClient {
 
   getInstallerJob(id) {
     return this.request(`/v1/instalador/instalacoes/${id}`, {}, { useClient: true });
+  }
+
+  getInstallerTrackerModels() {
+    return this.request('/v1/instalador/modelos-rastreador', {}, { useClient: true });
   }
 
   finalizeInstallation(id, formData) {

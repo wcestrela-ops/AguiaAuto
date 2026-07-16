@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 export default function InstallerHomePage() {
   const [dashboard, setDashboard] = useState(null);
@@ -14,10 +15,13 @@ export default function InstallerHomePage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Painel do Instalador</h1>
-        <p>Instalações pendentes e histórico recente.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Painel do Instalador"
+        subtitle="Instalações pendentes e histórico recente."
+        guideId="installer_home"
+        scope="installer"
+        className="page-header"
+      />
 
       {error && <div className="alert error">{error}</div>}
 
