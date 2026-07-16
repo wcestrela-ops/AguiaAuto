@@ -595,6 +595,35 @@ class ApiClient {
     return this.request('/v1/admin/plans', {}, { useAdmin: true });
   }
 
+  createAdminPlan(data) {
+    return this.request('/v1/admin/plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateAdminPlan(id, data) {
+    return this.request(`/v1/admin/plans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getPublicLanding() {
+    return this.request('/v1/site/landing');
+  }
+
+  getAdminLanding() {
+    return this.request('/v1/admin/site/landing', {}, { useAdmin: true });
+  }
+
+  updateAdminLanding(content) {
+    return this.request('/v1/admin/site/landing', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }, { useAdmin: true });
+  }
+
   getPaymentGateways() {
     return this.request('/v1/admin/financeiro/gateways', {}, { useAdmin: true });
   }

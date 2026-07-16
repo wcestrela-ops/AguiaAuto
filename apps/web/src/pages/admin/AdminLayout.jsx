@@ -9,6 +9,8 @@ const NAV = [
   { to: '/admin/veiculos', label: 'Veículos' },
   { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/financeiro', label: 'Financeiro' },
+  { to: '/admin/planos', label: 'Planos' },
+  { to: '/admin/site', label: 'Landing page' },
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/emergencia', label: 'Emergência' },
   { to: '/admin/instaladores', label: 'Instaladores' },

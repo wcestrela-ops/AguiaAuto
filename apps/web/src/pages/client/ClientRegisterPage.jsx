@@ -50,16 +50,19 @@ export default function ClientRegisterPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const planFromUrl = searchParams.get('plan');
     api.getPlans()
       .then((res) => {
         const list = res.data || [];
         setPlans(list);
-        if (list.length === 1) {
+        if (planFromUrl && list.some((p) => String(p.id) === planFromUrl)) {
+          setForm((prev) => ({ ...prev, plan_id: planFromUrl }));
+        } else if (list.length === 1) {
           setForm((prev) => ({ ...prev, plan_id: String(list[0].id) }));
         }
       })
       .catch(() => {});
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!refFromUrl) return;

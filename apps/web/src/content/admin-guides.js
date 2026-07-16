@@ -565,6 +565,36 @@ export const ADMIN_GUIDES = {
     ],
   },
 
+  admin_plans: {
+    title: 'Planos de assinatura',
+    summary: 'Cadastre e edite planos exibidos no cadastro online e na landing page.',
+    steps: [
+      { title: 'Criar plano', body: 'Informe nome, descrição, valor mensal e marque como ativo para aparecer em /cadastro e na home pública.' },
+      { title: 'Desativar', body: 'Planos inativos não aparecem para novos clientes, mas assinaturas existentes continuam.' },
+      { title: 'Landing', body: 'A seção de planos na landing usa automaticamente os planos ativos cadastrados aqui.' },
+    ],
+    links: [
+      { label: 'Landing page', to: '/admin/site' },
+      { label: 'Financeiro', to: '/admin/financeiro' },
+    ],
+  },
+
+  admin_landing: {
+    title: 'Landing page pública',
+    summary: 'Edite textos, recursos, contato e rodapé da página inicial (/) sem deploy.',
+    steps: [
+      { title: 'Hero', body: 'Título, subtítulo e botões principais (Cadastro / Login). Links relativos como /cadastro funcionam.' },
+      { title: 'Recursos', body: 'Cards de benefícios com ícone emoji, título e descrição — adicione ou remova quantos precisar.' },
+      { title: 'Planos', body: 'Ative a seção para listar planos ativos. Títulos editáveis; valores vêm de Planos.' },
+      { title: 'Contato', body: 'Telefone, WhatsApp e e-mail aparecem no rodapé da landing.' },
+      { title: 'Desativar', body: 'Com "Landing page ativa" desligada, visitantes em / são redirecionados para login.' },
+    ],
+    links: [
+      { label: 'Planos', to: '/admin/planos' },
+      { label: 'Ver site', to: '/' },
+    ],
+  },
+
   admin_frota: {
     title: 'Documentos e manutenção',
     summary: 'Gestão de CRLV, seguro, IPVA, revisões e lembretes push automáticos.',

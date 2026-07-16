@@ -16,6 +16,9 @@ export const AUDIT_ACTION_LABELS = {
   'provisioning.retry': 'Reprovisionamento',
   'integration.update': 'Integração atualizada',
   'integration.reload': 'Integrações recarregadas',
+  'plan.create': 'Plano criado',
+  'plan.update': 'Plano atualizado',
+  'site.landing.update': 'Landing page atualizada',
 };
 
 export const AUDIT_ACTOR_LABELS = {
@@ -28,6 +31,8 @@ export const AUDIT_RESOURCE_LABELS = {
   user: 'Cliente',
   vehicle: 'Veículo',
   integration: 'Integração',
+  plan: 'Plano',
+  site: 'Site',
 };
 
 export function auditActionLabel(action) {
@@ -48,6 +53,8 @@ export function auditResourceLink(resourceType, resourceId) {
   if (resourceType === 'user') return `/admin/clientes/${resourceId}`;
   if (resourceType === 'vehicle') return '/admin/veiculos';
   if (resourceType === 'integration') return `/admin/integracoes/${resourceId}`;
+  if (resourceType === 'plan') return '/admin/planos';
+  if (resourceType === 'site') return '/admin/site';
   return null;
 }
 
@@ -76,6 +83,7 @@ export function formatAuditMetadata(metadata) {
   if (metadata.total != null) parts.push(`Total: ${metadata.total}`);
   if (metadata.tracker_phone_changed) parts.push('Chip SMS alterado');
   if (metadata.enabled != null) parts.push(metadata.enabled ? 'Ativa' : 'Desativada');
+  if (metadata.features_count != null) parts.push(`${metadata.features_count} recursos`);
 
   if (parts.length) return parts.join(' · ');
   return JSON.stringify(metadata);
