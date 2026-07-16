@@ -40,7 +40,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const fields = normalizeVehicleInput(req.body);
-    const { user_id, plate, brand, model, color, year, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_device_id, tracker_name } = { ...req.body, ...fields };
+    const { user_id, plate, brand, model, color, year, status, tracker_phone, tracker_model, tracker_model_id, tracker_imei } = { ...req.body, ...fields };
+    const { tracker_device_id, tracker_name, tracking_provider } = fields;
 
     if (!user_id) {
       return res.status(400).json({ success: false, error: 'user_id é obrigatório.' });
@@ -62,6 +63,7 @@ router.post('/', async (req, res) => {
       model,
       color,
       year,
+      tracking_provider,
       tracker_device_id,
       tracker_name,
       status,
@@ -88,7 +90,7 @@ router.put('/:id', async (req, res) => {
   try {
     const fields = normalizeVehicleInput(req.body);
     const { plate, brand, model, color, year, status, tracker_phone, tracker_model, tracker_imei } = req.body;
-    const { tracker_device_id, tracker_name } = fields;
+    const { tracker_device_id, tracker_name, tracking_provider } = fields;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, error: 'Status inválido.' });
@@ -102,6 +104,7 @@ router.put('/:id', async (req, res) => {
       year,
       tracker_device_id,
       tracker_name,
+      tracking_provider,
       status,
       tracker_phone,
       tracker_model,
@@ -130,9 +133,13 @@ router.put('/:id', async (req, res) => {
 async function handleSyncTracker(req, res) {
   try {
     const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
-    const { dry_run: dryRun, default_user_id: defaultUserId } = req.body;
+    const { dry_run: dryRun, default_user_id: defaultUserId, provider } = req.body;
     const summary = await getGpswoxSyncService().syncAndAudit(
-      { dryRun: Boolean(dryRun), defaultUserId: defaultUserId ? Number(defaultUserId) : undefined },
+      {
+        dryRun: Boolean(dryRun),
+        defaultUserId: defaultUserId ? Number(defaultUserId) : undefined,
+        provider: provider || null,
+      },
       req,
     );
     res.json({ success: true, data: summary });

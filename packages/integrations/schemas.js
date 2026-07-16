@@ -1,18 +1,29 @@
 const INTEGRATIONS = {
   rastreamento: {
     label: 'Plataforma de Rastreamento',
-    description: 'Escolha GPSWOX ou Traccar. Credenciais ficam nos cards de cada plataforma.',
+    description: 'GPSWOX e Traccar podem estar ativos ao mesmo tempo — cada veículo usa a plataforma escolhida no cadastro.',
     fields: [
       {
-        key: 'provider',
-        label: 'Plataforma ativa',
+        key: 'default_provider',
+        label: 'Plataforma padrão (novos veículos)',
         type: 'select',
         default: 'gpswox',
         options: [
           { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
           { value: 'traccar', label: 'Traccar' },
         ],
-        hint: 'Altere aqui para trocar de plataforma — sem deploy. Depois use Recarregar integrações.',
+        hint: 'Usada no onboarding e instalador quando nenhuma plataforma for escolhida. Veículos existentes mantêm a plataforma marcada.',
+      },
+      {
+        key: 'provider',
+        label: 'Plataforma padrão (legado)',
+        type: 'select',
+        default: 'gpswox',
+        options: [
+          { value: 'gpswox', label: 'GPSWOX (GPS Box)' },
+          { value: 'traccar', label: 'Traccar' },
+        ],
+        hint: 'Alias de default_provider — mantido para compatibilidade.',
       },
     ],
   },

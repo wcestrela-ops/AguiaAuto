@@ -99,7 +99,7 @@ class AlertService {
       return { processed: true, duplicate: true, alert_id: duplicate.id };
     }
 
-    const vehicle = await this.vehicles.findByDeviceId(normalized.device_id);
+    const vehicle = await this.vehicles.findByDeviceId(normalized.device_id, source);
     if (!vehicle) {
       return { processed: false, reason: `Veículo não encontrado para device ${normalized.device_id}.` };
     }

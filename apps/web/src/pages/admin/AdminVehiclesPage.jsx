@@ -41,6 +41,11 @@ const EMPTY_FILTERS = {
   sort: 'created_desc',
 };
 
+const PLATFORM_OPTIONS = [
+  { value: 'gpswox', label: 'GPSWOX' },
+  { value: 'traccar', label: 'Traccar' },
+];
+
 const EMPTY_FORM = {
   user_id: '',
   plate: '',
@@ -48,6 +53,7 @@ const EMPTY_FORM = {
   model: '',
   color: '',
   year: '',
+  tracking_provider: 'gpswox',
   tracker_device_id: '',
   tracker_name: '',
   tracker_phone: '',
@@ -297,6 +303,7 @@ export default function AdminVehiclesPage() {
       model: vehicle.model || '',
       color: vehicle.color || '',
       year: vehicle.year ? String(vehicle.year) : '',
+      tracking_provider: vehicle.tracking_provider || 'gpswox',
       tracker_device_id: vehicle.tracker_device_id || '',
       tracker_name: vehicle.tracker_name || '',
       tracker_phone: vehicle.tracker_phone || '',
@@ -321,6 +328,7 @@ export default function AdminVehiclesPage() {
       model: form.model.trim() || null,
       color: form.color.trim() || null,
       year: form.year ? Number(form.year) : null,
+      tracking_provider: form.tracking_provider,
       tracker_device_id: form.tracker_device_id.trim() || null,
       tracker_name: form.tracker_name.trim() || null,
       tracker_phone: form.tracker_phone.trim() || null,
@@ -350,17 +358,17 @@ export default function AdminVehiclesPage() {
     }
   }
 
-  async function handleSyncGpswox(dryRun = false) {
+  async function handleSyncAll(dryRun = false) {
     setError('');
     setMessage('');
     try {
-      const res = await api.syncGpswoxVehicles({ dry_run: dryRun });
+      const res = await api.syncTrackerVehicles({ dry_run: dryRun });
       const s = res.data;
-      const label = syncStatus?.provider_label || 'Plataforma';
+      const parts = (s.platforms || []).map((p) => `${p.provider_label}: ${p.total} (${p.created}+/${p.updated}↺)`);
       setMessage(
         dryRun
-          ? `Prévia: ${s.total} dispositivos ${label} (${s.preview?.length || 0} na amostra).`
-          : `Sincronizado: ${s.created} criados, ${s.updated} atualizados, ${s.skipped} ignorados.`,
+          ? `Prévia — ${parts.join(' · ') || `${s.total} dispositivos`}`
+          : `Sync concluído — ${parts.join(' · ') || `${s.created} criados, ${s.updated} atualizados`}`,
       );
       if (!dryRun) await loadVehicles();
     } catch (err) {
@@ -370,25 +378,22 @@ export default function AdminVehiclesPage() {
 
   if (metaLoading) return <p className="muted">Carregando...</p>;
 
-  const platformLabel = syncStatus?.provider_label || 'Plataforma';
-  const integrationsPath = syncStatus?.provider === 'traccar'
-    ? '/admin/integracoes/traccar'
-    : '/admin/integracoes/gpswox';
+  const platformStatuses = syncStatus?.platforms || {};
 
   return (
     <div>
       <PageHeaderWithHelp
         title="Veículos"
-        subtitle="Cadastre veículos, importe da plataforma de rastreamento (chip SIM, IMEI, modelo) e vincule ao cliente."
+        subtitle="Cada veículo usa GPSWOX ou Traccar — comandos e sync seguem a plataforma marcada no cadastro."
         guideId="vehicles"
       >
         <div className="row" style={{ gap: '0.5rem' }}>
-          <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(true)}>
-            Prévia {platformLabel}
+          <button type="button" className="btn-secondary" onClick={() => handleSyncAll(true)}>
+            Prévia sync (ambas)
           </button>
-          <HelpButton guideId="vehicles_sync" size="sm" label={`Ajuda: sincronizar ${platformLabel}`} />
-          <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(false)}>
-            Sincronizar {platformLabel}
+          <HelpButton guideId="vehicles_sync" size="sm" label="Ajuda: sincronizar plataformas" />
+          <button type="button" className="btn-secondary" onClick={() => handleSyncAll(false)}>
+            Sincronizar GPSWOX + Traccar
           </button>
           <button type="button" onClick={startCreate}>Novo veículo</button>
         </div>
@@ -399,34 +404,25 @@ export default function AdminVehiclesPage() {
 
       {syncStatus && (
         <div className="form-card" style={{ marginBottom: '1rem' }}>
-          <SectionTitleWithHelp title={`Sync automático (${platformLabel})`} guideId="vehicles_sync" />
-          <div className="row" style={{ gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className={`badge ${syncStatus.auto_sync_enabled ? 'success' : 'warning'}`}>
-              {syncStatus.auto_sync_enabled ? 'Ativo' : 'Desligado'}
-            </span>
-            <span className="badge info">{platformLabel}</span>
-            {syncStatus.in_progress && <span className="badge info">Sincronizando...</span>}
-            <span className="guide-inline" style={{ margin: 0 }}>
-              Intervalo: {syncStatus.interval_hours}h
-              {syncStatus.next_due_at && (
-                <> · Próximo: {new Date(syncStatus.next_due_at).toLocaleString('pt-BR')}</>
-              )}
-            </span>
+          <SectionTitleWithHelp title="Sync automático por plataforma" guideId="vehicles_sync" />
+          {syncStatus.in_progress && <span className="badge info">Sincronizando...</span>}
+          <div className="row" style={{ gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            {Object.values(platformStatuses).map((p) => (
+              <div key={p.provider} className="guide-inline" style={{ margin: 0 }}>
+                <span className={`badge ${p.auto_sync_enabled ? 'success' : 'warning'}`}>{p.provider_label}</span>
+                {' '}{p.auto_sync_enabled ? 'ativo' : 'desligado'} · {p.interval_hours}h
+                {p.unlinked_devices_last_success > 0 && (
+                  <> · <strong>{p.unlinked_devices_last_success} sem cliente</strong></>
+                )}
+              </div>
+            ))}
           </div>
-          {syncStatus.last_success && (
-            <p className="guide-inline">
-              Último sync: {new Date(syncStatus.last_success.finished_at).toLocaleString('pt-BR')}
-              {' '}— {syncStatus.last_success.created} criados, {syncStatus.last_success.updated} atualizados
-              {syncStatus.unlinked_devices_last_success > 0 && (
-                <>, <strong>{syncStatus.unlinked_devices_last_success} sem cliente Águia</strong></>
-              )}
-            </p>
-          )}
-          {!syncStatus.auto_sync_enabled && (
-            <p className="guide-inline">
-              Ative em <Link to={integrationsPath}>Integrações → {platformLabel}</Link> (Sync automático de veículos).
-            </p>
-          )}
+          <p className="guide-inline">
+            Configure cada plataforma em{' '}
+            <Link to="/admin/integracoes/gpswox">GPSWOX</Link> e{' '}
+            <Link to="/admin/integracoes/traccar">Traccar</Link>.
+            Falha em uma não bloqueia a outra.
+          </p>
         </div>
       )}
 
@@ -546,9 +542,18 @@ export default function AdminVehiclesPage() {
             <input type="number" value={form.year} onChange={(e) => updateForm('year', e.target.value)} />
           </label>
           <label>
+            Plataforma de rastreamento
+            <select value={form.tracking_provider} onChange={(e) => updateForm('tracking_provider', e.target.value)}>
+              {PLATFORM_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <small className="hint">Comandos e localização usam a API desta plataforma.</small>
+          </label>
+          <label>
             Device ID (rastreador)
             <input value={form.tracker_device_id} onChange={(e) => updateForm('tracker_device_id', e.target.value)} />
-            <small className="hint">ID do dispositivo na plataforma ativa</small>
+            <small className="hint">ID do dispositivo na plataforma escolhida acima</small>
           </label>
           <label>
             Nome no rastreador
@@ -625,6 +630,7 @@ export default function AdminVehiclesPage() {
             <tr>
               <th>Placa</th>
               <th>Cliente</th>
+              <th>Plataforma</th>
               <th>Device ID</th>
               <th>Chip SIM</th>
               <th>IMEI</th>
@@ -649,6 +655,9 @@ export default function AdminVehiclesPage() {
                         <Link to={`/admin/clientes/${vehicle.user_id}`} className="btn-ghost btn-sm">Ficha</Link>
                       </div>
                     ) : null}
+                  </td>
+                  <td>
+                    <span className="badge info">{vehicle.tracking_provider_label || vehicle.tracking_provider || '—'}</span>
                   </td>
                   <td><code>{vehicle.tracker_device_id || '—'}</code></td>
                   <td>{vehicle.tracker_phone || '—'}</td>

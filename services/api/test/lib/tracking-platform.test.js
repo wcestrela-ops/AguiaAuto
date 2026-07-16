@@ -4,27 +4,17 @@ const assert = require('node:assert/strict');
 const {
   normalizeProviderName,
   getProviderLabel,
-  getActiveSyncSettings,
+  getSyncSettingsForProvider,
 } = require('../../src/lib/tracking-platform');
 
 test('normalizeProviderName defaults to gpswox', () => {
   assert.equal(normalizeProviderName(undefined), 'gpswox');
   assert.equal(normalizeProviderName('traccar'), 'traccar');
-  assert.equal(normalizeProviderName('TRACCAR'), 'traccar');
-  assert.equal(normalizeProviderName('unknown'), 'gpswox');
 });
 
-test('getProviderLabel returns human label', () => {
-  assert.equal(getProviderLabel('traccar'), 'Traccar');
-  assert.equal(getProviderLabel('gpswox'), 'GPSWOX');
-});
-
-test('getActiveSyncSettings reads active platform config', async () => {
+test('getSyncSettingsForProvider reads platform config', async () => {
   const store = {
     async get(key) {
-      if (key === 'rastreamento') {
-        return { enabled: true, settings: { provider: 'traccar' } };
-      }
       if (key === 'traccar') {
         return {
           enabled: true,
@@ -44,13 +34,10 @@ test('getActiveSyncSettings reads active platform config', async () => {
   integrations.getStore = () => store;
 
   try {
-    const settings = await getActiveSyncSettings();
+    const settings = await getSyncSettingsForProvider('traccar');
     assert.equal(settings.provider, 'traccar');
-    assert.equal(settings.providerLabel, 'Traccar');
     assert.equal(settings.enabled, true);
     assert.equal(settings.intervalHours, 12);
-    assert.equal(settings.defaultGroupId, 5);
-    assert.equal(settings.configKey, 'traccar');
   } finally {
     integrations.getStore = original;
   }

@@ -14,7 +14,7 @@ class VehicleRepository {
 
   async listByUser(userId) {
     const { rows } = await this.pool.query(
-      `SELECT id, user_id, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
+      `SELECT id, user_id, tracking_provider, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
               tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_synced_at, created_at, updated_at
        FROM vehicles WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
@@ -60,12 +60,12 @@ class VehicleRepository {
   async create(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO vehicles (
-        user_id, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
+        user_id, tracking_provider, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
         tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_synced_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
-        data.user_id, data.tracker_device_id, data.tracker_name,
+        data.user_id, data.tracking_provider || null, data.tracker_device_id, data.tracker_name,
         data.plate, data.brand, data.model, data.color, data.year,
         data.status || VEHICLE_STATUS.PENDING_INSTALLATION,
         data.tracker_phone || null,
@@ -84,26 +84,27 @@ class VehicleRepository {
 
     const { rows } = await this.pool.query(
       `UPDATE vehicles SET
-        tracker_device_id = COALESCE($2, tracker_device_id),
-        tracker_name = COALESCE($3, tracker_name),
-        plate = COALESCE($4, plate),
-        brand = COALESCE($5, brand),
-        model = COALESCE($6, model),
-        color = COALESCE($7, color),
-        year = COALESCE($8, year),
-        status = COALESCE($9, status),
-        tracker_phone = COALESCE($10, tracker_phone),
-        tracker_model = COALESCE($11, tracker_model),
-        tracker_model_id = COALESCE($12, tracker_model_id),
-        tracker_imei = COALESCE($13, tracker_imei),
-        tracker_synced_at = COALESCE($14, tracker_synced_at),
-        assigned_installer_id = CASE WHEN $15 = '__skip__' THEN assigned_installer_id ELSE $15 END,
-        installation_scheduled_at = CASE WHEN $16 = '__skip__' THEN installation_scheduled_at ELSE $16 END,
-        assigned_at = CASE WHEN $17 = '__skip__' THEN assigned_at ELSE $17 END,
+        tracking_provider = COALESCE($2, tracking_provider),
+        tracker_device_id = COALESCE($3, tracker_device_id),
+        tracker_name = COALESCE($4, tracker_name),
+        plate = COALESCE($5, plate),
+        brand = COALESCE($6, brand),
+        model = COALESCE($7, model),
+        color = COALESCE($8, color),
+        year = COALESCE($9, year),
+        status = COALESCE($10, status),
+        tracker_phone = COALESCE($11, tracker_phone),
+        tracker_model = COALESCE($12, tracker_model),
+        tracker_model_id = COALESCE($13, tracker_model_id),
+        tracker_imei = COALESCE($14, tracker_imei),
+        tracker_synced_at = COALESCE($15, tracker_synced_at),
+        assigned_installer_id = CASE WHEN $16 = '__skip__' THEN assigned_installer_id ELSE $16 END,
+        installation_scheduled_at = CASE WHEN $17 = '__skip__' THEN installation_scheduled_at ELSE $17 END,
+        assigned_at = CASE WHEN $18 = '__skip__' THEN assigned_at ELSE $18 END,
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
-        id, data.tracker_device_id, data.tracker_name, data.plate,
+        id, data.tracking_provider, data.tracker_device_id, data.tracker_name, data.plate,
         data.brand, data.model, data.color, data.year, data.status,
         data.tracker_phone, data.tracker_model, data.tracker_model_id, data.tracker_imei, data.tracker_synced_at,
         Object.prototype.hasOwnProperty.call(data, 'assigned_installer_id') ? data.assigned_installer_id : '__skip__',
@@ -291,18 +292,29 @@ class VehicleRepository {
     return rows[0].count;
   }
 
-  async findByDeviceId(deviceId) {
+  async findByDeviceId(deviceId, provider = null) {
     if (!deviceId) return null;
+    const params = [String(deviceId)];
+    let providerFilter = '';
+    if (provider) {
+      params.push(normalizeProviderName(provider));
+      providerFilter = `AND v.tracking_provider = $${params.length}`;
+    }
     const { rows } = await this.pool.query(
       `SELECT v.*, u.email AS user_email, u.name AS user_name, u.phone AS user_phone
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
-       WHERE v.tracker_device_id = $1 OR v.tracker_name = $1
+       WHERE (v.tracker_device_id = $1 OR v.tracker_name = $1)
+       ${providerFilter}
        LIMIT 1`,
-      [String(deviceId)]
+      params
     );
     return rows[0] || null;
   }
+}
+
+function normalizeProviderName(value) {
+  return String(value || 'gpswox').toLowerCase() === 'traccar' ? 'traccar' : 'gpswox';
 }
 
 let instance = null;

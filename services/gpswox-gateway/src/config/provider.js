@@ -35,8 +35,10 @@ async function getGatewayConfig() {
   return store.getSettings('gateway');
 }
 
-async function getActiveTrackingClient() {
-  const name = await getActiveProviderName();
+async function getTrackingClient(provider) {
+  const name = provider
+    ? (String(provider).toLowerCase() === 'traccar' ? 'traccar' : DEFAULT_PROVIDER)
+    : await getActiveProviderName();
 
   if (name === 'traccar') {
     const settings = await getTraccarConfig();
@@ -55,6 +57,10 @@ async function getActiveTrackingClient() {
   };
 }
 
+async function getActiveTrackingClient() {
+  return getTrackingClient();
+}
+
 function gpswoxOnlyFeature(featureLabel) {
   return `${featureLabel} disponível apenas com GPSWOX ativo. Altere em Integrações → Plataforma de Rastreamento.`;
 }
@@ -67,5 +73,6 @@ module.exports = {
   getTraccarConfig,
   getGatewayConfig,
   getActiveTrackingClient,
+  getTrackingClient,
   gpswoxOnlyFeature,
 };

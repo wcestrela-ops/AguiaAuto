@@ -5,7 +5,7 @@ const { getUserRepository } = require('../repositories/user-repository');
 const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
 const { getTrackerCommandService } = require('./tracker-command-service');
 const { formatVehicle } = require('./vehicle-service');
-const gpswox = require('../integrations/gpswox-gateway');
+const { getProvisioningService } = require('./provisioning-service');
 const { normalizeInstallerFinalizeInput } = require('../lib/tracker-fields');
 const firebase = require('./firebase');
 const logger = require('../logger');
@@ -141,6 +141,7 @@ class InstallerService {
   async finalizeInstallation(installerId, vehicleId, data, uploadedFiles = [], userRole = 'installer') {
     const input = normalizeInstallerFinalizeInput(data);
     const {
+      tracking_provider,
       tracker_device_id,
       tracker_name,
       plate,
@@ -223,9 +224,14 @@ class InstallerService {
     const finishedAt = new Date();
     const startedAt = new Date(finishedAt.getTime() - duration * 60 * 1000);
 
+    const platform = tracking_provider || 'gpswox';
+
     if (create_in_tracker) {
       try {
+        await getProvisioningService().ensurePlatformUser(vehicle.user_id, platform);
+        const gpswox = require('../integrations/gpswox-gateway');
         await gpswox.createVeiculo({
+          provider: platform,
           device_id: tracker_device_id,
           imei: normalizedImei,
           name: deviceName,
@@ -233,11 +239,12 @@ class InstallerService {
           aguia_user_id: vehicle.user_id,
         });
       } catch (err) {
-        logger.warn('Falha ao criar veículo na plataforma (continuando).', { vehicleId, err: err.message });
+        logger.warn('Falha ao criar veículo na plataforma (continuando).', { vehicleId, platform, err: err.message });
       }
     }
 
     const updated = await this.vehicles.update(vehicleId, {
+      tracking_provider: platform,
       tracker_device_id,
       tracker_name: deviceName,
       plate: normalizedPlate || undefined,

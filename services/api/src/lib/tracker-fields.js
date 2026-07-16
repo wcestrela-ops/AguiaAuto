@@ -11,6 +11,7 @@ function coalesceField(body, ...keys) {
 
 function normalizeVehicleInput(body = {}) {
   return {
+    tracking_provider: coalesceField(body, 'tracking_provider', 'provider') || body.tracking_provider,
     tracker_device_id: coalesceField(body, 'tracker_device_id', 'gpswox_device_id'),
     tracker_name: coalesceField(body, 'tracker_name', 'gpswox_name'),
     tracker_synced_at: coalesceField(body, 'tracker_synced_at', 'gpswox_synced_at'),
@@ -34,6 +35,7 @@ function normalizeVehicleInput(body = {}) {
 function normalizeInstallerFinalizeInput(body = {}) {
   const createFlag = body.create_in_tracker ?? body.create_in_gpswox;
   return {
+    tracking_provider: coalesceField(body, 'tracking_provider', 'provider') || 'gpswox',
     tracker_device_id: coalesceField(body, 'tracker_device_id', 'gpswox_device_id'),
     tracker_name: coalesceField(body, 'tracker_name', 'gpswox_name'),
     plate: body.plate,
@@ -60,6 +62,8 @@ function formatVehicleFields(row = {}) {
   const trackerSyncedAt = row.tracker_synced_at ?? null;
 
   return {
+    tracking_provider: row.tracking_provider || null,
+    tracking_provider_label: row.tracking_provider === 'traccar' ? 'Traccar' : row.tracking_provider === 'gpswox' ? 'GPSWOX' : null,
     tracker_device_id: trackerDeviceId,
     tracker_name: trackerName,
     tracker_synced_at: trackerSyncedAt,

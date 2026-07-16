@@ -52,16 +52,23 @@ class UserRepository {
   }
 
   async findByTrackerUserId(trackerUserId) {
+    return this.findByPlatformUserId('gpswox', trackerUserId);
+  }
+
+  async findByPlatformUserId(provider, platformUserId) {
+    if (!platformUserId) return null;
+    const column = provider === 'traccar' ? 'traccar_user_id' : 'gpswox_user_id';
     const { rows } = await this.pool.query(
-      'SELECT id, email, name, phone, tracker_user_id FROM users WHERE tracker_user_id = $1 LIMIT 1',
-      [String(trackerUserId)]
+      `SELECT id, email, name, phone, gpswox_user_id, traccar_user_id
+       FROM users WHERE ${column} = $1 LIMIT 1`,
+      [String(platformUserId)],
     );
     return rows[0] || null;
   }
 
-  /** @deprecated use findByTrackerUserId */
+  /** @deprecated use findByPlatformUserId */
   async findByGpswoxUserId(trackerUserId) {
-    return this.findByTrackerUserId(trackerUserId);
+    return this.findByPlatformUserId('gpswox', trackerUserId);
   }
 
   async findByIdWithPassword(id) {
@@ -326,19 +333,22 @@ class UserRepository {
       `UPDATE users SET
         asaas_customer_id = COALESCE($2, asaas_customer_id),
         mercadopago_payer_id = COALESCE($3, mercadopago_payer_id),
-        tracker_user_id = COALESCE($4, tracker_user_id),
-        provisioning_status = COALESCE($5, provisioning_status),
-        provisioning_errors = COALESCE($6, provisioning_errors),
+        gpswox_user_id = COALESCE($4, gpswox_user_id),
+        traccar_user_id = COALESCE($5, traccar_user_id),
+        provisioning_status = COALESCE($6, provisioning_status),
+        provisioning_errors = COALESCE($7, provisioning_errors),
         updated_at = NOW()
        WHERE id = $1
        RETURNING id, email, name, phone, cpf_cnpj, role, active,
-                 asaas_customer_id, mercadopago_payer_id, tracker_user_id,
+                 asaas_customer_id, mercadopago_payer_id,
+                 gpswox_user_id, traccar_user_id, tracker_user_id,
                  provisioning_status, provisioning_errors, created_at, updated_at`,
       [
         userId,
         data.asaas_customer_id,
         data.mercadopago_payer_id,
-        data.tracker_user_id,
+        data.gpswox_user_id,
+        data.traccar_user_id,
         data.provisioning_status,
         data.provisioning_errors ? JSON.stringify(data.provisioning_errors) : null,
       ]
@@ -349,7 +359,8 @@ class UserRepository {
   async findByIdWithProvisioning(id) {
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, cpf_cnpj, role, active,
-              asaas_customer_id, mercadopago_payer_id, tracker_user_id,
+              asaas_customer_id, mercadopago_payer_id,
+              gpswox_user_id, traccar_user_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at, updated_at
        FROM users WHERE id = $1`,

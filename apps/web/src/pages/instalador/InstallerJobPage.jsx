@@ -6,6 +6,7 @@ import { isValidImei, isValidTrackerPhone, normalizeImei } from '../../utils/ime
 
 const EMPTY_FORM = {
   plate: '',
+  tracking_provider: 'gpswox',
   tracker_device_id: '',
   tracker_name: '',
   imei: '',
@@ -130,6 +131,7 @@ export default function InstallerJobPage() {
 
     try {
       const formData = new FormData();
+      formData.append('tracking_provider', form.tracking_provider);
       formData.append('tracker_device_id', form.tracker_device_id.trim());
       if (form.tracker_name.trim()) formData.append('tracker_name', form.tracker_name.trim());
       if (form.plate.trim()) formData.append('plate', form.plate.trim());
@@ -251,23 +253,36 @@ export default function InstallerJobPage() {
         )}
 
         <label>
-          Device ID GPSWOX *
+          Plataforma de rastreamento *
+          <select
+            value={form.tracking_provider}
+            onChange={(e) => updateForm('tracking_provider', e.target.value)}
+            required
+          >
+            <option value="gpswox">GPSWOX</option>
+            <option value="traccar">Traccar</option>
+          </select>
+          <small className="field-hint">Comandos e cadastro usam a API desta plataforma.</small>
+        </label>
+
+        <label>
+          Device ID *
           <input
             type="text"
             value={form.tracker_device_id}
             onChange={(e) => updateForm('tracker_device_id', e.target.value)}
-            placeholder="ID do dispositivo no GPSWOX"
+            placeholder="ID do dispositivo na plataforma escolhida"
             required
           />
         </label>
 
         <label>
-          Nome no GPSWOX
+          Nome no rastreador
           <input
             type="text"
             value={form.tracker_name}
             onChange={(e) => updateForm('tracker_name', e.target.value)}
-            placeholder={job.plate || 'Nome no GPSWOX'}
+            placeholder={job.plate || 'Nome do veículo'}
           />
         </label>
 

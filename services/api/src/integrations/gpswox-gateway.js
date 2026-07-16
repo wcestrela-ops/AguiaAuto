@@ -5,6 +5,11 @@ async function getGatewayClientConfig() {
   return store.getSettings('gateway_client');
 }
 
+function withProvider(body, provider) {
+  if (!provider) return body;
+  return { ...body, provider };
+}
+
 async function gatewayRequest(path, options = {}) {
   const config = await getGatewayClientConfig();
 
@@ -31,16 +36,24 @@ module.exports = {
   getLocation: (payload) => gatewayRequest('/localizacao', { body: payload }),
   createCliente: (payload) => gatewayRequest('/clientes', { body: payload }),
   createVeiculo: (payload) => gatewayRequest('/veiculos', { body: payload }),
-  blockDevice: (deviceId) => gatewayRequest('/bloqueio', { body: { device_id: deviceId } }),
-  unblockDevice: (deviceId) => gatewayRequest('/desbloqueio', { body: { device_id: deviceId } }),
-  sendCommand: (deviceId, comando) => gatewayRequest('/comandos', { body: { device_id: deviceId, comando } }),
-  getHistory: (deviceId, from, to) => gatewayRequest('/historico', {
-    body: { device_id: deviceId, from, to },
+  blockDevice: (deviceId, provider) => gatewayRequest('/bloqueio', {
+    body: withProvider({ device_id: deviceId }, provider),
   }),
-  createSharing: (deviceId, durationMinutes) => gatewayRequest('/compartilhar', {
-    body: { device_id: deviceId, duration_minutes: durationMinutes },
+  unblockDevice: (deviceId, provider) => gatewayRequest('/desbloqueio', {
+    body: withProvider({ device_id: deviceId }, provider),
   }),
-  listDevices: () => gatewayRequest('/dispositivos', { body: {} }),
+  sendCommand: (deviceId, comando, provider) => gatewayRequest('/comandos', {
+    body: withProvider({ device_id: deviceId, comando }, provider),
+  }),
+  getHistory: (deviceId, from, to, provider) => gatewayRequest('/historico', {
+    body: withProvider({ device_id: deviceId, from, to }, provider),
+  }),
+  createSharing: (deviceId, durationMinutes, provider) => gatewayRequest('/compartilhar', {
+    body: withProvider({ device_id: deviceId, duration_minutes: durationMinutes }, provider),
+  }),
+  listDevices: (provider) => gatewayRequest('/dispositivos', {
+    body: withProvider({}, provider),
+  }),
   listSmsTemplates: (lang = 'en') => gatewayRequest('/sms-templates/list', { body: { lang } }),
   createSmsTemplate: (payload) => gatewayRequest('/sms-templates', { body: payload }),
   updateSmsTemplate: (id, payload) => gatewayRequest(`/sms-templates/${id}`, {

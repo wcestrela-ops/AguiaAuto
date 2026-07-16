@@ -11,7 +11,12 @@ const { buildCommandFeedback, formatCommandLogRow, normalizeSmsStatus } = requir
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const { getAuditService } = require('./audit-service');
 const { formatVehicleFields } = require('../lib/tracker-fields');
+const { normalizeProviderName } = require('../lib/tracking-platform');
 const logger = require('../logger');
+
+function vehicleProvider(vehicle) {
+  return normalizeProviderName(vehicle.tracking_provider || 'gpswox');
+}
 
 function formatDateTime(date) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -83,6 +88,7 @@ class VehicleService {
     const location = await gpswox.getLocation({
       device_id: vehicle.tracker_device_id,
       veiculo: vehicle.tracker_name || vehicle.plate,
+      provider: vehicleProvider(vehicle),
     });
 
     return {
@@ -282,13 +288,14 @@ class VehicleService {
   }
 
   async _sendViaGps(vehicle, normalized, command) {
+    const provider = vehicleProvider(vehicle);
     if (normalized === 'bloquear') {
-      return gpswox.blockDevice(vehicle.tracker_device_id);
+      return gpswox.blockDevice(vehicle.tracker_device_id, provider);
     }
     if (normalized === 'desbloquear') {
-      return gpswox.unblockDevice(vehicle.tracker_device_id);
+      return gpswox.unblockDevice(vehicle.tracker_device_id, provider);
     }
-    return gpswox.sendCommand(vehicle.tracker_device_id, command.gpswox);
+    return gpswox.sendCommand(vehicle.tracker_device_id, command.gpswox, provider);
   }
 
   async _logCommand(entry) {
@@ -307,6 +314,7 @@ class VehicleService {
       vehicle.tracker_device_id,
       range.from,
       range.to,
+      vehicleProvider(vehicle),
     );
 
     return {
@@ -318,7 +326,11 @@ class VehicleService {
 
   async shareLocation(userId, vehicleId, { duration_minutes = 60 } = {}) {
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const response = await gpswox.createSharing(vehicle.tracker_device_id, duration_minutes);
+    const response = await gpswox.createSharing(
+      vehicle.tracker_device_id,
+      duration_minutes,
+      vehicleProvider(vehicle),
+    );
     const share = response.data || response;
 
     return {
