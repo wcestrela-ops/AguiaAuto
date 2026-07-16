@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommandDispatchEntity } from '../infrastructure/command-dispatch.entity';
@@ -12,7 +12,15 @@ export interface InternalSendInput {
   vehicle_id?: string;
   user_id?: string;
   source?: string;
+  idempotency_key?: string;
 }
+
+const REUSABLE_STATUSES = [
+  DispatchStatus.SENT,
+  DispatchStatus.ACCEPTED_BY_GATEWAY,
+  DispatchStatus.PROCESSING,
+  DispatchStatus.QUEUED,
+];
 
 @Injectable()
 export class DispatchService {
@@ -23,19 +31,39 @@ export class DispatchService {
 
   async sendInternal(input: InternalSendInput) {
     const phone = this.normalizePhone(input.phone);
-    if (!phone) throw new Error('Número do chip inválido.');
+    if (!phone) throw new BadRequestException('Número do chip inválido.');
 
-    const dispatch = await this.dispatches.save(
-      this.dispatches.create({
-        phone,
-        message: input.message,
-        action: input.action || null,
-        vehicleId: input.vehicle_id || null,
-        userId: input.user_id || null,
-        source: input.source || 'aguia',
-        status: DispatchStatus.QUEUED,
-      }),
-    );
+    if (input.idempotency_key) {
+      const existing = await this.dispatches.findOne({
+        where: { idempotencyKey: input.idempotency_key },
+      });
+      if (existing && REUSABLE_STATUSES.includes(existing.status)) {
+        return this.toResponse(existing, phone, input.message, true);
+      }
+    }
+
+    const dispatch = this.dispatches.create({
+      phone,
+      message: input.message,
+      action: input.action || null,
+      vehicleId: input.vehicle_id || null,
+      userId: input.user_id || null,
+      source: input.source || 'aguia',
+      idempotencyKey: input.idempotency_key || null,
+      status: DispatchStatus.QUEUED,
+    });
+
+    try {
+      await this.dispatches.save(dispatch);
+    } catch (error) {
+      if (input.idempotency_key && this.isUniqueViolation(error)) {
+        const existing = await this.dispatches.findOne({
+          where: { idempotencyKey: input.idempotency_key },
+        });
+        if (existing) return this.toResponse(existing, phone, input.message, true);
+      }
+      throw error;
+    }
 
     dispatch.status = DispatchStatus.PROCESSING;
     await this.dispatches.save(dispatch);
@@ -59,24 +87,45 @@ export class DispatchService {
       await this.dispatches.save(dispatch);
 
       if (dispatch.status === DispatchStatus.FAILED) {
-        throw new Error(dispatch.errorMessage || 'Falha ao enviar SMS.');
+        throw new ConflictException(dispatch.errorMessage || 'Falha ao enviar SMS.');
       }
 
-      return {
-        dispatch_id: dispatch.id,
-        status: dispatch.status,
-        gateway: gateway.name,
-        gateway_type: gateway.type,
-        external_id: dispatch.externalId,
-        phone,
-        message: input.message,
-      };
+      return this.toResponse(dispatch, phone, input.message, false, gateway.name, gateway.type);
     } catch (error) {
       dispatch.status = DispatchStatus.FAILED;
       dispatch.errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       await this.dispatches.save(dispatch);
       throw error;
     }
+  }
+
+  private toResponse(
+    dispatch: CommandDispatchEntity,
+    phone: string,
+    message: string,
+    duplicate: boolean,
+    gatewayName?: string,
+    gatewayType?: string,
+  ) {
+    return {
+      dispatch_id: dispatch.id,
+      status: dispatch.status,
+      gateway: gatewayName || null,
+      gateway_type: gatewayType || null,
+      external_id: dispatch.externalId,
+      phone,
+      message,
+      duplicate,
+    };
+  }
+
+  private isUniqueViolation(error: unknown) {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    );
   }
 
   private normalizePhone(phone: string) {

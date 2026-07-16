@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
@@ -19,6 +20,13 @@ import { APP_FILTER } from '@nestjs/core';
       isGlobal: true,
       envFilePath: ['../../../.env.sms-hub', '.env.sms-hub', '.env'],
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: parseInt(process.env.SMS_HUB_RATE_LIMIT || '20', 10),
+      },
+    ]),
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.SMS_HUB_DATABASE_URL,

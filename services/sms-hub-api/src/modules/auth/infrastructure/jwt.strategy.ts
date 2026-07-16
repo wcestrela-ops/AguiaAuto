@@ -8,6 +8,13 @@ import { UserSessionEntity } from '../../users/infrastructure/user-session.entit
 import { UserStatus } from '../../users/domain/user-role.enum';
 import { JwtPayload, AuthenticatedUser } from '../../../shared/auth/jwt-payload.interface';
 
+function jwtSecret(): string {
+  if (process.env.NODE_ENV === 'production' && !process.env.SMS_HUB_JWT_SECRET) {
+    throw new Error('SMS_HUB_JWT_SECRET é obrigatório em produção.');
+  }
+  return process.env.SMS_HUB_JWT_SECRET || 'dev-secret-change-me';
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -17,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.SMS_HUB_JWT_SECRET || 'dev-secret-change-me',
+      secretOrKey: jwtSecret(),
     });
   }
 

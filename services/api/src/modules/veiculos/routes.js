@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getVehicleService } = require('../../services/vehicle-service');
 const { getAnchorService } = require('../../services/anchor-service');
+const { vehicleCommandLimiter } = require('../../middleware/rate-limit');
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.get('/:id/localizacao', async (req, res) => {
   }
 });
 
-router.post('/:id/bloqueio', async (req, res) => {
+router.post('/:id/bloqueio', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().block(req.user.id, req.params.id);
     res.json({ success: true, data, message: data.message || 'Bloqueio enviado.' });
@@ -82,7 +83,7 @@ router.post('/:id/bloqueio', async (req, res) => {
   }
 });
 
-router.post('/:id/desbloqueio', async (req, res) => {
+router.post('/:id/desbloqueio', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().unblock(req.user.id, req.params.id);
     res.json({ success: true, data, message: data.message || 'Desbloqueio enviado.' });
@@ -92,7 +93,7 @@ router.post('/:id/desbloqueio', async (req, res) => {
   }
 });
 
-router.post('/:id/comandos/:action', async (req, res) => {
+router.post('/:id/comandos/:action', vehicleCommandLimiter, async (req, res) => {
   try {
     const data = await getService().runCommand(req.user.id, req.params.id, req.params.action);
     res.json({

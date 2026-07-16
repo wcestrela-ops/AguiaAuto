@@ -116,7 +116,7 @@ services:
       SMS_HUB_API_PORT: 4000
       SMS_HUB_CORS_ORIGIN: http://localhost:8080,http://localhost:5173
       AGUIA_ADMIN_SECRET: ${ADMIN_SECRET:-altere-este-segredo-admin}
-      AGUIA_SERVICE_SECRET: ${ADMIN_SECRET:-altere-este-segredo-admin}
+      AGUIA_SERVICE_SECRET: ${AGUIA_SERVICE_SECRET:-altere-este-segredo-servico-aguia}
     ports:
       - "4000:4000"
     depends_on:

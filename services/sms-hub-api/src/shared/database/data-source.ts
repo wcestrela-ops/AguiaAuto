@@ -9,6 +9,7 @@ import { SmsGatewayEntity } from '../../modules/gateways/infrastructure/sms-gate
 import { CommandDispatchEntity } from '../../modules/dispatches/infrastructure/command-dispatch.entity';
 import { Init1730000000001 } from './migrations/1730000000001-Init';
 import { DispatchesGateways1730000000002 } from './migrations/1730000000002-DispatchesGateways';
+import { IdempotencyKey1730000000003 } from './migrations/1730000000003-IdempotencyKey';
 
 config({ path: resolve(__dirname, '../../../../.env.sms-hub') });
 config({ path: resolve(__dirname, '../../../.env.sms-hub') });
@@ -24,7 +25,7 @@ export default new DataSource({
     SmsGatewayEntity,
     CommandDispatchEntity,
   ],
-  migrations: [Init1730000000001, DispatchesGateways1730000000002],
+  migrations: [Init1730000000001, DispatchesGateways1730000000002, IdempotencyKey1730000000003],
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
 });

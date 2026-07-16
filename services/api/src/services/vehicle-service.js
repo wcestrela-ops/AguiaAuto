@@ -4,6 +4,7 @@ const gpswox = require('../integrations/gpswox-gateway');
 const smsHub = require('../integrations/sms-hub');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
+const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const logger = require('../logger');
 
 function formatDateTime(date) {
@@ -142,12 +143,15 @@ class VehicleService {
         );
       }
 
+      const idempotencyKey = buildSmsIdempotencyKey(userId, vehicle.id, normalized);
+
       const smsData = await smsHub.sendTrackerCommand({
         phone: vehicle.tracker_phone,
         message: command.sms,
         action: normalized,
         vehicle_id: String(vehicle.id),
         user_id: String(userId),
+        idempotencyKey,
       });
 
       if (normalized === 'bloquear') {
@@ -167,6 +171,8 @@ class VehicleService {
         external_ref: smsData?.dispatch_id || smsData?.id || null,
       });
 
+      const duplicateNote = smsData?.duplicate ? ' (requisição duplicada ignorada)' : '';
+
       return {
         success: true,
         action: normalized,
@@ -174,7 +180,7 @@ class VehicleService {
         channel: 'sms',
         failover: true,
         data: smsData,
-        message: `${command.label} enviado via SMS (4G indisponível).`,
+        message: `${command.label} enviado via SMS (4G indisponível)${duplicateNote}.`,
       };
     }
   }

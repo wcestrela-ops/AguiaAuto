@@ -1,25 +1,51 @@
 const logger = require('../logger');
 
 function getSmsHubConfig() {
+  const secret = process.env.AGUIA_SERVICE_SECRET;
+
+  if (!secret) {
+    throw new Error(
+      'AGUIA_SERVICE_SECRET não configurado. Deve ser distinto do ADMIN_SECRET e nunca exposto ao browser.',
+    );
+  }
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.ADMIN_SECRET &&
+    secret === process.env.ADMIN_SECRET
+  ) {
+    throw new Error('AGUIA_SERVICE_SECRET não pode ser igual ao ADMIN_SECRET em produção.');
+  }
+
   return {
     url: (process.env.SMS_HUB_URL || 'http://localhost:4000').replace(/\/$/, ''),
-    secret: process.env.AGUIA_SERVICE_SECRET || process.env.ADMIN_SECRET || '',
+    secret,
   };
 }
 
-async function sendTrackerCommand({ phone, message, action, vehicle_id, user_id, source = 'aguia-failover' }) {
+async function sendTrackerCommand({
+  phone,
+  message,
+  action,
+  vehicle_id,
+  user_id,
+  source = 'aguia-failover',
+  idempotencyKey,
+}) {
   const config = getSmsHubConfig();
 
-  if (!config.secret) {
-    throw new Error('AGUIA_SERVICE_SECRET não configurado para envio SMS.');
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Aguia-Service-Secret': config.secret,
+  };
+
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
   }
 
   const response = await fetch(`${config.url}/api/v1/sms/internal/dispatches/send`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Aguia-Service-Secret': config.secret,
-    },
+    headers,
     body: JSON.stringify({
       phone,
       message,
@@ -27,6 +53,7 @@ async function sendTrackerCommand({ phone, message, action, vehicle_id, user_id,
       vehicle_id,
       user_id,
       source,
+      idempotency_key: idempotencyKey,
     }),
   });
 

@@ -1,15 +1,13 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { DispatchStatus } from '../../gateways/domain/gateway.enums';
 
 @Entity('command_dispatches')
 export class CommandDispatchEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
+  idempotencyKey!: string | null;
 
   @Column({ type: 'varchar', length: 30 })
   phone!: string;

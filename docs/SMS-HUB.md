@@ -120,7 +120,14 @@ Quando o cliente envia **bloquear/desbloquear** (ou outro comando) pelo painel:
 5. Comandos SMS mapeados: `RELAY,1#` (bloqueio), `RELAY,0#` (desbloqueio), `WHERE#` (localizar)
 
 Configure no admin do veículo: **Número do chip (SMS failover)**  
-Env: `SMS_HUB_URL`, `AGUIA_SERVICE_SECRET` (igual ao `ADMIN_SECRET`)
+Env: `SMS_HUB_URL`, `AGUIA_SERVICE_SECRET` (distinto do `ADMIN_SECRET`, só servidor)
+
+### Segurança P0 (implementado)
+
+- **Secrets separados:** `ADMIN_SECRET` (browser/admin) ≠ `AGUIA_SERVICE_SECRET` (server-to-server)
+- **Rate limit:** login Águia, comandos veiculares, login/bridge SMS Hub, dispatch interno
+- **JWT SMS Hub:** falha em produção se `SMS_HUB_JWT_SECRET` ausente ou padrão dev
+- **Idempotência SMS:** header `Idempotency-Key` no failover (1 min por veículo+ação)
 
 ## PWA
 

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from '../application/auth.service';
 import {
@@ -22,10 +23,12 @@ import { AuthenticatedUser } from '../../../shared/auth/jwt-payload.interface';
 
 @ApiTags('auth')
 @Controller('auth')
+@UseGuards(ThrottlerGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('bridge')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Bridge — emite JWT SMS a partir do token admin Águia' })
   async bridge(@Headers('x-aguia-admin-token') aguiaToken: string) {
     const data = await this.authService.bridgeAguiaAdmin(aguiaToken || '');
@@ -33,6 +36,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login' })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     const data = await this.authService.login(dto, {

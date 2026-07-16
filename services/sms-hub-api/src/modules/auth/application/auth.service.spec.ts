@@ -73,15 +73,15 @@ describe('AuthService', () => {
   });
 
   it('should bridge aguia admin token', async () => {
-    process.env.AGUIA_ADMIN_SECRET = 'aguia-secret';
+    process.env.AGUIA_ADMIN_SECRET = 'aguia-admin-secret';
     usersRepo.findOne.mockResolvedValue(mockUser);
-    const result = await service.bridgeAguiaAdmin('aguia-secret');
+    const result = await service.bridgeAguiaAdmin('aguia-admin-secret');
     expect(result.access_token).toBe('access-token');
     delete process.env.AGUIA_ADMIN_SECRET;
   });
 
   it('should reject invalid aguia bridge token', async () => {
-    process.env.AGUIA_ADMIN_SECRET = 'aguia-secret';
+    process.env.AGUIA_ADMIN_SECRET = 'aguia-admin-secret';
     await expect(service.bridgeAguiaAdmin('wrong')).rejects.toThrow(
       'Token administrativo Águia inválido',
     );

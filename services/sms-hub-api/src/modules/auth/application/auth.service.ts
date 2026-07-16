@@ -1,9 +1,9 @@
 import {
   Injectable,
   UnauthorizedException,
-  BadRequestException,
   NotImplementedException,
 } from '@nestjs/common';
+import { secretsMatch } from '../../../shared/config/env';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -28,12 +28,9 @@ export class AuthService {
   ) {}
 
   async bridgeAguiaAdmin(aguiaToken: string) {
-    const bridgeSecret =
-      process.env.AGUIA_ADMIN_SECRET ||
-      process.env.SMS_HUB_AGUIA_BRIDGE_SECRET ||
-      '';
+    const bridgeSecret = process.env.AGUIA_ADMIN_SECRET || '';
 
-    if (!bridgeSecret || aguiaToken !== bridgeSecret) {
+    if (!bridgeSecret || !secretsMatch(aguiaToken, bridgeSecret)) {
       throw new UnauthorizedException('Token administrativo Águia inválido.');
     }
 

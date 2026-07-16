@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getAuthService } = require('../../services/auth-service');
 const { jwtAuth } = require('../../middleware/jwt-auth');
+const { authLoginLimiter } = require('../../middleware/rate-limit');
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', authLoginLimiter, async (req, res) => {
   try {
     const data = await getAuthService().login(req.body);
     res.json({ success: true, data });
