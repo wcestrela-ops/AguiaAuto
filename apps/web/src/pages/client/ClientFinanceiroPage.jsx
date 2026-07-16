@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 const STATUS_LABELS = {
   pending: 'Pendente',
@@ -109,10 +110,13 @@ export default function ClientFinanceiroPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Financeiro</h1>
-        <p>Mensalidades, faturas e links de pagamento.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Financeiro"
+        subtitle="Mensalidades, faturas e links de pagamento."
+        guideId="client_financeiro"
+        scope="client"
+        className="page-header"
+      />
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminGuide } from '../content/admin-guides';
+import { getClientGuide } from '../content/client-guides';
+
+function resolveGuide(guideId, scope) {
+  if (!guideId) return null;
+  return scope === 'client' ? getClientGuide(guideId) : getAdminGuide(guideId);
+}
 
 function GuideContent({ guide }) {
   if (!guide) return null;
@@ -68,9 +74,9 @@ export function HelpModal({ guide, onClose }) {
   );
 }
 
-export function HelpButton({ guideId, label = 'Como configurar', className = '', size = 'md' }) {
+export function HelpButton({ guideId, label = 'Como configurar', className = '', size = 'md', scope = 'admin' }) {
   const [open, setOpen] = useState(false);
-  const guide = getAdminGuide(guideId);
+  const guide = resolveGuide(guideId, scope);
 
   if (!guide) return null;
 
@@ -95,24 +101,31 @@ export function HelpButton({ guideId, label = 'Como configurar', className = '',
 }
 
 /** Texto curto abaixo de títulos/seções — tom mais suave que info-box */
-export function InlineGuide({ guideId, text }) {
-  const guide = guideId ? getAdminGuide(guideId) : null;
+export function InlineGuide({ guideId, text, scope = 'admin' }) {
+  const guide = guideId ? resolveGuide(guideId, scope) : null;
   const content = text || guide?.summary;
   if (!content) return null;
   return <p className="guide-inline">{content}</p>;
 }
 
 /** Cabeçalho de página com botão de ajuda opcional */
-export function PageHeaderWithHelp({ title, subtitle, guideId, children, className = 'page-header row' }) {
+export function PageHeaderWithHelp({
+  title,
+  subtitle,
+  guideId,
+  children,
+  className = 'page-header row',
+  scope = 'admin',
+}) {
   return (
     <header className={className}>
       <div>
         <div className="page-title-row">
           <h1>{title}</h1>
-          {guideId && <HelpButton guideId={guideId} />}
+          {guideId && <HelpButton guideId={guideId} scope={scope} />}
         </div>
         {subtitle && <p>{subtitle}</p>}
-        {guideId && <InlineGuide guideId={guideId} />}
+        {guideId && <InlineGuide guideId={guideId} scope={scope} />}
       </div>
       {children}
     </header>
@@ -120,11 +133,11 @@ export function PageHeaderWithHelp({ title, subtitle, guideId, children, classNa
 }
 
 /** Título de seção com botão ? */
-export function SectionTitleWithHelp({ title, guideId, as: Tag = 'h3' }) {
+export function SectionTitleWithHelp({ title, guideId, as: Tag = 'h3', scope = 'admin' }) {
   return (
     <div className="section-title-row">
       <Tag>{title}</Tag>
-      {guideId && <HelpButton guideId={guideId} size="sm" />}
+      {guideId && <HelpButton guideId={guideId} size="sm" scope={scope} />}
     </div>
   );
 }

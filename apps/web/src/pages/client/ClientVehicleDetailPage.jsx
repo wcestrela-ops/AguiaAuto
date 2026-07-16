@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import VehicleMap from '../../components/VehicleMap';
 import VehicleRouteMap from '../../components/VehicleRouteMap';
 import CommandFeedback, { CommandHistoryList } from '../../components/CommandFeedback';
+import { HelpButton, InlineGuide, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
 const LOCATION_MODES = [
@@ -177,7 +178,11 @@ export default function ClientVehicleDetailPage() {
     <div>
       <header className="page-header">
         <Link to="/app/veiculos" className="back-link">← Voltar</Link>
-        <h1>{vehicle.label}</h1>
+        <div className="page-title-row">
+          <h1>{vehicle.label}</h1>
+          <HelpButton guideId="client_vehicle_detail" scope="client" label="Ajuda: detalhes do veículo" />
+        </div>
+        <InlineGuide guideId="client_vehicle_detail" scope="client" />
         <p>
           <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
             {vehicleStatusLabel(vehicle.status)}
@@ -218,7 +223,7 @@ export default function ClientVehicleDetailPage() {
 
         <div className="map-card">
           <div className="map-card-header">
-            <h3>Localização</h3>
+            <SectionTitleWithHelp title="Localização" guideId="client_vehicle_detail" scope="client" />
             {canTrack && locationMode === 'mapa' && (
               <button type="button" className="btn-secondary btn-sm" onClick={loadLocation} disabled={refreshing}>
                 {refreshing ? 'Atualizando...' : 'Atualizar'}
@@ -301,10 +306,8 @@ export default function ClientVehicleDetailPage() {
 
       {canTrack && hasDevice && (
         <section className="card vehicle-controls-card">
-          <h3>Comandos do rastreador</h3>
-          <p className="guide-inline">
-            Tentamos primeiro pela rede 4G do rastreador. Se falhar, enviamos SMS para o chip (quando cadastrado).
-          </p>
+          <SectionTitleWithHelp title="Comandos do rastreador" guideId="client_vehicle_commands" scope="client" />
+          <InlineGuide guideId="client_vehicle_commands" scope="client" />
           <div className="command-grid">
             {vehicle.status !== 'blocked' && (
               <button
@@ -362,6 +365,10 @@ export default function ClientVehicleDetailPage() {
               {commandLoading === 'localizar' ? 'Enviando...' : 'Localizar agora'}
             </button>
           </div>
+          <p className="muted" style={{ marginTop: '0.75rem' }}>
+            <HelpButton guideId="client_vehicle_anchor" scope="client" size="sm" label="Ajuda: âncora" />
+            {' '}A âncora fixa o veículo em um ponto — toque em ? para entender o bloqueio automático.
+          </p>
           {anchorActive && (
             <p className="muted anchor-hint">
               O veículo está em alerta. Se ligar e sair mais de {anchor.radius_meters || 10} metros

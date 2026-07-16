@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export default function ClientProfilePage() {
@@ -94,13 +95,16 @@ export default function ClientProfilePage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Meu Perfil</h1>
-        <p>Gerencie seus dados, indicações, senha e notificações.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Meu Perfil"
+        subtitle="Gerencie seus dados, indicações, senha e notificações."
+        guideId="client_profile"
+        scope="client"
+        className="page-header"
+      />
 
       <div className="form-card">
-        <h3>🎁 Indique e Ganhe</h3>
+        <SectionTitleWithHelp title="🎁 Indique e Ganhe" guideId="client_profile" scope="client" />
         <p className="muted" style={{ marginBottom: '1rem' }}>
           Compartilhe seu link. Quando o indicado <strong>concluir a instalação e aceitar o contrato</strong>,
           você ganha <strong>{referral?.desconto_percentual || 50}% de desconto</strong> na mensalidade do mês.
@@ -156,7 +160,7 @@ export default function ClientProfilePage() {
       </div>
 
       <div className="form-card">
-        <h3>🔔 Notificações Push</h3>
+        <SectionTitleWithHelp title="🔔 Notificações Push" guideId="client_alerts" scope="client" />
         <p className="muted" style={{ marginBottom: '1rem' }}>
           Firebase configurado pelo administrador. Ative para receber alertas de veículos, cobranças e emergências.
         </p>

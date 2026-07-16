@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '../../api/client';
 import AuthenticatedImage from '../../components/AuthenticatedImage';
+import { PageHeaderWithHelp } from '../../components/HelpGuide';
 
 function formatDuration(minutes) {
   if (!minutes) return '—';
@@ -136,10 +137,13 @@ export default function ClientContratosPage() {
 
   return (
     <div>
-      <header className="page-header">
-        <h1>Contratos</h1>
-        <p>Contrato de serviço com dados de instalação. Baixe sua cópia a qualquer momento.</p>
-      </header>
+      <PageHeaderWithHelp
+        title="Contratos"
+        subtitle="Contrato de serviço com dados de instalação. Baixe sua cópia a qualquer momento."
+        guideId="client_contract"
+        scope="client"
+        className="page-header"
+      />
 
       {data?.contrato_servico && !data.contrato_servico.accepted && (
         <div className="alert warning contract-block-banner">
