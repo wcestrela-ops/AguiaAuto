@@ -866,3 +866,86 @@ td.actions { white-space: nowrap; }
     max-height: 90vh;
   }
 }
+
+/* ─── Feedback de comandos (cliente) ─────────────────────────────────────── */
+.command-feedback {
+  background: rgba(143, 163, 188, 0.08);
+  border: 1px solid rgba(143, 163, 188, 0.22);
+  border-radius: var(--radius);
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.command-feedback-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.command-feedback-message {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.command-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.command-history-item {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+}
+
+.command-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.command-history-error {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--error);
+}
+
+/* ─── Dashboard operacional (admin) ──────────────────────────────────────── */
+.ops-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ops-alert-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.ops-alert-card:hover {
+  border-color: var(--accent);
+}
+
+.ops-alert-card .badge {
+  min-width: 2rem;
+  text-align: center;
+}
+
+.ops-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}

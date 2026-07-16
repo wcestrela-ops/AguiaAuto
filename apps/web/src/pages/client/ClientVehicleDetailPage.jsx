@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import VehicleMap from '../../components/VehicleMap';
 import VehicleRouteMap from '../../components/VehicleRouteMap';
+import CommandFeedback, { CommandHistoryList } from '../../components/CommandFeedback';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 
 const LOCATION_MODES = [
@@ -32,6 +33,8 @@ export default function ClientVehicleDetailPage() {
   const [anchorLoading, setAnchorLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [lastCommandFeedback, setLastCommandFeedback] = useState(null);
+  const [commandHistory, setCommandHistory] = useState([]);
 
   const loadLocation = useCallback(async () => {
     setRefreshing(true);
@@ -70,6 +73,15 @@ export default function ClientVehicleDetailPage() {
     }
   }, [id, historyPreset]);
 
+  const loadCommandHistory = useCallback(async () => {
+    try {
+      const res = await api.getVehicleCommandHistory(id, { limit: 8 });
+      setCommandHistory(res.data || []);
+    } catch {
+      setCommandHistory([]);
+    }
+  }, [id]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -80,6 +92,7 @@ export default function ClientVehicleDetailPage() {
         if (vehicleRes.data.status === 'active' || vehicleRes.data.status === 'blocked') {
           await loadLocation();
           await loadAnchor();
+          await loadCommandHistory();
         }
       } catch (err) {
         setError(err.message);
@@ -88,15 +101,18 @@ export default function ClientVehicleDetailPage() {
       }
     }
     load();
-  }, [id, loadLocation, loadAnchor]);
+  }, [id, loadLocation, loadAnchor, loadCommandHistory]);
 
   async function runCommand(action) {
     setMessage('');
     setError('');
+    setLastCommandFeedback(null);
     setCommandLoading(action);
     try {
       const res = await api.sendVehicleCommand(id, action);
-      setMessage(res.message || 'Comando enviado.');
+      const feedback = res.data?.command_feedback || null;
+      setLastCommandFeedback(feedback);
+      setMessage(res.message || feedback?.message || 'Comando enviado.');
       if (action === 'bloquear' || action === 'desbloquear') {
         const vehicleRes = await api.getVehicle(id);
         setVehicle(vehicleRes.data);
@@ -104,6 +120,7 @@ export default function ClientVehicleDetailPage() {
       if (action === 'localizar' || action === 'desbloquear') {
         await loadLocation();
       }
+      await loadCommandHistory();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -180,6 +197,9 @@ export default function ClientVehicleDetailPage() {
 
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success">{message}</div>}
+      {lastCommandFeedback && (
+        <CommandFeedback feedback={lastCommandFeedback} />
+      )}
 
       <div className="vehicle-detail-grid">
         <div className="form-card vehicle-info-card">
@@ -282,7 +302,9 @@ export default function ClientVehicleDetailPage() {
       {canTrack && hasDevice && (
         <section className="card vehicle-controls-card">
           <h3>Comandos do rastreador</h3>
-          <p className="muted">Enviados via API GPSWOX (bloqueio, desbloqueio e motor).</p>
+          <p className="guide-inline">
+            Tentamos primeiro pela rede 4G do rastreador. Se falhar, enviamos SMS para o chip (quando cadastrado).
+          </p>
           <div className="command-grid">
             {vehicle.status !== 'blocked' && (
               <button
@@ -346,6 +368,13 @@ export default function ClientVehicleDetailPage() {
               deste ponto sem desativar a âncora, o bloqueio automático será enviado.
             </p>
           )}
+        </section>
+      )}
+
+      {canTrack && hasDevice && (
+        <section className="card vehicle-controls-card">
+          <h3>Histórico de comandos</h3>
+          <CommandHistoryList items={commandHistory} />
         </section>
       )}
 

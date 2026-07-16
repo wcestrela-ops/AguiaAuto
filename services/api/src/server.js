@@ -54,6 +54,7 @@ const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
+const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
@@ -131,6 +132,7 @@ app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
 app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
 app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
 app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
+app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Rota não encontrada.' });

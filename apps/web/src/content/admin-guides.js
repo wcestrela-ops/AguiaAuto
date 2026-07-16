@@ -461,6 +461,22 @@ export const ADMIN_GUIDES = {
     ],
     links: [{ label: 'Integração Alertas', to: '/admin/integracoes/alertas' }],
   },
+
+  operational_dashboard: {
+    title: 'Painel operacional',
+    summary: 'Indicadores do que trava a operação no dia a dia — veículos, comandos, SMS e financeiro.',
+    steps: [
+      { title: 'Veículos sem chip', body: 'Ativos/bloqueados sem tracker_phone não têm backup SMS.' },
+      { title: 'Comandos com falha', body: 'Últimas 24h — bloqueio/desbloqueio que nem 4G nem SMS conseguiram.' },
+      { title: 'Provisionamento', body: 'Clientes sem Asaas/GPSWOX completo — veja Financeiro → Reprovisionar.' },
+      { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
+    ],
+    links: [
+      { label: 'Veículos', to: '/admin/veiculos' },
+      { label: 'Financeiro', to: '/admin/financeiro' },
+      { label: 'SMS', to: '/admin/sms' },
+    ],
+  },
 };
 
 /** Guia por chave de integração (IntegrationEditPage) */

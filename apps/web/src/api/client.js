@@ -206,6 +206,15 @@ class ApiClient {
     return this.request(`/v1/veiculos/${id}/comandos/${action}`, { method: 'POST' }, { useClient: true });
   }
 
+  getVehicleCommandHistory(id, { limit = 15 } = {}) {
+    const qs = new URLSearchParams({ limit: String(limit) }).toString();
+    return this.request(`/v1/veiculos/${id}/comandos/historico?${qs}`, {}, { useClient: true });
+  }
+
+  getAdminOperationsDashboard() {
+    return this.request('/v1/admin/dashboard/operations', {}, { useAdmin: true });
+  }
+
   getVehicleHistory(id, { from, to, hours } = {}) {
     const params = new URLSearchParams();
     if (from) params.set('from', from);

@@ -5,6 +5,7 @@ const sms = require('./sms');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const { getTrackerCommandService } = require('./tracker-command-service');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
+const { buildCommandFeedback, formatCommandLogRow, normalizeSmsStatus } = require('../lib/command-feedback');
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const { getAuditService } = require('./audit-service');
 const logger = require('../logger');
@@ -104,7 +105,28 @@ class VehicleService {
       throw new Error(`Comando "${action}" não configurado para este rastreador.`);
     }
 
-    return this._executeTrackerCommand(userId, vehicle, normalized, command);
+    try {
+      return await this._executeTrackerCommand(userId, vehicle, normalized, command);
+    } catch (err) {
+      await this._logCommand({
+        vehicle_id: vehicle.id,
+        user_id: userId,
+        action: normalized,
+        channel: err.command_channel || '4g',
+        status: 'failed',
+        failover: Boolean(err.failover_attempted),
+        error_message: err.message,
+      });
+      throw err;
+    }
+  }
+
+  async getCommandHistory(userId, vehicleId, { limit = 15 } = {}) {
+    const vehicle = await this.repo.findByIdForUser(vehicleId, userId);
+    if (!vehicle) throw new Error('Veículo não encontrado.');
+
+    const rows = await this.commandLogs.listByVehicle(vehicleId, { userId, limit });
+    return rows.map(formatCommandLogRow);
   }
 
   async _executeTrackerCommand(userId, vehicle, normalized, command) {
@@ -133,6 +155,15 @@ class VehicleService {
         metadata: { action: normalized, channel: '4g', plate: vehicle.plate },
       });
 
+      const commandFeedback = buildCommandFeedback({
+        action: normalized,
+        label: command.label,
+        channel: '4g',
+        failover: false,
+        status: 'sent',
+        hasTrackerPhone: Boolean(vehicle.tracker_phone),
+      });
+
       return {
         success: true,
         action: normalized,
@@ -140,7 +171,8 @@ class VehicleService {
         channel: '4g',
         failover: false,
         data,
-        message: `${command.label} enviado via 4G.`,
+        message: commandFeedback.message,
+        command_feedback: commandFeedback,
       };
     } catch (gpsError) {
       logger.warn('Comando 4G falhou', {
@@ -150,29 +182,49 @@ class VehicleService {
       });
 
       if (!command.sms || !isGpsFailoverEligible(gpsError)) {
-        throw gpsError;
+        const err = new Error(gpsError.message);
+        err.command_channel = '4g';
+        throw err;
       }
 
       if (!vehicle.tracker_phone) {
-        throw new Error(
+        const err = new Error(
           'Comando 4G indisponível e veículo sem número do chip cadastrado para envio SMS.',
         );
+        err.failover_attempted = true;
+        err.command_channel = '4g';
+        throw err;
       }
 
       const idempotencyKey = buildSmsIdempotencyKey(userId, vehicle.id, normalized);
 
-      const smsData = await sms.sendTrackerCommand({
-        phone: vehicle.tracker_phone,
-        message: command.sms,
-        action: normalized,
-        vehicle_id: String(vehicle.id),
-        user_id: String(userId),
-        idempotencyKey,
-      });
+      let smsData;
+      try {
+        smsData = await sms.sendTrackerCommand({
+          phone: vehicle.tracker_phone,
+          message: command.sms,
+          action: normalized,
+          vehicle_id: String(vehicle.id),
+          user_id: String(userId),
+          idempotencyKey,
+        });
+      } catch (smsError) {
+        smsError.failover_attempted = true;
+        smsError.command_channel = 'sms';
+        throw smsError;
+      }
 
-      if (normalized === 'bloquear') {
+      const smsStatus = normalizeSmsStatus(smsData);
+      if (smsStatus === 'failed') {
+        const err = new Error('Falha ao enviar SMS para o chip do rastreador.');
+        err.failover_attempted = true;
+        err.command_channel = 'sms';
+        throw err;
+      }
+
+      if (normalized === 'bloquear' && smsStatus === 'sent') {
         await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.BLOCKED });
-      } else if (normalized === 'desbloquear') {
+      } else if (normalized === 'desbloquear' && smsStatus === 'sent') {
         await this.repo.update(vehicle.id, { status: VEHICLE_STATUS.ACTIVE });
       }
 
@@ -181,7 +233,7 @@ class VehicleService {
         user_id: userId,
         action: normalized,
         channel: 'sms',
-        status: 'sent',
+        status: smsStatus === 'duplicate' ? 'duplicate' : smsStatus === 'queued' ? 'queued' : 'sent',
         failover: true,
         error_message: gpsError.message,
         external_ref: smsData?.dispatch_id || smsData?.id || null,
@@ -200,17 +252,25 @@ class VehicleService {
         },
       });
 
-      const duplicateNote = smsData?.duplicate ? ' (requisição duplicada ignorada)' : '';
-      const queuedNote = smsData?.queued ? ' (na fila SMS)' : '';
+      const commandFeedback = buildCommandFeedback({
+        action: normalized,
+        label: command.label,
+        channel: 'sms',
+        failover: true,
+        status: smsStatus,
+        smsData,
+        hasTrackerPhone: true,
+      });
 
       return {
-        success: true,
+        success: commandFeedback.success,
         action: normalized,
         label: command.label,
         channel: 'sms',
         failover: true,
         data: smsData,
-        message: `${command.label} enviado via SMS (4G indisponível)${queuedNote}${duplicateNote}.`,
+        message: commandFeedback.message,
+        command_feedback: commandFeedback,
       };
     }
   }
