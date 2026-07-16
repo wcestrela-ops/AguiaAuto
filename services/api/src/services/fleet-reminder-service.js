@@ -89,14 +89,14 @@ class FleetReminderService {
     };
   }
 
-  async runScheduledReminders() {
-    if (this.runInProgress) return { skipped: true };
+  async runScheduledReminders({ force = false } = {}) {
+    if (this.runInProgress) return { skipped: true, reason: 'in_progress' };
 
     const settings = await getFleetReminderConfig();
-    if (!settings.integrationEnabled || !isAutoRemindersEnabled(settings)) {
+    if (!force && (!settings.integrationEnabled || !isAutoRemindersEnabled(settings))) {
       return { skipped: true, reason: 'disabled' };
     }
-    if (!isPushEnabled(settings)) {
+    if (!force && !isPushEnabled(settings)) {
       return { skipped: true, reason: 'push_disabled' };
     }
 

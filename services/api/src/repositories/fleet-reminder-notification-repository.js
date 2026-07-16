@@ -40,6 +40,18 @@ class FleetReminderNotificationRepository {
     return rows.length > 0;
   }
 
+  async listRecentRuns({ limit = 10 } = {}) {
+    const cappedLimit = Math.min(limit, 50);
+    const { rows } = await this.pool.query(
+      `SELECT id, started_at, finished_at, reminders_sent, errors_count, created_at
+       FROM fleet_reminder_runs
+       ORDER BY started_at DESC
+       LIMIT $1`,
+      [cappedLimit],
+    );
+    return rows;
+  }
+
   async listRecent({ limit = 50, userId } = {}) {
     const cappedLimit = Math.min(limit, 200);
     const params = [];

@@ -12,6 +12,25 @@ router.get('/acoes', async (req, res) => {
   }
 });
 
+router.get('/recursos', async (req, res) => {
+  try {
+    const data = await getAuditRepository().listDistinctResourceTypes();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+function parseDateFilter(value, endOfDay = false) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date.toISOString();
+}
+
 router.get('/', async (req, res) => {
   try {
     const filters = {
@@ -21,6 +40,10 @@ router.get('/', async (req, res) => {
       actor_type: req.query.actor_type || undefined,
       resource_type: req.query.resource_type || undefined,
       actor_id: req.query.actor_id || undefined,
+      resource_id: req.query.resource_id || undefined,
+      search: req.query.search?.trim() || undefined,
+      from: parseDateFilter(req.query.from),
+      to: parseDateFilter(req.query.to, true),
     };
 
     const repo = getAuditRepository();

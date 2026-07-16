@@ -238,6 +238,7 @@ class FinanceiroService {
 
     return {
       ...formatInvoice(updated),
+      user_id: updated.user_id,
       notification,
     };
   }

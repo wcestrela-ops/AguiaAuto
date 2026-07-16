@@ -567,11 +567,12 @@ export const ADMIN_GUIDES = {
 
   admin_frota: {
     title: 'Documentos e manutenção',
-    summary: 'Gestão de CRLV, seguro, IPVA e histórico de revisões por veículo.',
+    summary: 'Gestão de CRLV, seguro, IPVA, revisões e lembretes push automáticos.',
     steps: [
       { title: 'Documentos', body: 'Cadastre vencimentos e anexe PDF/foto. Alertas aparecem no dashboard operacional.' },
       { title: 'Manutenção', body: 'Registre serviços realizados e próxima revisão (data ou KM).' },
-      { title: 'Push automático', body: 'Configure em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia quando houver vencimentos próximos ou atrasados.' },
+      { title: 'Lembretes push', body: 'Aba "Lembretes push" mostra status, histórico de envios e botão "Executar agora" para forçar uma rodada.' },
+      { title: 'Push automático', body: 'Configure intervalo e antecedência em Integrações → Documentos e Manutenção. Um lembrete consolidado por cliente/dia.' },
       { title: 'Cliente', body: 'O cliente também pode cadastrar em /app/frota — você vê tudo aqui.' },
     ],
     links: [
@@ -593,11 +594,11 @@ export const ADMIN_GUIDES = {
 
   admin_audit: {
     title: 'Auditoria administrativa',
-    summary: 'Histórico de ações sensíveis no painel e no app cliente.',
+    summary: 'Histórico ampliado de ações sensíveis no painel, financeiro, frota, integrações e app cliente.',
     steps: [
-      { title: 'O que é registrado', body: 'Criação/edição de veículos (admin), edição de clientes, comandos remotos (cliente), sync GPSWOX e failover SMS.' },
-      { title: 'Filtros', body: 'Filtre por ação, tipo de ator (admin/cliente/sistema), recurso ou ID do ator.' },
-      { title: 'Detalhes', body: 'Clique em JSON para ver metadados completos (placa, canal, totais do sync, etc.).' },
+      { title: 'O que é registrado', body: 'Veículos e clientes (admin), documentos/manutenção de frota, lembretes push, cobranças e provisionamento, integrações, comandos remotos e sync GPSWOX.' },
+      { title: 'Filtros', body: 'Filtre por ação, ator, recurso, ID do recurso, busca livre (placa, metadados) e intervalo de datas.' },
+      { title: 'Detalhes', body: 'Clique em JSON para metadados completos. Links levam à ficha do cliente ou integração quando aplicável.' },
     ],
     links: [
       { label: 'Clientes', to: '/admin/clientes' },
@@ -673,7 +674,7 @@ export const ADMIN_GUIDES = {
       },
       {
         title: 'Histórico admin',
-        body: 'GET /v1/admin/frota/lembretes lista envios recentes; POST .../lembretes/executar força uma rodada.',
+        body: 'Na aba Lembretes push em /admin/frota: status, rodadas recentes, histórico por cliente e execução manual.',
       },
     ],
     links: [

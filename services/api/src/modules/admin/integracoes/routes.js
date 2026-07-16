@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getStore, getSchema, maskSettings } = require('@aguia/integrations');
+const { getAuditService } = require('../../../services/audit-service');
 
 const router = Router();
 
@@ -55,6 +56,12 @@ router.put('/:key', async (req, res) => {
       enabled,
       updatedBy: req.headers['x-admin-user'] || 'admin',
     });
+    await getAuditService().adminAction('integration.update', {
+      resourceType: 'integration',
+      resourceId: req.params.key,
+      metadata: { enabled: updated.enabled },
+      req,
+    });
     res.json({ success: true, data: updated, message: 'Configuração salva. Serviços recarregarão automaticamente.' });
   } catch (err) {
     res.status(err.message.includes('não existe') ? 404 : 500).json({ success: false, error: err.message });
@@ -65,6 +72,11 @@ router.post('/reload', async (req, res) => {
   try {
     const store = getStore();
     const integracoes = await store.reload();
+    await getAuditService().adminAction('integration.reload', {
+      resourceType: 'integration',
+      metadata: { count: integracoes?.length },
+      req,
+    });
     res.json({ success: true, data: integracoes, message: 'Cache de integrações recarregado.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

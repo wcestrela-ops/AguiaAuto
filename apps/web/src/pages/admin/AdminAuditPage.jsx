@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
   auditActionLabel,
   auditActorLabel,
   auditResourceLabel,
+  auditResourceLink,
   formatAuditMetadata,
 } from '../../utils/audit';
 
@@ -17,16 +19,15 @@ const ACTOR_TYPES = [
   { value: 'system', label: 'Sistema' },
 ];
 
-const RESOURCE_TYPES = [
-  { value: '', label: 'Todos os recursos' },
-  { value: 'vehicle', label: 'Veículo' },
-];
-
 const EMPTY_FILTERS = {
   action: '',
   actor_type: '',
   resource_type: '',
   actor_id: '',
+  resource_id: '',
+  search: '',
+  from: '',
+  to: '',
 };
 
 function formatDate(value) {
@@ -34,9 +35,14 @@ function formatDate(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function resourceTypeLabel(type) {
+  return auditResourceLabel(type) || type;
+}
+
 export default function AdminAuditPage() {
   const [logs, setLogs] = useState([]);
   const [actions, setActions] = useState([]);
+  const [resourceTypes, setResourceTypes] = useState([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
@@ -46,8 +52,14 @@ export default function AdminAuditPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getAdminAuditActions()
-      .then((res) => setActions(res.data || []))
+    Promise.all([
+      api.getAdminAuditActions(),
+      api.getAdminAuditResourceTypes(),
+    ])
+      .then(([actionsRes, resourcesRes]) => {
+        setActions(actionsRes.data || []);
+        setResourceTypes(resourcesRes.data || []);
+      })
       .catch(() => {});
   }, []);
 
@@ -66,6 +78,10 @@ export default function AdminAuditPage() {
         if (appliedFilters.actor_type) params.actor_type = appliedFilters.actor_type;
         if (appliedFilters.resource_type) params.resource_type = appliedFilters.resource_type;
         if (appliedFilters.actor_id.trim()) params.actor_id = appliedFilters.actor_id.trim();
+        if (appliedFilters.resource_id.trim()) params.resource_id = appliedFilters.resource_id.trim();
+        if (appliedFilters.search.trim()) params.search = appliedFilters.search.trim();
+        if (appliedFilters.from) params.from = appliedFilters.from;
+        if (appliedFilters.to) params.to = appliedFilters.to;
 
         const res = await api.getAdminAuditLogs(params);
         if (cancelled) return;
@@ -101,11 +117,19 @@ export default function AdminAuditPage() {
   const canPrev = offset > 0;
   const canNext = offset + PAGE_SIZE < total;
 
+  const resourceOptions = [
+    { value: '', label: 'Todos os recursos' },
+    ...resourceTypes.map((type) => ({
+      value: type,
+      label: resourceTypeLabel(type),
+    })),
+  ];
+
   return (
     <div>
       <PageHeaderWithHelp
         title="Auditoria"
-        subtitle="Registro de ações administrativas, comandos de veículo e sync GPSWOX"
+        subtitle="Registro ampliado de ações administrativas, financeiro, frota, integrações e comandos de veículo"
         guideId="admin_audit"
       />
 
@@ -144,7 +168,7 @@ export default function AdminAuditPage() {
               value={draftFilters.resource_type}
               onChange={(e) => setDraftFilters((prev) => ({ ...prev, resource_type: e.target.value }))}
             >
-              {RESOURCE_TYPES.map((item) => (
+              {resourceOptions.map((item) => (
                 <option key={item.value || 'all'} value={item.value}>{item.label}</option>
               ))}
             </select>
@@ -157,6 +181,46 @@ export default function AdminAuditPage() {
               value={draftFilters.actor_id}
               onChange={(e) => setDraftFilters((prev) => ({ ...prev, actor_id: e.target.value }))}
               placeholder="admin, e-mail ou ID cliente"
+            />
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label>
+            ID do recurso
+            <input
+              type="text"
+              value={draftFilters.resource_id}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, resource_id: e.target.value }))}
+              placeholder="Ex.: ID cliente ou veículo"
+            />
+          </label>
+
+          <label>
+            Busca livre
+            <input
+              type="search"
+              value={draftFilters.search}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, search: e.target.value }))}
+              placeholder="Placa, metadados, ação..."
+            />
+          </label>
+
+          <label>
+            De
+            <input
+              type="date"
+              value={draftFilters.from}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, from: e.target.value }))}
+            />
+          </label>
+
+          <label>
+            Até
+            <input
+              type="date"
+              value={draftFilters.to}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, to: e.target.value }))}
             />
           </label>
         </div>
@@ -192,46 +256,55 @@ export default function AdminAuditPage() {
                 {logs.length === 0 ? (
                   <tr><td colSpan={7} className="muted">Nenhum registro encontrado.</td></tr>
                 ) : (
-                  logs.map((log) => (
-                    <Fragment key={log.id}>
-                      <tr>
-                        <td>{formatDate(log.created_at)}</td>
-                        <td>
-                          <span className={`badge ${log.actor_type === 'admin' ? 'info' : log.actor_type === 'user' ? 'success' : 'warning'}`}>
-                            {auditActorLabel(log.actor_type)}
-                          </span>
-                          <div className="muted audit-actor-id">{log.actor_id || '—'}</div>
-                        </td>
-                        <td>{auditActionLabel(log.action)}</td>
-                        <td>
-                          {auditResourceLabel(log.resource_type)}
-                          {log.resource_id ? (
-                            <div className="muted audit-actor-id">#{log.resource_id}</div>
-                          ) : null}
-                        </td>
-                        <td>{formatAuditMetadata(log.metadata)}</td>
-                        <td>{log.ip_address || '—'}</td>
-                        <td>
-                          {log.metadata ? (
-                            <button
-                              type="button"
-                              className="btn-ghost btn-sm"
-                              onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                            >
-                              {expandedId === log.id ? 'Ocultar' : 'JSON'}
-                            </button>
-                          ) : null}
-                        </td>
-                      </tr>
-                      {expandedId === log.id && (
-                        <tr className="audit-meta-row">
-                          <td colSpan={7}>
-                            <pre className="audit-json">{JSON.stringify(log.metadata, null, 2)}</pre>
+                  logs.map((log) => {
+                    const resourceHref = auditResourceLink(log.resource_type, log.resource_id);
+                    return (
+                      <Fragment key={log.id}>
+                        <tr>
+                          <td>{formatDate(log.created_at)}</td>
+                          <td>
+                            <span className={`badge ${log.actor_type === 'admin' ? 'info' : log.actor_type === 'user' ? 'success' : 'warning'}`}>
+                              {auditActorLabel(log.actor_type)}
+                            </span>
+                            <div className="muted audit-actor-id">{log.actor_id || '—'}</div>
+                          </td>
+                          <td>{auditActionLabel(log.action)}</td>
+                          <td>
+                            {auditResourceLabel(log.resource_type)}
+                            {log.resource_id ? (
+                              resourceHref ? (
+                                <div className="audit-actor-id">
+                                  <Link to={resourceHref}>#{log.resource_id}</Link>
+                                </div>
+                              ) : (
+                                <div className="muted audit-actor-id">#{log.resource_id}</div>
+                              )
+                            ) : null}
+                          </td>
+                          <td>{formatAuditMetadata(log.metadata)}</td>
+                          <td>{log.ip_address || '—'}</td>
+                          <td>
+                            {log.metadata ? (
+                              <button
+                                type="button"
+                                className="btn-ghost btn-sm"
+                                onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                              >
+                                {expandedId === log.id ? 'Ocultar' : 'JSON'}
+                              </button>
+                            ) : null}
                           </td>
                         </tr>
-                      )}
-                    </Fragment>
-                  ))
+                        {expandedId === log.id && (
+                          <tr className="audit-meta-row">
+                            <td colSpan={7}>
+                              <pre className="audit-json">{JSON.stringify(log.metadata, null, 2)}</pre>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>

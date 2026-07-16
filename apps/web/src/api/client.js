@@ -885,6 +885,18 @@ class ApiClient {
     return this.request(`/v1/admin/frota/manutencao/${id}`, { method: 'DELETE' }, { useAdmin: true });
   }
 
+  getAdminFrotaLembretes(params = {}) {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.user_id != null) query.set('user_id', String(params.user_id));
+    const qs = query.toString();
+    return this.request(`/v1/admin/frota/lembretes${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  executarAdminFrotaLembretes() {
+    return this.request('/v1/admin/frota/lembretes/executar', { method: 'POST' }, { useAdmin: true });
+  }
+
   async uploadAdminForm(path, formData, method = 'POST') {
     const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}${path}`, {
@@ -941,12 +953,20 @@ class ApiClient {
     if (params.actor_type) query.set('actor_type', params.actor_type);
     if (params.resource_type) query.set('resource_type', params.resource_type);
     if (params.actor_id) query.set('actor_id', params.actor_id);
+    if (params.resource_id) query.set('resource_id', params.resource_id);
+    if (params.search) query.set('search', params.search);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
     const qs = query.toString();
     return this.request(`/v1/admin/audit${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
   getAdminAuditActions() {
     return this.request('/v1/admin/audit/acoes', {}, { useAdmin: true });
+  }
+
+  getAdminAuditResourceTypes() {
+    return this.request('/v1/admin/audit/recursos', {}, { useAdmin: true });
   }
 }
 
