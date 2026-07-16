@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import ExportButtons from '../../components/ExportButtons';
+import TablePagination from '../../components/TablePagination';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
   INACTIVE_ACCESS_DAYS_DEFAULT,
@@ -380,14 +381,12 @@ export default function AdminClientesPage() {
               </tbody>
             </table>
 
-            <div className="audit-pagination">
-              <button type="button" className="btn-secondary" disabled={offset <= 0} onClick={() => setOffset(offset - PAGE_SIZE)}>
-                Anterior
-              </button>
-              <button type="button" className="btn-secondary" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                Próxima
-              </button>
-            </div>
+            <TablePagination
+              offset={offset}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setOffset}
+            />
           </>
         )}
       </div>

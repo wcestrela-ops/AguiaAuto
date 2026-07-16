@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import PageAlerts from '../../components/PageAlerts';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const EMPTY_FEATURE = { icon: '✓', title: '', description: '' };
@@ -101,8 +102,6 @@ export default function AdminLandingPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
@@ -110,14 +109,17 @@ export default function AdminLandingPage() {
         subtitle="Edite a página inicial pública — textos, recursos, planos e contato sem alterar código."
         guideId="admin_landing"
       >
-        <a href="/" target="_blank" rel="noreferrer" className="btn-secondary">
+        <a href="/" target="_blank" rel="noreferrer" className="btn-secondary header-action">
           Ver página pública
         </a>
       </PageHeaderWithHelp>
 
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
+      <PageAlerts error={error} message={message} />
 
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       {meta.updated_at && (
         <p className="muted" style={{ marginBottom: '1rem' }}>
           Última alteração: {formatDateTime(meta.updated_at)}
@@ -269,6 +271,8 @@ export default function AdminLandingPage() {
           <a href="/" target="_blank" rel="noreferrer" className="btn-secondary">Pré-visualizar</a>
         </div>
       </form>
+        </>
+      )}
     </div>
   );
 }

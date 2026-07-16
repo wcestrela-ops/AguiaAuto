@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import ExportButtons from '../../components/ExportButtons';
+import TablePagination from '../../components/TablePagination';
 import { PageHeaderWithHelp } from '../../components/HelpGuide';
 import {
   auditActionLabel,
@@ -324,14 +325,12 @@ export default function AdminAuditPage() {
               </tbody>
             </table>
 
-            <div className="audit-pagination">
-              <button type="button" className="btn-secondary" disabled={!canPrev} onClick={() => setOffset(offset - PAGE_SIZE)}>
-                Anterior
-              </button>
-              <button type="button" className="btn-secondary" disabled={!canNext} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                Próxima
-              </button>
-            </div>
+            <TablePagination
+              offset={offset}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setOffset}
+            />
           </>
         )}
       </div>

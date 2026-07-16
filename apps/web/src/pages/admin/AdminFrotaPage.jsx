@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import ExportButtons from '../../components/ExportButtons';
+import PageAlerts from '../../components/PageAlerts';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { fleetStatusBadgeClass, fleetStatusLabel } from '../../utils/fleet';
 
@@ -333,8 +334,6 @@ export default function AdminFrotaPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
@@ -343,9 +342,12 @@ export default function AdminFrotaPage() {
         guideId="admin_frota"
       />
 
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
+      <PageAlerts error={error} message={message} />
 
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       <div className="tab-row" style={{ marginBottom: '1rem' }}>
         <button type="button" className={tab === 'documentos' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('documentos')}>
           Documentos ({documents.length})
@@ -751,6 +753,8 @@ export default function AdminFrotaPage() {
               </div>
             </>
           )}
+        </>
+      )}
         </>
       )}
     </div>

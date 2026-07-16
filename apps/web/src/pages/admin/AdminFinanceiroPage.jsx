@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import ExportButtons from '../../components/ExportButtons';
+import PageAlerts from '../../components/PageAlerts';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const BILLING_TYPES = [
@@ -192,8 +193,6 @@ export default function AdminFinanceiroPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
@@ -201,12 +200,15 @@ export default function AdminFinanceiroPage() {
         subtitle="Crie cobranças manualmente e gerencie provisionamento Asaas + GPSWOX."
         guideId="financeiro"
       >
-        <button type="button" onClick={() => setShowForm(true)}>Nova cobrança</button>
+        <button type="button" onClick={() => setShowForm(true)} disabled={loading}>Nova cobrança</button>
       </PageHeaderWithHelp>
 
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
+      <PageAlerts error={error} message={message} />
 
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       {showForm && (
         <form className="form-card" onSubmit={handleCreate}>
           <SectionTitleWithHelp title="Nova cobrança" guideId="financeiro" />
@@ -515,6 +517,8 @@ export default function AdminFinanceiroPage() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { ALERT_TYPE_LABELS, CHANNEL_LABELS } from '../../utils/alerts';
+import PageAlerts from '../../components/PageAlerts';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 function formatDate(value) {
@@ -71,8 +72,6 @@ export default function AdminAlertsPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
@@ -80,14 +79,17 @@ export default function AdminAlertsPage() {
         subtitle="Motor GPSWOX → Push (veículo) · WhatsApp só transacional"
         guideId="admin_alerts"
       >
-        <Link to="/admin/integracoes/alertas" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
+        <Link to="/admin/integracoes/alertas" className="btn-secondary header-action">
           Configurar motor
         </Link>
       </PageHeaderWithHelp>
 
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
+      <PageAlerts error={error} message={message} />
 
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       {config && (
         <div className="info-box">
           <strong>Motor:</strong> {config.enabled ? 'Ativo' : 'Desativado'} ·
@@ -186,6 +188,8 @@ export default function AdminAlertsPage() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

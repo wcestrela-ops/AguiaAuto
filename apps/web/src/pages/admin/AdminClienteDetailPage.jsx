@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import ExportButtons from '../../components/ExportButtons';
+import PageAlerts from '../../components/PageAlerts';
 import { PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 import { vehicleStatusBadge, vehicleStatusLabel } from '../../utils/vehicle';
 import {
@@ -97,34 +98,65 @@ export default function AdminClienteDetailPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-  if (!detail) return <div className="alert error">{error || 'Cliente não encontrado.'}</div>;
+  return (
+    <div>
+      <Link to="/admin/clientes" className="back-link">← Clientes</Link>
 
+      <PageHeaderWithHelp
+        title={detail ? (detail.user.name || detail.user.email) : 'Cliente'}
+        subtitle={detail ? `Cliente #${detail.user.id} · ${detail.user.email}` : 'Carregando ficha do cliente…'}
+        guideId="admin_clientes"
+      >
+        <Link to="/admin/financeiro" className="btn-secondary header-action">
+          Financeiro
+        </Link>
+        {detail ? (
+          <ExportButtons resource="cliente" params={{ user_id: id }} disabled={loading} />
+        ) : null}
+      </PageHeaderWithHelp>
+
+      <PageAlerts error={error} message={message} />
+
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : !detail ? (
+        <div className="alert error">{error || 'Cliente não encontrado.'}</div>
+      ) : (
+        <>
+      <ClientDetailBody
+        detail={detail}
+        form={form}
+        setForm={setForm}
+        saving={saving}
+        reprovisioning={reprovisioning}
+        onSave={handleSave}
+        onReprovision={handleReprovision}
+        id={id}
+      />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClientDetailBody({
+  detail,
+  form,
+  setForm,
+  saving,
+  reprovisioning,
+  onSave,
+  onReprovision,
+  id,
+}) {
   const { user, resumo_financeiro: resumo, veiculos, faturas_recentes: faturas, assinatura, indicacoes, push_devices: pushDevices } = detail;
 
   return (
-    <div>
-      <PageHeaderWithHelp
-        title={user.name || user.email}
-        subtitle={`Cliente #${user.id} · ${user.email}`}
-        guideId="admin_clientes"
-      >
-        <Link to="/admin/clientes" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
-          Voltar
-        </Link>
-        <Link to="/admin/financeiro" className="btn-secondary" style={{ padding: '0.625rem 1rem', borderRadius: '8px' }}>
-          Financeiro
-        </Link>
-        <ExportButtons resource="cliente" params={{ user_id: id }} disabled={loading} />
-      </PageHeaderWithHelp>
-
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
-
+    <>
       <div className="client-detail-grid">
         <section className="form-card">
           <SectionTitleWithHelp title="Cadastro" guideId="admin_clientes" />
-          <form onSubmit={handleSave}>
+          <form onSubmit={onSave}>
             <label>
               Nome
               <input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
@@ -172,7 +204,7 @@ export default function AdminClienteDetailPage() {
               <pre className="audit-json">{JSON.stringify(user.provisioning_errors, null, 2)}</pre>
             )}
           </div>
-          <button type="button" onClick={handleReprovision} disabled={reprovisioning}>
+          <button type="button" onClick={onReprovision} disabled={reprovisioning}>
             {reprovisioning ? 'Reprovisionando...' : 'Reprovisionar Asaas + GPSWOX'}
           </button>
         </section>
@@ -290,6 +322,6 @@ export default function AdminClienteDetailPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

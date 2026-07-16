@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import FieldInput from '../../components/FieldInput';
+import PageAlerts from '../../components/PageAlerts';
 import { HelpButton, PageHeaderWithHelp, SectionTitleWithHelp } from '../../components/HelpGuide';
 
 const PROVIDER_LABELS = {
@@ -84,20 +85,24 @@ export default function WhatsAppPage() {
     }
   }
 
-  if (loading) return <p className="muted">Carregando...</p>;
-
   return (
     <div>
       <PageHeaderWithHelp
-        title="Configurações → Integrações → WhatsApp"
+        title="WhatsApp"
         subtitle="Multi-provedor com failover automático (principal → backup)."
         guideId="whatsapp"
       >
-        <button type="button" onClick={() => setShowForm(!showForm)}>
+        <button type="button" onClick={() => setShowForm(!showForm)} disabled={loading}>
           {showForm ? 'Cancelar' : '+ Novo Provedor'}
         </button>
       </PageHeaderWithHelp>
 
+      <PageAlerts error={error} message={message} />
+
+      {loading ? (
+        <p className="loading-placeholder">Carregando...</p>
+      ) : (
+        <>
       <div className="info-box">
         <strong>Failover:</strong> Principal{' '}
         {data.primary ? PROVIDER_LABELS[data.primary.provider] || data.primary.provider : '—'}
@@ -139,8 +144,6 @@ export default function WhatsAppPage() {
         </form>
       )}
 
-      {message && <div className="alert success">{message}</div>}
-      {error && <div className="alert error">{error}</div>}
 
       <div className="table-card">
         <div style={{ padding: '1rem 1rem 0' }}>
@@ -189,6 +192,8 @@ export default function WhatsAppPage() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

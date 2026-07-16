@@ -514,6 +514,29 @@ export const ADMIN_GUIDES = {
     links: [{ label: 'Integração Alertas', to: '/admin/integracoes/alertas' }],
   },
 
+  admin_contratos: {
+    title: 'Contratos e aceites',
+    summary: 'Edite modelos HTML e consulte aceites assinados pelos clientes.',
+    steps: [
+      {
+        title: 'Modelos',
+        body: 'Contrato de Prestação de Serviços e Termo de Entrega/Instalação. Ao salvar, a versão incrementa — novos aceites usam o texto atualizado.',
+      },
+      {
+        title: 'Aceites',
+        body: 'Lista de assinaturas com data, cliente, tipo e placa. Baixe a cópia assinada (snapshot) quando disponível.',
+      },
+      {
+        title: 'Bloqueio no app',
+        body: 'Clientes sem contrato de serviço aceito recebem CONTRACT_REQUIRED e são redirecionados para /app/contratos.',
+      },
+    ],
+    links: [
+      { label: 'Instaladores', to: '/admin/instaladores' },
+      { label: 'Veículos', to: '/admin/veiculos' },
+    ],
+  },
+
   instaladores: {
     title: 'Fluxo de instalação',
     summary: 'Cadastre instaladores, deixe veículos pendentes e o campo preenche IMEI, chip e modelo no checklist.',
