@@ -19,6 +19,9 @@ const EMPTY_COMMAND = {
   sort_order: 0,
 };
 
+/** Sync avançado com get_user_sms_templates — desligado por padrão (API mantida no backend). */
+const SHOW_GPSWOX_SMS_TEMPLATES = import.meta.env.VITE_SHOW_GPSWOX_SMS_TEMPLATES === 'true';
+
 export default function SmsPage() {
   const [data, setData] = useState({ providers: [], primary: null, backup: null });
   const [types, setTypes] = useState([]);
@@ -339,6 +342,7 @@ export default function SmsPage() {
         <button type="submit">Enviar SMS</button>
       </form>
 
+      {SHOW_GPSWOX_SMS_TEMPLATES && (
       <div className="form-card" style={{ marginTop: '1.5rem' }}>
         <SectionTitleWithHelp title="Templates SMS GPSWOX (API)" guideId="sms_gpswox_templates" />
         <p className="guide-inline">
@@ -399,6 +403,7 @@ export default function SmsPage() {
           </table>
         )}
       </div>
+      )}
 
       <div className="form-card" style={{ marginTop: '1.5rem' }}>
         <SectionTitleWithHelp title="Modelos de rastreador e comandos" guideId="sms_tracker_models" />
@@ -435,7 +440,7 @@ export default function SmsPage() {
                       <th>Label</th>
                       <th>SMS</th>
                       <th>GPSWOX cmd</th>
-                      <th>Template ID</th>
+                      {SHOW_GPSWOX_SMS_TEMPLATES && <th>Template ID</th>}
                       <th></th>
                     </tr>
                   </thead>
@@ -470,9 +475,11 @@ export default function SmsPage() {
                             }}
                           />
                         </td>
+                        {SHOW_GPSWOX_SMS_TEMPLATES && (
                         <td>
                           <small className="muted">{cmd.gpswox_sms_template_id || '—'}</small>
                         </td>
+                        )}
                         <td>
                           <button type="button" className="btn-sm" onClick={() => handleUpdateCommand(model.id, cmd)}>Salvar</button>
                         </td>
