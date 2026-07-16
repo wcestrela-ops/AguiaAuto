@@ -14,6 +14,7 @@ Integrações
 ├── Asaas (financeiro)
 ├── Firebase (push)
 ├── WhatsAppService (multi-provedor) ← packages/whatsapp
+├── SmsService (rastreador + alertas) ← packages/sms
 └── PostgreSQL
 ```
 
@@ -29,7 +30,8 @@ aguia-gestao-veicular/
 ├── packages/
 │   ├── shared/                    # Constantes compartilhadas
 │   ├── integrations/              # Configurações de APIs (banco + schemas)
-│   └── whatsapp/                  # WhatsApp multi-provedor (Strategy Pattern)
+│   ├── whatsapp/                  # WhatsApp multi-provedor (Strategy Pattern)
+│   └── sms/                       # SMS rastreador + alertas (interno)
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -56,7 +58,8 @@ Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.
 | Integrações (Firebase, GPSWOX, Asaas) | `/admin/integracoes` |
 | Firebase Push | `/admin/integracoes/firebase` |
 | WhatsApp Multi-Provedor | `/admin/whatsapp` |
-| Veículos (vincular GPSWOX) | `/admin/veiculos` |
+| SMS Rastreador (comandos + gateways) | `/admin/sms` |
+| Veículos (GPSWOX + chip SIM + sync) | `/admin/veiculos` |
 | Financeiro (cobranças + provisionamento) | `/admin/financeiro` |
 | Alertas (motor + histórico) | `/admin/alertas` |
 

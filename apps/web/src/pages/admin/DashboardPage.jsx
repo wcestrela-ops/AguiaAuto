@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 const CARDS = [
   { title: 'Integrações', desc: 'GPSWOX, Asaas, Firebase Push', to: '/admin/integracoes', icon: '⚙️' },
   { title: 'WhatsApp', desc: 'Evolution, WAHA, Meta Cloud', to: '/admin/whatsapp', icon: '💬' },
+  { title: 'SMS Rastreador', desc: 'Comandos chip + gateways', to: '/admin/sms', icon: '📡' },
+  { title: 'Veículos', desc: 'GPSWOX, chip SIM, sync', to: '/admin/veiculos', icon: '🚗' },
 ];
 
 export default function DashboardPage() {

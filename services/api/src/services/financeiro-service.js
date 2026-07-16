@@ -4,7 +4,7 @@ const { getInvoiceRepository } = require('../repositories/invoice-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
 const { getProvisioningService } = require('./provisioning-service');
 const { getPaymentGatewayService } = require('../payments/payment-gateway-service');
-const whatsapp = require('./whatsapp');
+const { sendBillingReminder } = require('./billing-notifications');
 const { normalizePhone } = require('../lib/phone');
 const logger = require('../logger');
 
@@ -155,13 +155,17 @@ class FinanceiroService {
     const link = invoice.invoice_url || (invoice.pix_copy_paste ? 'Código PIX no app' : null);
     if (refreshed.phone && link) {
       try {
-        await whatsapp.sendBillingReminder(normalizePhone(refreshed.phone), {
-          valor: Number(invoice.amount).toFixed(2),
-          vencimento: invoice.due_date,
-          link,
-        }, { user: refreshed.email });
+        await sendBillingReminder(
+          normalizePhone(refreshed.phone),
+          {
+            valor: Number(invoice.amount).toFixed(2),
+            vencimento: invoice.due_date,
+            link,
+          },
+          { user: refreshed.email },
+        );
       } catch (err) {
-        logger.warn('Falha ao enviar cobrança via WhatsApp.', { userId: user_id, err: err.message });
+        logger.warn('Falha ao enviar lembrete de cobrança.', { userId: user_id, err: err.message });
       }
     }
 
