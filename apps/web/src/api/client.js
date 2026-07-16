@@ -908,6 +908,10 @@ class ApiClient {
     return this.request(`/v1/admin/emergencia/eventos?limit=${limit}`, {}, { useAdmin: true });
   }
 
+  getAdminEmergencySummary() {
+    return this.request('/v1/admin/emergencia/resumo', {}, { useAdmin: true });
+  }
+
   getAdminAuditLogs(params = {}) {
     const query = new URLSearchParams();
     if (params.limit != null) query.set('limit', String(params.limit));

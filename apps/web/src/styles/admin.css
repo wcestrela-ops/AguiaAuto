@@ -1130,3 +1130,48 @@ td.actions { white-space: nowrap; }
   margin: 0.5rem 0 0;
   padding-left: 1.1rem;
 }
+
+.emergency-summary-card {
+  border-color: rgba(220, 53, 69, 0.35);
+}
+
+.emergency-recent-strip {
+  margin-bottom: 1.5rem;
+}
+
+.emergency-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.emergency-recent-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.emergency-recent-item:last-child {
+  border-bottom: none;
+}
+
+.emergency-row-recent td:first-child {
+  box-shadow: inset 3px 0 0 var(--error);
+}
+
+.emergency-channel-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.emergency-channel-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}

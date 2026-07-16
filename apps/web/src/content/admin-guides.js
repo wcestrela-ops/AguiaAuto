@@ -551,9 +551,10 @@ export const ADMIN_GUIDES = {
       { title: 'Faturas vencidas', body: 'Cobranças pending/overdue com vencimento passado.' },
       { title: 'Documentos vencendo', body: 'CRLV, seguro e IPVA com vencimento em 30 dias — veja Documentos no admin.' },
       { title: 'Manutenções próximas', body: 'Revisões programadas ou atrasadas por veículo.' },
-      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — configure em Integrações → Emergência.' },
+      { title: 'Emergências (SOS)', body: 'Acionamentos do botão de pânico nas últimas 24h — veja em Emergência no menu admin.' },
     ],
     links: [
+      { label: 'Emergência (SOS)', to: '/admin/emergencia' },
       { label: 'Instaladores', to: '/admin/instaladores' },
       { label: 'Veículos', to: '/admin/veiculos' },
       { label: 'Financeiro', to: '/admin/financeiro' },
@@ -628,7 +629,25 @@ export const ADMIN_GUIDES = {
       { title: 'Canais', body: 'WhatsApp primeiro, SMS como fallback — igual cobrança.' },
       { title: 'Cooldown', body: 'Intervalo mínimo entre acionamentos evita spam acidental.' },
     ],
-    links: [{ label: 'Integrações', to: '/admin/integracoes' }],
+    links: [
+      { label: 'Painel SOS', to: '/admin/emergencia' },
+      { label: 'Integrações', to: '/admin/integracoes' },
+    ],
+  },
+
+  admin_emergencia: {
+    title: 'Painel de Emergência (SOS)',
+    summary: 'Monitore acionamentos do botão de pânico com cliente, veículo e mapa.',
+    steps: [
+      { title: '24 horas', body: 'O card superior mostra quantos SOS ocorreram nas últimas 24h — o mesmo dado do dashboard operacional.' },
+      { title: 'Localização', body: 'Endereço e coordenadas vêm do GPSWOX no momento do acionamento. Use "Abrir mapa" para Google Maps.' },
+      { title: 'Canais', body: 'Expanda "Detalhes" para ver WhatsApp/SMS por telefone e status de entrega.' },
+      { title: 'Cliente', body: 'Link "Ficha" abre o painel de clientes com cadastro e financeiro.' },
+    ],
+    links: [
+      { label: 'Configurar SOS', to: '/admin/integracoes/emergencia' },
+      { label: 'Clientes', to: '/admin/clientes' },
+    ],
   },
 
   frota: {

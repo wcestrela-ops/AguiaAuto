@@ -199,8 +199,8 @@ class OperationalDashboardService {
         key: 'emergency_events_24h',
         title: 'Emergências acionadas (24h)',
         count: emergencyOps.count_24h,
-        link: '/admin/integracoes/emergencia',
-        hint: 'Clientes usaram o botão SOS — verifique eventos.',
+        link: '/admin/emergencia',
+        hint: 'Clientes usaram o botão SOS — veja eventos e localização.',
       });
     }
 

@@ -35,6 +35,7 @@ import AdminIndicacoesPage from './pages/admin/AdminIndicacoesPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
 import AdminClientesPage from './pages/admin/AdminClientesPage';
 import AdminClienteDetailPage from './pages/admin/AdminClienteDetailPage';
+import AdminEmergenciaPage from './pages/admin/AdminEmergenciaPage';
 import SmsPage from './pages/admin/SmsPage';
 
 function AdminRoute({ children }) {
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="auditoria" element={<AdminAuditPage />} />
         <Route path="clientes" element={<AdminClientesPage />} />
         <Route path="clientes/:id" element={<AdminClienteDetailPage />} />
+        <Route path="emergencia" element={<AdminEmergenciaPage />} />
       </Route>
     </Routes>
   );

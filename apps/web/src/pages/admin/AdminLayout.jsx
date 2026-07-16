@@ -10,6 +10,7 @@ const NAV = [
   { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/alertas', label: 'Alertas' },
+  { to: '/admin/emergencia', label: 'Emergência' },
   { to: '/admin/instaladores', label: 'Instaladores' },
   { to: '/admin/contratos', label: 'Contratos' },
   { to: '/admin/frota', label: 'Documentos' },
