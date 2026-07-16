@@ -8,6 +8,7 @@ const {
   listProviderTypes,
   maskProvider,
 } = require('./schemas');
+const { applyGatewayTemplate, normalizePhoneDigits } = require('./lib/gateway-template');
 
 module.exports = {
   SmsProvider,
@@ -21,4 +22,6 @@ module.exports = {
   getProviderSchema,
   listProviderTypes,
   maskProvider,
+  applyGatewayTemplate,
+  normalizePhoneDigits,
 };

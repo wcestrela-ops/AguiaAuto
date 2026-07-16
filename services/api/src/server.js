@@ -55,6 +55,7 @@ const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
+const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -92,6 +93,9 @@ app.use('/v1/config', configRoutes);
 
 // Webhooks públicos
 app.use('/webhooks', webhooksRoutes);
+
+// Gateway SMS GPSWOX (entrada HTTP — padrão %NUMBER% / %MESSAGE%)
+app.use('/v1/sms/gateway', gpswoxGatewayRoutes);
 
 // Onboarding (parcialmente público durante cadastro)
 app.use('/v1/onboarding', onboardingRoutes);

@@ -97,6 +97,15 @@ const INTEGRATIONS = {
       { key: 'from_name', label: 'Nome do remetente', type: 'text', default: 'Águia Gestão Veicular', env: 'SMTP_FROM_NAME' },
     ],
   },
+  sms_gpswox_gateway: {
+    label: 'Gateway SMS GPSWOX (entrada)',
+    description: 'URL que o painel GPSWOX chama para enviar SMS via Águia (%NUMBER%, %MESSAGE%)',
+    fields: [
+      { key: 'username', label: 'Usuário (username na URL)', type: 'text', env: 'SMS_GPSWOX_GATEWAY_USER' },
+      { key: 'password', label: 'Senha (password na URL)', type: 'password', secret: true, env: 'SMS_GPSWOX_GATEWAY_PASSWORD' },
+      { key: 'public_base_url', label: 'URL pública da API (ex.: https://api.seudominio.com)', type: 'url', env: 'SMS_GPSWOX_GATEWAY_PUBLIC_URL' },
+    ],
+  },
 };
 
 function getSchema(key) {

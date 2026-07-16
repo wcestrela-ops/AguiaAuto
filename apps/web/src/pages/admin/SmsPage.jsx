@@ -5,6 +5,7 @@ import FieldInput from '../../components/FieldInput';
 const PROVIDER_LABELS = {
   fake: 'Simulado (dev)',
   android: 'Gateway Android',
+  http_gateway: 'Gateway HTTP GPSWOX',
   smsmarket: 'SMSMarket',
 };
 
@@ -30,20 +31,23 @@ export default function SmsPage() {
   const [newCommand, setNewCommand] = useState(EMPTY_COMMAND);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [gpswoxGateway, setGpswoxGateway] = useState(null);
 
   async function load() {
     setLoading(true);
     try {
-      const [providersRes, typesRes, dispatchesRes, modelsRes] = await Promise.all([
+      const [providersRes, typesRes, dispatchesRes, modelsRes, gpswoxRes] = await Promise.all([
         api.getSmsProviders(),
         api.getSmsTypes(),
         api.getSmsDispatches({ limit: 20 }),
         api.getTrackerModels(),
+        api.getSmsGpswoxGatewayInfo().catch(() => ({ data: null })),
       ]);
       setData(providersRes.data);
       setTypes(typesRes.data);
       setDispatches(dispatchesRes.data || []);
       setModels(modelsRes.data || []);
+      setGpswoxGateway(gpswoxRes.data || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -189,6 +193,29 @@ export default function SmsPage() {
         {' '}Principal: {data.primary ? PROVIDER_LABELS[data.primary.provider] || data.primary.name : '—'}
         {' · '}Backup: {data.backup ? PROVIDER_LABELS[data.backup.provider] || data.backup.name : '—'}
       </div>
+
+      {gpswoxGateway && (
+        <div className="form-card" style={{ marginTop: '1rem' }}>
+          <h3>Gateway SMS GPSWOX (entrada HTTP)</h3>
+          <p className="muted">
+            Cole esta URL no painel GPSWOX (Configurações → Gateway SMS/WhatsApp).
+            Variáveis: <code>%NUMBER%</code>, <code>%MESSAGE%</code>.
+            Credenciais em <strong>Integrações → Gateway SMS GPSWOX (entrada)</strong>.
+          </p>
+          <label>
+            URL para o GPSWOX
+            <input
+              type="text"
+              readOnly
+              value={gpswoxGateway.example_url || ''}
+              onFocus={(e) => e.target.select()}
+            />
+          </label>
+          <p className="muted">
+            <small>{gpswoxGateway.gpswox_help}</small>
+          </p>
+        </div>
+      )}
 
       {message && <div className="alert success">{message}</div>}
       {error && <div className="alert error">{error}</div>}
@@ -350,6 +377,15 @@ export default function SmsPage() {
               O aparelho envia os SMS pelo chip dele. Campos: URL do agente, chave API e ID do dispositivo.
             </div>
           )}
+          {form.provider === 'http_gateway' && (
+            <div className="info-box">
+              <strong>Gateway HTTP GPSWOX (saída):</strong> Águia chama um gateway externo no padrão GPSWOX.
+              Exemplo de URL template:
+              {' '}
+              <code>http://host/sendsms.php?username=USER&amp;password=PASSWORD&amp;number=%NUMBER%&amp;message=%MESSAGE%</code>
+              {' '}Substitua USER/PASSWORD pelos campos Usuário e Senha abaixo.
+            </div>
+          )}
           <label>
             Nome
             <input type="text" value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} />
@@ -383,7 +419,7 @@ export default function SmsPage() {
               <tr key={p.id}>
                 <td>
                   <strong>{p.name || PROVIDER_LABELS[p.provider] || p.provider}</strong>
-                  <br /><small>{p.base_url || p.device_id || '—'}</small>
+                  <br /><small>{p.url_template || p.base_url || p.device_id || '—'}</small>
                 </td>
                 <td>
                   <span className={`badge ${p.status === 'connected' ? 'success' : p.status === 'error' ? 'error' : 'warning'}`}>

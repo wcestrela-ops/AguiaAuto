@@ -7,7 +7,7 @@ SMS integrado ao monorepo Águia — **mesmo padrão do WhatsApp**. Não há sis
 | Função | Onde |
 |--------|------|
 | Comandos ao rastreador (failover 4G→SMS) | Automático em `vehicle-service` |
-| Gateways SMS (simulado, Android, SMSMarket) | Admin → **SMS Rastreador** (`/admin/sms`) |
+| Gateways SMS (simulado, Android, HTTP GPSWOX, SMSMarket) | Admin → **SMS Rastreador** (`/admin/sms`) |
 | Chip SIM, IMEI, modelo | Admin → **Veículos** |
 | Importar dispositivos GPSWOX | Veículos → **Sincronizar GPSWOX** |
 | Cobrança / lembrete | WhatsApp primeiro, **SMS como fallback** |
@@ -67,6 +67,32 @@ Cadastre em `/admin/sms` → **Gateway Android (chip no aparelho)**:
 
 O celular envia SMS pelo chip instalado nele.
 
+## Gateway HTTP GPSWOX
+
+Dois sentidos, mesmo padrão de URL (`%NUMBER%`, `%MESSAGE%`):
+
+### Entrada — GPSWOX chama a Águia
+
+Quando o operador envia SMS pelo painel GPSWOX, o GPSWOX faz HTTP GET/POST para a Águia:
+
+```
+http://SUA_API/v1/sms/gateway/send?username=USER&password=PASSWORD&number=%NUMBER%&message=%MESSAGE%
+```
+
+- Configure usuário/senha em **Integrações → Gateway SMS GPSWOX (entrada)**
+- A URL de exemplo aparece em **Admin → SMS Rastreador**
+- A Águia repassa o SMS pelo gateway principal configurado em `/admin/sms`
+
+### Saída — Águia chama gateway externo
+
+Cadastre em `/admin/sms` → **Gateway HTTP GPSWOX (SMS/WhatsApp)**:
+
+```
+http://SMS_GATEWAY/sendsms.php?username=USER&password=PASSWORD&number=%NUMBER%&message=%MESSAGE%
+```
+
+Substitua `USER`/`PASSWORD` pelos campos Usuário e Senha do gateway. Útil para gateways PHP, modems ou serviços compatíveis com GPSWOX.
+
 ## Biblioteca de comandos
 
 Tabelas `tracker_models` + `tracker_commands` — editável em `/admin/sms`.
@@ -89,5 +115,7 @@ API: `POST /v1/admin/sms/send` ou `POST /v1/admin/sms/send-command`
 | `POST /v1/admin/sms/:id/test` | Testar conexão |
 | `GET /v1/admin/sms/dispatches` | Histórico |
 | `POST /v1/admin/sms/send` | Envio manual |
+| `GET /v1/sms/gateway/info` | URL exemplo para colar no GPSWOX |
+| `GET/POST /v1/sms/gateway/send` | Entrada HTTP do GPSWOX (%NUMBER%, %MESSAGE%) |
 
 Credenciais ficam no **banco Águia** (`sms_providers`), não em variáveis de ambiente.

@@ -11,6 +11,27 @@ const PROVIDER_TYPES = {
       { key: 'device_id', label: 'ID do dispositivo Android', type: 'text', required: true },
     ],
   },
+  http_gateway: {
+    label: 'Gateway HTTP GPSWOX (SMS/WhatsApp)',
+    description: 'URL com %NUMBER% e %MESSAGE% — mesmo padrão do painel GPSWOX.',
+    fields: [
+      {
+        key: 'url_template',
+        label: 'URL template',
+        type: 'url',
+        required: true,
+        placeholder: 'http://host/sendsms.php?username=USER&password=PASSWORD&number=%NUMBER%&message=%MESSAGE%',
+      },
+      { key: 'sender_id', label: 'Usuário (substitui USER na URL)', type: 'text' },
+      { key: 'api_key', label: 'Senha (substitui PASSWORD na URL)', type: 'password', secret: true },
+      {
+        key: 'http_method',
+        label: 'Método HTTP',
+        type: 'text',
+        placeholder: 'GET',
+      },
+    ],
+  },
   smsmarket: {
     label: 'SMSMarket',
     fields: [
@@ -31,6 +52,7 @@ function listProviderTypes() {
   return Object.entries(PROVIDER_TYPES).map(([type, schema]) => ({
     type,
     label: schema.label,
+    description: schema.description || null,
     fields: schema.fields.map(({ secret, ...field }) => field),
   }));
 }

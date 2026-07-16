@@ -63,6 +63,9 @@ class SmsRepository {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_dispatches_idempotency
         ON sms_dispatches (idempotency_key)
         WHERE idempotency_key IS NOT NULL;
+
+      ALTER TABLE sms_providers ADD COLUMN IF NOT EXISTS url_template TEXT;
+      ALTER TABLE sms_providers ADD COLUMN IF NOT EXISTS http_method VARCHAR(10) DEFAULT 'GET';
     `);
   }
 
@@ -100,42 +103,58 @@ class SmsRepository {
   }
 
   async create(data) {
+    const normalized = this._normalizeProviderData(data);
     const { rows } = await this.pool.query(
       `INSERT INTO sms_providers (
         provider, name, enabled, is_primary, is_backup,
-        base_url, api_key, device_id, sender_id, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        base_url, api_key, device_id, sender_id, url_template, http_method, status
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *`,
       [
-        data.provider,
-        data.name || 'Gateway SMS',
-        data.enabled ?? true,
-        data.is_primary ?? false,
-        data.is_backup ?? false,
-        data.base_url || null,
-        data.api_key || null,
-        data.device_id || null,
-        data.sender_id || null,
-        data.status || 'unknown',
+        normalized.provider,
+        normalized.name || 'Gateway SMS',
+        normalized.enabled ?? true,
+        normalized.is_primary ?? false,
+        normalized.is_backup ?? false,
+        normalized.base_url || null,
+        normalized.api_key || null,
+        normalized.device_id || null,
+        normalized.sender_id || null,
+        normalized.url_template || null,
+        normalized.http_method || 'GET',
+        normalized.status || 'unknown',
       ]
     );
     return rows[0];
+  }
+
+  _normalizeProviderData(data) {
+    const copy = { ...data };
+    if (copy.provider === 'http_gateway' && copy.url_template && !copy.base_url) {
+      copy.base_url = copy.url_template;
+    }
+    if (copy.provider === 'http_gateway' && !copy.url_template && copy.base_url) {
+      copy.url_template = copy.base_url;
+    }
+    return copy;
   }
 
   async update(id, data) {
     const current = await this.findById(id);
     if (!current) throw new Error('Provedor não encontrado.');
 
-    const merged = { ...current, ...data, id: current.id };
+    const merged = this._normalizeProviderData({ ...current, ...data, id: current.id });
     const { rows } = await this.pool.query(
       `UPDATE sms_providers SET
         provider = $2, name = $3, enabled = $4, is_primary = $5, is_backup = $6,
         base_url = $7, api_key = $8, device_id = $9, sender_id = $10,
-        status = $11, updated_at = NOW()
+        url_template = $11, http_method = $12,
+        status = $13, updated_at = NOW()
       WHERE id = $1 RETURNING *`,
       [
         id, merged.provider, merged.name, merged.enabled, merged.is_primary, merged.is_backup,
         merged.base_url, merged.api_key, merged.device_id, merged.sender_id,
+        merged.url_template, merged.http_method || 'GET',
         merged.status || current.status,
       ]
     );

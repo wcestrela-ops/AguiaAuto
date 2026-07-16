@@ -1,10 +1,12 @@
 const FakeProvider = require('./providers/FakeProvider');
 const AndroidProvider = require('./providers/AndroidProvider');
+const HttpGatewayProvider = require('./providers/HttpGatewayProvider');
 const SmsMarketProvider = require('./providers/SmsMarketProvider');
 
 const PROVIDERS = {
   fake: FakeProvider,
   android: AndroidProvider,
+  http_gateway: HttpGatewayProvider,
   smsmarket: SmsMarketProvider,
 };
 

@@ -370,6 +370,10 @@ class ApiClient {
     return this.request(`/v1/admin/sms/dispatches${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
   }
 
+  getSmsGpswoxGatewayInfo() {
+    return this.request('/v1/sms/gateway/info', {}, { useAdmin: false, useClient: false });
+  }
+
   createSmsProvider(data) {
     return this.request('/v1/admin/sms', {
       method: 'POST',
