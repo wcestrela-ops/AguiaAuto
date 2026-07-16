@@ -5,12 +5,12 @@ const NAV = [
   { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/integracoes', label: 'Integrações' },
   { to: '/admin/whatsapp', label: 'WhatsApp' },
+  { to: '/admin/sms', label: 'SMS Rastreador' },
   { to: '/admin/veiculos', label: 'Veículos' },
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/alertas', label: 'Alertas' },
   { to: '/admin/instaladores', label: 'Instaladores' },
   { to: '/admin/contratos', label: 'Contratos' },
-  { to: '/admin/sms', label: 'AG SMS' },
 ];
 
 export default function AdminLayout() {

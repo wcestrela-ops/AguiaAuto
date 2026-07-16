@@ -14,6 +14,7 @@ const {
   createVeiculo,
   getHistory,
   createSharing,
+  listDevices,
 } = require('./services/tracking');
 
 const app = express();
@@ -155,6 +156,15 @@ app.post('/compartilhar', async (req, res) => {
 
   try {
     const resultado = await createSharing(deviceId, { durationMinutes: durationMinutes || 60 });
+    return res.json({ success: true, data: resultado });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/dispositivos', async (req, res) => {
+  try {
+    const resultado = await listDevices();
     return res.json({ success: true, data: resultado });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

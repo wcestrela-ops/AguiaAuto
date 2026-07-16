@@ -1,7 +1,7 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const { getVehicleCommandLogRepository } = require('../repositories/vehicle-command-log-repository');
 const gpswox = require('../integrations/gpswox-gateway');
-const smsHub = require('../integrations/sms-hub');
+const sms = require('./sms');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
@@ -33,6 +33,9 @@ function formatVehicle(v) {
     gpswox_name: v.gpswox_name,
     tracker_phone: v.tracker_phone || null,
     tracker_phone_masked: v.tracker_phone ? maskPhone(v.tracker_phone) : null,
+    tracker_model: v.tracker_model || null,
+    tracker_imei: v.tracker_imei || null,
+    gpswox_synced_at: v.gpswox_synced_at || null,
     label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate,
     created_at: v.created_at,
     updated_at: v.updated_at,
@@ -153,14 +156,13 @@ class VehicleService {
 
       const idempotencyKey = buildSmsIdempotencyKey(userId, vehicle.id, normalized);
 
-      const smsData = await smsHub.sendTrackerCommand({
+      const smsData = await sms.sendTrackerCommand({
         phone: vehicle.tracker_phone,
         message: command.sms,
         action: normalized,
         vehicle_id: String(vehicle.id),
         user_id: String(userId),
         idempotencyKey,
-        companyId: process.env.SMS_HUB_DEFAULT_COMPANY_ID,
       });
 
       if (normalized === 'bloquear') {

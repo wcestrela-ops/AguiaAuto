@@ -105,7 +105,33 @@ Endpoints implementados na Fase 1 (prefixo **`/api/v1/sms`**):
 - `GET /api/v1/sms/dashboard`
 - `GET /api/v1/sms/health`
 
-## Integração com Águia (painel unificado)
+## Integração com Águia (atual)
+
+O SMS **não é mais um sistema separado** para operação diária. Segue o mesmo padrão do WhatsApp:
+
+| Camada | Onde fica |
+|--------|-----------|
+| Gateways SMS | `@aguia/sms` → tabelas `sms_providers`, `sms_dispatches` no **banco Águia** |
+| Admin | `/admin/sms` (gateways) + `/admin/veiculos` (chip SIM, sync GPSWOX) |
+| Failover 4G→SMS | `vehicle-service.js` → `@aguia/sms` (sem HTTP externo) |
+| Alertas/cobrança | `services/api/src/services/sms.js` (`sendText`, `sendBillingReminder`) |
+
+O diretório `services/sms-hub-api/` permanece no repositório como legado; **não é necessário** para instalação unificada.
+
+### Sincronizar veículos do GPSWOX
+
+```bash
+# Admin autenticado
+POST /v1/admin/veiculos/sync-gpswox
+{ "dry_run": true }   # prévia
+{ "dry_run": false }  # importa device_id, nome, chip SIM, IMEI, modelo
+```
+
+Requer GPSWOX configurado em Integrações e clientes Águia com `gpswox_user_id` vinculado.
+
+---
+
+## Instalação legada (SMS Hub standalone) (painel unificado)
 
 O módulo AG SMS está embutido em **`apps/web`** em `/admin/sms`, com item **AG SMS** no menu admin.
 

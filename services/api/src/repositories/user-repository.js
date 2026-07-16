@@ -24,6 +24,14 @@ class UserRepository {
     return rows[0] || null;
   }
 
+  async findByGpswoxUserId(gpswoxUserId) {
+    const { rows } = await this.pool.query(
+      'SELECT id, email, name, phone, gpswox_user_id FROM users WHERE gpswox_user_id = $1 LIMIT 1',
+      [String(gpswoxUserId)]
+    );
+    return rows[0] || null;
+  }
+
   async findByIdWithPassword(id) {
     const { rows } = await this.pool.query('SELECT * FROM users WHERE id = $1', [id]);
     return rows[0] || null;

@@ -357,6 +357,49 @@ class ApiClient {
     return this.request(`/v1/admin/whatsapp/${id}`, { method: 'DELETE' }, { useAdmin: true });
   }
 
+  getSmsProviders() {
+    return this.request('/v1/admin/sms', {}, { useAdmin: true });
+  }
+
+  getSmsTypes() {
+    return this.request('/v1/admin/sms/types', {}, { useAdmin: true });
+  }
+
+  getSmsDispatches(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/sms/dispatches${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  createSmsProvider(data) {
+    return this.request('/v1/admin/sms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  setSmsPrimary(id) {
+    return this.request(`/v1/admin/sms/${id}/primary`, { method: 'PUT' }, { useAdmin: true });
+  }
+
+  setSmsBackup(id) {
+    return this.request(`/v1/admin/sms/${id}/backup`, { method: 'PUT' }, { useAdmin: true });
+  }
+
+  testSms(id) {
+    return this.request(`/v1/admin/sms/${id}/test`, { method: 'POST' }, { useAdmin: true });
+  }
+
+  deleteSms(id) {
+    return this.request(`/v1/admin/sms/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  syncGpswoxVehicles(data = {}) {
+    return this.request('/v1/admin/veiculos/sync-gpswox', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
   getAdminVehicles() {
     return this.request('/v1/admin/veiculos', {}, { useAdmin: true });
   }

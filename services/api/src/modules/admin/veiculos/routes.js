@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone } = req.body;
+    const { user_id, plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_imei } = req.body;
 
     if (!user_id || !plate) {
       return res.status(400).json({ success: false, error: 'user_id e plate são obrigatórios.' });
@@ -45,6 +45,8 @@ router.post('/', async (req, res) => {
       gpswox_name,
       status,
       tracker_phone,
+      tracker_model,
+      tracker_imei,
     });
 
     await getAuditService().adminAction('vehicle.create', {
@@ -62,7 +64,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone } = req.body;
+    const { plate, brand, model, color, year, gpswox_device_id, gpswox_name, status, tracker_phone, tracker_model, tracker_imei } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, error: 'Status inválido.' });
@@ -78,6 +80,8 @@ router.put('/:id', async (req, res) => {
       gpswox_name,
       status,
       tracker_phone,
+      tracker_model,
+      tracker_imei,
     });
 
     await getAuditService().adminAction('vehicle.update', {
@@ -95,6 +99,20 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     const status = err.message.includes('não encontrado') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/sync-gpswox', async (req, res) => {
+  try {
+    const { getGpswoxSyncService } = require('../../../services/gpswox-sync-service');
+    const { dry_run: dryRun, default_user_id: defaultUserId } = req.body;
+    const summary = await getGpswoxSyncService().syncAndAudit(
+      { dryRun: Boolean(dryRun), defaultUserId: defaultUserId ? Number(defaultUserId) : undefined },
+      req,
+    );
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

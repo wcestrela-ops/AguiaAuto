@@ -40,4 +40,5 @@ module.exports = {
   createSharing: (deviceId, durationMinutes) => gatewayRequest('/compartilhar', {
     body: { device_id: deviceId, duration_minutes: durationMinutes },
   }),
+  listDevices: () => gatewayRequest('/dispositivos', { body: {} }),
 };

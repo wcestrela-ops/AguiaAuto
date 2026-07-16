@@ -117,6 +117,12 @@ async function createSharing(deviceId, { durationMinutes = 60 } = {}) {
   };
 }
 
+async function listDevices() {
+  const api = await getApiClient();
+  if (!api.enabled) throw new Error('Listagem requer api_hash configurado no painel admin.');
+  return api.getDevices();
+}
+
 module.exports = {
   getLocation,
   blockDevice,
@@ -126,4 +132,5 @@ module.exports = {
   createVeiculo,
   getHistory,
   createSharing,
+  listDevices,
 };

@@ -22,6 +22,8 @@ const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { migrateAdminAudit } = require('./db/migrate-admin-audit');
+const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
+const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
 const { startReferralRewardPoller } = require('./services/referral-service');
 
@@ -50,6 +52,7 @@ const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
 const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
+const adminSmsRoutes = require('./modules/admin/sms/routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -108,6 +111,7 @@ app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instalador
 // Painel admin — ADMIN_SECRET
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/v1/admin/sms', adminAuth, adminSmsRoutes);
 app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
 app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
 app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
@@ -167,12 +171,20 @@ async function bootstrap() {
     await migrateVehicleSms();
     logger.info('Veículos — chip SMS e logs de comando inicializados.');
 
+    await migrateVehicleTracker();
+    logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
+
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');
 
     const whatsappRepo = getRepository();
     await whatsappRepo.migrate();
     logger.info('Módulo WhatsApp multi-provedor inicializado.');
+
+    const smsRepo = getSmsRepository();
+    await smsRepo.migrate();
+    await smsRepo.ensureDefaultProvider();
+    logger.info('Módulo SMS interno (gateways + dispatches) inicializado.');
   } else {
     logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
   }

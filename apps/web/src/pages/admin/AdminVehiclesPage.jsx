@@ -19,6 +19,8 @@ const EMPTY_FORM = {
   gpswox_device_id: '',
   gpswox_name: '',
   tracker_phone: '',
+  tracker_model: '',
+  tracker_imei: '',
   status: 'pending_installation',
 };
 
@@ -74,6 +76,8 @@ export default function AdminVehiclesPage() {
       gpswox_device_id: vehicle.gpswox_device_id || '',
       gpswox_name: vehicle.gpswox_name || '',
       tracker_phone: vehicle.tracker_phone || '',
+      tracker_model: vehicle.tracker_model || '',
+      tracker_imei: vehicle.tracker_imei || '',
       status: vehicle.status || 'pending_installation',
     });
     setShowForm(true);
@@ -95,6 +99,8 @@ export default function AdminVehiclesPage() {
       gpswox_device_id: form.gpswox_device_id.trim() || null,
       gpswox_name: form.gpswox_name.trim() || null,
       tracker_phone: form.tracker_phone.trim() || null,
+      tracker_model: form.tracker_model.trim() || null,
+      tracker_imei: form.tracker_imei.trim() || null,
       status: form.status,
     };
 
@@ -118,6 +124,23 @@ export default function AdminVehiclesPage() {
     }
   }
 
+  async function handleSyncGpswox(dryRun = false) {
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.syncGpswoxVehicles({ dry_run: dryRun });
+      const s = res.data;
+      setMessage(
+        dryRun
+          ? `Prévia: ${s.total} dispositivos GPSWOX (${s.preview?.length || 0} na amostra).`
+          : `Sincronizado: ${s.created} criados, ${s.updated} atualizados, ${s.skipped} ignorados.`,
+      );
+      if (!dryRun) load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (loading) return <p className="muted">Carregando...</p>;
 
   return (
@@ -125,9 +148,17 @@ export default function AdminVehiclesPage() {
       <header className="page-header row">
         <div>
           <h1>Veículos</h1>
-          <p>Cadastre veículos e vincule ao GPSWOX e ao cliente.</p>
+          <p>Cadastre veículos, importe do GPSWOX (chip SIM, IMEI, modelo) e vincule ao cliente.</p>
         </div>
-        <button type="button" onClick={startCreate}>Novo veículo</button>
+        <div className="row" style={{ gap: '0.5rem' }}>
+          <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(true)}>
+            Prévia GPSWOX
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => handleSyncGpswox(false)}>
+            Sincronizar GPSWOX
+          </button>
+          <button type="button" onClick={startCreate}>Novo veículo</button>
+        </div>
       </header>
 
       {error && <div className="alert error">{error}</div>}
@@ -186,13 +217,21 @@ export default function AdminVehiclesPage() {
             <small className="hint">Nome do veículo no GPSWOX (fallback Playwright)</small>
           </label>
           <label>
-            Número do chip (SMS failover)
+            Número do chip SIM (SMS)
             <input
               value={form.tracker_phone}
               onChange={(e) => updateForm('tracker_phone', e.target.value)}
               placeholder="5511999999999"
             />
-            <small className="hint">Usado quando o comando 4G falhar (desbloqueio, bloqueio, etc.)</small>
+            <small className="hint">Comandos SMS e failover 4G usam este número.</small>
+          </label>
+          <label>
+            Modelo do rastreador
+            <input value={form.tracker_model} onChange={(e) => updateForm('tracker_model', e.target.value)} />
+          </label>
+          <label>
+            IMEI do rastreador
+            <input value={form.tracker_imei} onChange={(e) => updateForm('tracker_imei', e.target.value)} />
           </label>
 
           <label>
@@ -220,6 +259,7 @@ export default function AdminVehiclesPage() {
               <th>Placa</th>
               <th>Cliente</th>
               <th>Device ID</th>
+              <th>Chip SIM</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -227,7 +267,7 @@ export default function AdminVehiclesPage() {
           <tbody>
             {vehicles.length === 0 ? (
               <tr>
-                <td colSpan={5} className="muted">Nenhum veículo cadastrado.</td>
+                <td colSpan={6} className="muted">Nenhum veículo cadastrado.</td>
               </tr>
             ) : (
               vehicles.map((vehicle) => (
@@ -235,6 +275,7 @@ export default function AdminVehiclesPage() {
                   <td>{vehicle.plate}</td>
                   <td>{vehicle.user_name || vehicle.user_email}</td>
                   <td><code>{vehicle.gpswox_device_id || '—'}</code></td>
+                  <td>{vehicle.tracker_phone || '—'}</td>
                   <td>
                     <span className={`badge ${vehicleStatusBadge(vehicle.status)}`}>
                       {vehicleStatusLabel(vehicle.status)}
