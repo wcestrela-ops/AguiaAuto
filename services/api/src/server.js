@@ -22,6 +22,7 @@ const { migrateAncora } = require('./db/migrate-ancora');
 const { migrateIndicacoes } = require('./db/migrate-indicacoes');
 const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { migrateAdminAudit } = require('./db/migrate-admin-audit');
+const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateVehicleTracker } = require('./db/migrate-vehicle-tracker');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { startAnchorPoller } = require('./services/anchor-service');
@@ -53,6 +54,7 @@ const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
 const adminContratosRoutes = require('./modules/admin/contratos/routes');
 const adminAuditRoutes = require('./modules/admin/audit/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
+const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const plansRoutes = require('./modules/plans/routes');
 const configRoutes = require('./modules/config/routes');
 
@@ -111,6 +113,7 @@ app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instalador
 // Painel admin — ADMIN_SECRET
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);
 app.use('/v1/admin/sms', adminAuth, adminSmsRoutes);
 app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
 app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
@@ -173,6 +176,9 @@ async function bootstrap() {
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
+
+    await migrateTrackerLibrary();
+    logger.info('Biblioteca de modelos e comandos SMS de rastreadores inicializada.');
 
     await migrateAdminAudit();
     logger.info('Auditoria administrativa inicializada.');

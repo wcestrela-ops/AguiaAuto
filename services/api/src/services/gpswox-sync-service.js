@@ -1,4 +1,5 @@
 const gpswox = require('../integrations/gpswox-gateway');
+const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getAuditService } = require('./audit-service');
@@ -37,6 +38,19 @@ class GpswoxSyncService {
   constructor() {
     this.vehicles = getVehicleRepository();
     this.users = getUserRepository();
+    this.trackerModels = getTrackerModelRepository();
+  }
+
+  async _resolveTrackerModelId(modelName) {
+    if (!modelName) return null;
+    const byName = await this.trackerModels.findModelByName(modelName);
+    if (byName) return byName.id;
+    const models = await this.trackerModels.listModels();
+    const lower = modelName.toLowerCase();
+    const match = models.find(
+      (m) => m.protocol && lower.includes(String(m.protocol).toLowerCase()),
+    );
+    return match?.id || null;
   }
 
   async importDevices({ dryRun = false, defaultUserId } = {}) {
@@ -68,11 +82,15 @@ class GpswoxSyncService {
           if (user) userId = user.id;
         }
 
+        const modelName = extractTrackerModel(device);
+        const trackerModelId = await this._resolveTrackerModelId(modelName);
+
         const payload = {
           gpswox_device_id: deviceId,
           gpswox_name: device.name || device.title || `Dispositivo ${deviceId}`,
           tracker_phone: extractSimNumber(device),
-          tracker_model: extractTrackerModel(device),
+          tracker_model: modelName,
+          tracker_model_id: trackerModelId,
           tracker_imei: extractImei(device),
           plate: extractPlate(device),
           gpswox_synced_at: new Date().toISOString(),

@@ -3,6 +3,7 @@ const { getVehicleCommandLogRepository } = require('../repositories/vehicle-comm
 const gpswox = require('../integrations/gpswox-gateway');
 const sms = require('./sms');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
+const { getTrackerCommandService } = require('./tracker-command-service');
 const { isGpsFailoverEligible, maskPhone } = require('../lib/gps-failover');
 const { buildSmsIdempotencyKey } = require('../lib/idempotency');
 const { getAuditService } = require('./audit-service');
@@ -34,6 +35,7 @@ function formatVehicle(v) {
     tracker_phone: v.tracker_phone || null,
     tracker_phone_masked: v.tracker_phone ? maskPhone(v.tracker_phone) : null,
     tracker_model: v.tracker_model || null,
+    tracker_model_id: v.tracker_model_id || null,
     tracker_imei: v.tracker_imei || null,
     gpswox_synced_at: v.gpswox_synced_at || null,
     label: [v.brand, v.model, v.plate].filter(Boolean).join(' · ') || v.plate,
@@ -97,7 +99,10 @@ class VehicleService {
     }
 
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const command = VEHICLE_COMMANDS[normalized];
+    const command = await getTrackerCommandService().resolveCommand(vehicle, normalized);
+    if (!command) {
+      throw new Error(`Comando "${action}" não configurado para este rastreador.`);
+    }
 
     return this._executeTrackerCommand(userId, vehicle, normalized, command);
   }

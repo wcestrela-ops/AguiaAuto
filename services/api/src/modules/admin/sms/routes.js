@@ -147,6 +147,46 @@ router.post('/:id/test', async (req, res) => {
   }
 });
 
+router.post('/send-command', async (req, res) => {
+  try {
+    const { getTrackerCommandService } = require('../../../services/tracker-command-service');
+    const smsService = require('../../../services/sms');
+    const { to, model_id, action_key, message, vehicle_id } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'Campo "to" (telefone) é obrigatório.' });
+    }
+
+    let smsMessage = message;
+    let action = action_key || 'admin.manual';
+
+    if (model_id && action_key && !message) {
+      const cmd = await getTrackerCommandService().resolveCommandByModelId(Number(model_id), action_key);
+      if (!cmd) {
+        return res.status(400).json({ success: false, error: 'Comando não encontrado para este modelo.' });
+      }
+      smsMessage = cmd.sms;
+      action = cmd.action;
+    }
+
+    if (!smsMessage) {
+      return res.status(400).json({ success: false, error: 'Informe a mensagem ou model_id + action_key.' });
+    }
+
+    const result = await smsService.sendTrackerCommand({
+      phone: to,
+      message: smsMessage,
+      action,
+      vehicle_id: vehicle_id ? String(vehicle_id) : undefined,
+      source: 'admin.manual',
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/send', async (req, res) => {
   try {
     const { to, message, user_id, vehicle_id } = req.body;

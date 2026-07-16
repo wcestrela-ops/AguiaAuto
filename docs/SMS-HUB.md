@@ -58,6 +58,27 @@ Content-Type: application/json
 
 Importa: `gpswox_device_id`, nome, chip SIM, IMEI, modelo. Vincula ao cliente Águia via `users.gpswox_user_id`.
 
+## Gateways Android
+
+Cadastre em `/admin/sms` → **Gateway Android (chip no aparelho)**:
+- URL do agente HTTP no smartphone
+- Chave API
+- ID do dispositivo
+
+O celular envia SMS pelo chip instalado nele.
+
+## Biblioteca de comandos
+
+Tabelas `tracker_models` + `tracker_commands` — editável em `/admin/sms`.
+
+Cada veículo pode ter `tracker_model_id` (admin → Veículos). Comandos SMS e GPSWOX vêm da biblioteca; fallback para padrão GT06.
+
+## Envio manual
+
+Admin → SMS Rastreador → **Enviar SMS**: informe número + mensagem, ou escolha modelo + comando.
+
+API: `POST /v1/admin/sms/send` ou `POST /v1/admin/sms/send-command`
+
 ## API admin
 
 | Rota | Descrição |

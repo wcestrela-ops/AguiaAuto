@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   gpswox_name: '',
   tracker_phone: '',
   tracker_model: '',
+  tracker_model_id: '',
   tracker_imei: '',
   status: 'pending_installation',
 };
@@ -27,6 +28,7 @@ const EMPTY_FORM = {
 export default function AdminVehiclesPage() {
   const [vehicles, setVehicles] = useState([]);
   const [users, setUsers] = useState([]);
+  const [trackerModels, setTrackerModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -37,12 +39,14 @@ export default function AdminVehiclesPage() {
   async function load() {
     setLoading(true);
     try {
-      const [vehiclesRes, usersRes] = await Promise.all([
+      const [vehiclesRes, usersRes, modelsRes] = await Promise.all([
         api.getAdminVehicles(),
         api.getAdminUsers(),
+        api.getTrackerModels(),
       ]);
       setVehicles(vehiclesRes.data || []);
       setUsers(usersRes.data || []);
+      setTrackerModels(modelsRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,6 +81,7 @@ export default function AdminVehiclesPage() {
       gpswox_name: vehicle.gpswox_name || '',
       tracker_phone: vehicle.tracker_phone || '',
       tracker_model: vehicle.tracker_model || '',
+      tracker_model_id: vehicle.tracker_model_id ? String(vehicle.tracker_model_id) : '',
       tracker_imei: vehicle.tracker_imei || '',
       status: vehicle.status || 'pending_installation',
     });
@@ -100,6 +105,7 @@ export default function AdminVehiclesPage() {
       gpswox_name: form.gpswox_name.trim() || null,
       tracker_phone: form.tracker_phone.trim() || null,
       tracker_model: form.tracker_model.trim() || null,
+      tracker_model_id: form.tracker_model_id ? Number(form.tracker_model_id) : null,
       tracker_imei: form.tracker_imei.trim() || null,
       status: form.status,
     };
@@ -226,7 +232,25 @@ export default function AdminVehiclesPage() {
             <small className="hint">Comandos SMS e failover 4G usam este número.</small>
           </label>
           <label>
-            Modelo do rastreador
+            Modelo do rastreador (biblioteca SMS)
+            <select
+              value={form.tracker_model_id}
+              onChange={(e) => {
+                const id = e.target.value;
+                const selected = trackerModels.find((m) => String(m.id) === id);
+                updateForm('tracker_model_id', id);
+                if (selected) updateForm('tracker_model', selected.name);
+              }}
+            >
+              <option value="">Padrão do sistema (GT06)</option>
+              {trackerModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}{m.protocol ? ` (${m.protocol})` : ''}</option>
+              ))}
+            </select>
+            <small className="hint">Define quais comandos SMS serão usados no failover 4G.</small>
+          </label>
+          <label>
+            Modelo (texto livre / GPSWOX)
             <input value={form.tracker_model} onChange={(e) => updateForm('tracker_model', e.target.value)} />
           </label>
           <label>

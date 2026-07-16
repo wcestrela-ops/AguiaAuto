@@ -393,6 +393,58 @@ class ApiClient {
     return this.request(`/v1/admin/sms/${id}`, { method: 'DELETE' }, { useAdmin: true });
   }
 
+  sendSmsManual(data) {
+    return this.request('/v1/admin/sms/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  sendSmsCommand(data) {
+    return this.request('/v1/admin/sms/send-command', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  getTrackerModels() {
+    return this.request('/v1/admin/sms/models', {}, { useAdmin: true });
+  }
+
+  createTrackerModel(data) {
+    return this.request('/v1/admin/sms/models', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateTrackerModel(id, data) {
+    return this.request(`/v1/admin/sms/models/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  createTrackerCommand(modelId, data) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  updateTrackerCommand(modelId, commandId, data) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands/${commandId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, { useAdmin: true });
+  }
+
+  deleteTrackerCommand(modelId, commandId) {
+    return this.request(`/v1/admin/sms/models/${modelId}/commands/${commandId}`, {
+      method: 'DELETE',
+    }, { useAdmin: true });
+  }
+
   syncGpswoxVehicles(data = {}) {
     return this.request('/v1/admin/veiculos/sync-gpswox', {
       method: 'POST',
