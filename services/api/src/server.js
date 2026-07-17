@@ -46,6 +46,7 @@ const { migrateAguiaTenantSeed } = require('./db/migrate-aguia-tenant-seed');
 const { migratePhase2TenantTables } = require('./db/migrate-phase2-tenant-tables');
 const { migratePhase3Modules } = require('./db/migrate-phase3-modules');
 const { migratePhase4SaasBilling } = require('./db/migrate-phase4-saas-billing');
+const { migratePhase6TrackingProvider } = require('./db/migrate-phase6-tracking-provider');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
@@ -307,6 +308,9 @@ async function bootstrap() {
 
     const saasBillingSeed = await migratePhase4SaasBilling();
     logger.info(`Fase 4 — billing SaaS: plano ${saasBillingSeed.plan_id}, ${saasBillingSeed.modules_linked} módulos vinculados.`);
+
+    const trackingSeed = await migratePhase6TrackingProvider();
+    logger.info(`Fase 6 — TrackingProvider: ${trackingSeed.vehicles} veículos, ${trackingSeed.gpswox_users} users GPSWOX mapeados.`);
 
     await getRbacRepository().seedDefaults();
     logger.info('RBAC padrão (funções e permissões) inicializado.');

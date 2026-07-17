@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–5
+# Multi-tenancy e modularidade — Fases 1–6
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -179,6 +179,48 @@ Link **Plataforma SaaS** no sidebar admin para usuários com acesso.
 
 ---
 
+## Fase 6 — TrackingProvider formal + external_entity_mappings
+
+### Tabelas
+| Tabela | Descrição |
+|--------|-----------|
+| `tenant_tracking_configs` | Provedor padrão e estratégia de sync por tenant |
+| `external_entity_mappings` | Vínculo interno ↔ ID externo (GPSWOX/Traccar) |
+
+### Estratégias de sync
+| Estratégia | Comportamento |
+|------------|---------------|
+| `PROVIDER_MASTER` | Plataforma externa é fonte de verdade (default) |
+| `READ_ONLY` | Aguia lê posição/histórico; bloqueia comandos e writes |
+
+### Camada TrackingProvider
+| Componente | Arquivo |
+|------------|---------|
+| Interface base | `lib/tracking/tracking-provider.js` |
+| Adapter gateway | `lib/tracking/gateway-tracking-provider.js` |
+| Factory por tenant | `lib/tracking/tracking-provider-factory.js` |
+| Facade | `services/tracking-service.js` |
+| Mappings | `services/external-entity-mapping-service.js` |
+
+Provedores suportados: **gpswox**, **traccar** (via gateway existente).
+
+### Integração
+- `provisioning-service` — cria usuário na plataforma + grava mapping
+- `gpswox-sync-service` — sync de devices + mappings de veículos
+- `vehicle-service` — comandos/histórico/compartilhamento via `TrackingService`
+
+### API platform
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/tenants/:id/tracking-config` | Config de rastreamento |
+| `PATCH /v1/platform/tenants/:id/tracking-config` | Alterar provider/strategy |
+| `GET /v1/platform/tenants/:id/entity-mappings` | Listar mappings |
+
+### Migration Fase 6
+`migrate-phase6-tracking-provider.js` — backfill de `users.gpswox_user_id`, `traccar_user_id` e `vehicles.tracker_device_id`
+
+---
+
 ## Testes
 
 ```bash
@@ -191,8 +233,9 @@ npm run test:api
 | `test/modules/module-access.test.js` | Platform roles, route→module map |
 | `test/modules/saas-billing.test.js` | Billing SaaS, limites de uso |
 | `apps/web/src/lib/platform-access.test.js` | RBAC painel master |
+| `test/lib/tracking-provider.test.js` | TrackingProvider, sync strategies, factory |
 
-**66 testes API + testes web** passando.
+**73 testes API + testes web** passando.
 
 ---
 
@@ -200,7 +243,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 6 | TrackingProvider formal + external_entity_mappings |
 | 7 | Integrações SHARED/OWN por tenant |
 | 8 | Onboarding B2B empresa |
 

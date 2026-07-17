@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const { getDefaultProviderName, getPlatformSettings, getProviderLabel, normalizeProviderName } = require('../lib/tracking-platform');
-const gpswox = require('../integrations/gpswox-gateway');
+const { getTrackingService } = require('./tracking-service');
+const { getExternalEntityMappingService } = require('./external-entity-mapping-service');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPlanRepository } = require('../repositories/plan-repository');
 const { getSubscriptionRepository } = require('../repositories/subscription-repository');
@@ -188,18 +190,22 @@ class ProvisioningService {
     const platform = await getPlatformSettings(platformName);
     const providerLabel = getProviderLabel(platformName);
     const password = generateGpswoxPassword();
+    const tenantId = user.tenant_id || DEFAULT_TENANT_ID;
 
-    const result = await gpswox.createCliente({
-      provider: platformName,
-      email: user.email,
-      password,
-      name: user.name || user.email,
-      phone: user.phone || undefined,
-      group_id: platform.settings.default_group_id || undefined,
-      aguia_user_id: userId,
-    });
+    const { externalId: platformUserId } = await getTrackingService().createPlatformUser(
+      tenantId,
+      user,
+      platformName,
+      {
+        email: user.email,
+        password,
+        name: user.name || user.email,
+        phone: user.phone || undefined,
+        group_id: platform.settings.default_group_id || undefined,
+        aguia_user_id: userId,
+      },
+    );
 
-    const platformUserId = extractId(result, ['id', 'user_id']);
     if (!platformUserId) throw new Error(`${providerLabel} não retornou ID do usuário.`);
 
     const update = platformName === 'traccar'
@@ -207,6 +213,7 @@ class ProvisioningService {
       : { gpswox_user_id: platformUserId };
 
     await this.users.updateProvisioning(userId, update);
+    await getExternalEntityMappingService().linkUser(tenantId, userId, platformName, platformUserId);
     return platformUserId;
   }
 

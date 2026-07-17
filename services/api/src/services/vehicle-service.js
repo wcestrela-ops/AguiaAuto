@@ -1,7 +1,7 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const { getVehicleCommandLogRepository } = require('../repositories/vehicle-command-log-repository');
 const { getUserRepository } = require('../repositories/user-repository');
-const gpswox = require('../integrations/gpswox-gateway');
+const { getTrackingService } = require('./tracking-service');
 const sms = require('./sms');
 const firebase = require('./firebase');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
@@ -355,14 +355,14 @@ class VehicleService {
   }
 
   async _sendViaGps(vehicle, normalized, command) {
-    const provider = vehicleProvider(vehicle);
+    const tracking = getTrackingService();
     if (normalized === 'bloquear') {
-      return gpswox.blockDevice(vehicle.tracker_device_id, provider);
+      return tracking.blockDevice(vehicle);
     }
     if (normalized === 'desbloquear') {
-      return gpswox.unblockDevice(vehicle.tracker_device_id, provider);
+      return tracking.unblockDevice(vehicle);
     }
-    return gpswox.sendCommand(vehicle.tracker_device_id, command.gpswox, provider);
+    return tracking.sendCommand(vehicle, command.gpswox);
   }
 
   async _logCommand(entry) {
@@ -380,11 +380,10 @@ class VehicleService {
       ? normalizeHistoryRange(from, to, provider)
       : defaultHistoryRange(hours || 24, provider);
 
-    const response = await gpswox.getHistory(
-      vehicle.tracker_device_id,
+    const response = await getTrackingService().getHistory(
+      vehicle,
       range.from,
       range.to,
-      vehicleProvider(vehicle),
     );
 
     return {
@@ -396,11 +395,7 @@ class VehicleService {
 
   async shareLocation(userId, vehicleId, { duration_minutes = 60 } = {}) {
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const response = await gpswox.createSharing(
-      vehicle.tracker_device_id,
-      duration_minutes,
-      vehicleProvider(vehicle),
-    );
+    const response = await getTrackingService().createSharing(vehicle, duration_minutes);
     const share = response.data || response;
 
     return {

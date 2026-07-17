@@ -8,10 +8,12 @@ const { getAllQueueStats } = require('../../../infrastructure/queues');
 const { getAuditService } = require('../../../services/audit-service');
 
 const saasRoutes = require('./saas-routes');
+const trackingRoutes = require('./tracking-routes');
 
 const router = Router();
 
 router.use(saasRoutes);
+router.use(trackingRoutes);
 
 router.get('/health', platformAuth, requirePlatformPermission('platform.health.view'), async (req, res) => {
   try {
