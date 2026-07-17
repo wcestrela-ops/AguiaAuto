@@ -70,6 +70,17 @@
         "responses": { "200": { "description": "OpenAPI JSON" } }
       }
     },
+    "/v1/docs": {
+      "get": {
+        "tags": ["Observability"],
+        "summary": "Swagger UI — documentação interativa",
+        "description": "Interface web para explorar e testar a API. Disponível quando OPENAPI_DOCS_ENABLED≠false.",
+        "responses": {
+          "200": { "description": "HTML Swagger UI" },
+          "404": { "description": "Documentação desabilitada" }
+        }
+      }
+    },
     "/v1/auth/login": {
       "post": {
         "tags": ["Auth"],
