@@ -11,6 +11,7 @@ export default function IntegrationEditPage() {
   const [data, setData] = useState(null);
   const [settings, setSettings] = useState({});
   const [enabled, setEnabled] = useState(true);
+  const [credentialMode, setCredentialMode] = useState('OWN');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -26,6 +27,7 @@ export default function IntegrationEditPage() {
         setData(res.data);
         setSettings(res.data.settings || {});
         setEnabled(res.data.enabled ?? true);
+        setCredentialMode(res.data.credential_mode || 'OWN');
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -42,7 +44,7 @@ export default function IntegrationEditPage() {
     setError('');
 
     try {
-      await api.saveIntegration(key, settings, enabled);
+      await api.saveIntegration(key, settings, enabled, credentialMode);
       setMessage('Configuração salva com sucesso.');
     } catch (err) {
       setError(err.message);
@@ -102,12 +104,31 @@ export default function IntegrationEditPage() {
             </label>
             <p className="guide-inline">Desmarque para pausar a integração sem apagar as credenciais salvas.</p>
 
+            {data.shared_capable ? (
+              <label>
+                Modo de credenciais
+                <select value={credentialMode} onChange={(e) => setCredentialMode(e.target.value)}>
+                  <option value="SHARED">Compartilhada (plataforma)</option>
+                  <option value="OWN">Própria (OWN)</option>
+                </select>
+                <p className="guide-inline">
+                  {credentialMode === 'SHARED'
+                    ? 'Usa credenciais da plataforma. Campos secretos ficam bloqueados.'
+                    : 'Credenciais exclusivas desta empresa.'}
+                  {data.resolved_from && data.resolved_from !== data.tenant_id ? (
+                    <> Resolvido do tenant #{data.resolved_from}.</>
+                  ) : null}
+                </p>
+              </label>
+            ) : null}
+
             {(data.fields || []).map((field) => (
               <FieldInput
                 key={field.key}
                 field={field}
                 value={settings[field.key] ?? ''}
                 onChange={(v) => updateField(field.key, v)}
+                disabled={credentialMode === 'SHARED' && field.type === 'password'}
               />
             ))}
 

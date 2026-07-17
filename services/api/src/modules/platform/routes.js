@@ -9,11 +9,13 @@ const { getAuditService } = require('../../../services/audit-service');
 
 const saasRoutes = require('./saas-routes');
 const trackingRoutes = require('./tracking-routes');
+const integrationsRoutes = require('./integrations-routes');
 
 const router = Router();
 
 router.use(saasRoutes);
 router.use(trackingRoutes);
+router.use(integrationsRoutes);
 
 router.get('/health', platformAuth, requirePlatformPermission('platform.health.view'), async (req, res) => {
   try {

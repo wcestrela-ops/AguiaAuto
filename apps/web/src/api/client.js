@@ -636,10 +636,12 @@ class ApiClient {
     return this.request(`/v1/admin/integracoes/${key}`, {}, { useAdmin: true });
   }
 
-  saveIntegration(key, settings, enabled = true) {
+  saveIntegration(key, settings, enabled = true, credentialMode) {
+    const body = { settings, enabled };
+    if (credentialMode) body.credential_mode = credentialMode;
     return this.request(`/v1/admin/integracoes/${key}`, {
       method: 'PUT',
-      body: JSON.stringify({ settings, enabled }),
+      body: JSON.stringify(body),
     }, { useAdmin: true });
   }
 
@@ -1513,6 +1515,17 @@ class ApiClient {
   refreshPlatformTenantUsage(tenantId) {
     return this.request(`/v1/platform/tenants/${tenantId}/usage/refresh`, {
       method: 'POST',
+    }, { useAdmin: true });
+  }
+
+  getPlatformTenantIntegrations(tenantId) {
+    return this.request(`/v1/platform/tenants/${tenantId}/integrations`, {}, { useAdmin: true });
+  }
+
+  setPlatformTenantIntegrationMode(tenantId, key, credentialMode) {
+    return this.request(`/v1/platform/tenants/${tenantId}/integrations/${key}/mode`, {
+      method: 'PATCH',
+      body: JSON.stringify({ credential_mode: credentialMode }),
     }, { useAdmin: true });
   }
 }

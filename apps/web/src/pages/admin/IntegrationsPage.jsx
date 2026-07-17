@@ -91,6 +91,9 @@ export default function IntegrationsPage() {
                   <span className={`badge ${item.configured ? 'success' : 'warning'}`}>
                     {item.configured ? 'Configurado' : 'Pendente'}
                   </span>
+                  {item.credential_mode === 'SHARED' ? (
+                    <span className="badge info">Compartilhada</span>
+                  ) : null}
                   {item.key === 'firebase' && (
                     <span className="badge info">Push Notifications</span>
                   )}

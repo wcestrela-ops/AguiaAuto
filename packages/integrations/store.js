@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const { getSchema, getDefaults, maskSettings, listSchemas } = require('./schemas');
+const { getSchema, getDefaults, maskSettings, listSchemas, isSharedCapable } = require('./schemas');
 const { encryptJson, decryptJson, isEncryptionEnabled } = require('./encryption');
 
 const CACHE_TTL_MS = 60_000;
@@ -19,6 +19,7 @@ class IntegrationStore {
         integration_key VARCHAR(50) NOT NULL,
         settings        JSONB NOT NULL DEFAULT '{}',
         enabled         BOOLEAN NOT NULL DEFAULT true,
+        credential_mode VARCHAR(20) NOT NULL DEFAULT 'OWN',
         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_by      VARCHAR(100),
         PRIMARY KEY (tenant_id, integration_key)
@@ -41,7 +42,7 @@ class IntegrationStore {
 
   async _loadRow(key, tenantId = DEFAULT_TENANT_ID) {
     const { rows } = await this.pool.query(
-      'SELECT integration_key, settings, settings_encrypted, enabled, updated_at, updated_by, tenant_id FROM integration_configs WHERE tenant_id = $1 AND integration_key = $2',
+      'SELECT integration_key, settings, settings_encrypted, enabled, credential_mode, updated_at, updated_by, tenant_id FROM integration_configs WHERE tenant_id = $1 AND integration_key = $2',
       [tenantId, key]
     );
     return rows[0] || null;
@@ -128,6 +129,8 @@ class IntegrationStore {
       label: schema.label,
       description: schema.description,
       enabled: row?.enabled ?? true,
+      credential_mode: row?.credential_mode || 'OWN',
+      shared_capable: isSharedCapable(key),
       settings,
       updated_at: row?.updated_at || null,
       updated_by: row?.updated_by || null,
@@ -157,6 +160,8 @@ class IntegrationStore {
         label: config.label,
         description: config.description,
         enabled: config.enabled,
+        credential_mode: config.credential_mode,
+        shared_capable: config.shared_capable,
         configured: Object.keys(config.settings).some(k => config.settings[k] != null && config.settings[k] !== ''),
         settings: masked ? maskSettings(config.key, config.settings) : config.settings,
         fields: schema.fields,
@@ -168,7 +173,7 @@ class IntegrationStore {
     return items;
   }
 
-  async update(key, partialSettings, { updatedBy = 'admin', enabled, tenantId = DEFAULT_TENANT_ID } = {}) {
+  async update(key, partialSettings, { updatedBy = 'admin', enabled, tenantId = DEFAULT_TENANT_ID, credentialMode } = {}) {
     const schema = getSchema(key);
     if (!schema) {
       throw new Error(`Integração "${key}" não existe.`);
@@ -196,15 +201,16 @@ class IntegrationStore {
     }
 
     const enabledValue = enabled !== undefined ? enabled : current.enabled;
+    const credentialModeValue = credentialMode || current.credential_mode || 'OWN';
     const { publicSettings, encryptedBlob } = this._splitSecretSettings(key, merged);
 
     await this.pool.query(
-      `INSERT INTO integration_configs (tenant_id, integration_key, settings, settings_encrypted, enabled, updated_at, updated_by)
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+      `INSERT INTO integration_configs (tenant_id, integration_key, settings, settings_encrypted, enabled, credential_mode, updated_at, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
        ON CONFLICT (tenant_id, integration_key)
        DO UPDATE SET settings = $3, settings_encrypted = COALESCE($4, integration_configs.settings_encrypted),
-                     enabled = $5, updated_at = NOW(), updated_by = $6`,
-      [tenantId, key, JSON.stringify(publicSettings), encryptedBlob, enabledValue, updatedBy]
+                     enabled = $5, credential_mode = $6, updated_at = NOW(), updated_by = $7`,
+      [tenantId, key, JSON.stringify(publicSettings), encryptedBlob, enabledValue, credentialModeValue, updatedBy]
     );
 
     this._invalidateCache();

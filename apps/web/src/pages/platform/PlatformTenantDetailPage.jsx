@@ -22,12 +22,14 @@ export default function PlatformTenantDetailPage() {
   const user = getStoredAdminUser();
   const canManageModules = hasPlatformPermission(user, 'platform.modules.manage');
   const canManageBilling = hasPlatformPermission(user, 'platform.billing.manage');
+  const canManageTenants = hasPlatformPermission(user, 'platform.tenants.update');
   const canViewBilling = hasPlatformPermission(user, 'platform.billing.view');
 
   const [tenant, setTenant] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [usage, setUsage] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -37,16 +39,18 @@ export default function PlatformTenantDetailPage() {
     setLoading(true);
     setError('');
     try {
-      const [tenantRes, subRes, usageRes, plansRes] = await Promise.all([
+      const [tenantRes, subRes, usageRes, plansRes, integrationsRes] = await Promise.all([
         api.getPlatformTenant(id),
         canViewBilling ? api.getPlatformTenantSubscription(id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
         canViewBilling ? api.getPlatformTenantUsage(id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
         canViewBilling ? api.getPlatformSaasPlans().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+        api.getPlatformTenantIntegrations(id).catch(() => ({ data: [] })),
       ]);
       setTenant(tenantRes.data);
       setSubscription(subRes.data);
       setUsage(usageRes.data);
       setPlans(plansRes.data || []);
+      setIntegrations(integrationsRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,6 +100,19 @@ export default function PlatformTenantDetailPage() {
     }
   }
 
+  async function toggleIntegrationMode(item) {
+    if (!canManageTenants || !item.shared_capable) return;
+    const next = item.credential_mode === 'SHARED' ? 'OWN' : 'SHARED';
+    setError('');
+    try {
+      await api.setPlatformTenantIntegrationMode(id, item.key, next);
+      setMessage(`Integração ${item.key} alterada para ${next}.`);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (loading) return <p className="muted">Carregando...</p>;
   if (!tenant) return <p className="muted">Empresa não encontrada.</p>;
 
@@ -127,6 +144,42 @@ export default function PlatformTenantDetailPage() {
           <div><dt>Criado em</dt><dd>{new Date(tenant.created_at).toLocaleString('pt-BR')}</dd></div>
         </dl>
       </section>
+
+      {integrations.length > 0 ? (
+        <section className="card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Integrações</h3>
+          <table className="table-card">
+            <thead>
+              <tr>
+                <th>Integração</th>
+                <th>Modo</th>
+                <th>Status</th>
+                <th>Origem</th>
+                {canManageTenants ? <th>Ações</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {integrations.map((item) => (
+                <tr key={item.key}>
+                  <td>{item.label}</td>
+                  <td><span className="badge info">{item.credential_mode}</span></td>
+                  <td><span className={`badge ${item.enabled ? 'success' : 'warning'}`}>{item.enabled ? 'Ativa' : 'Inativa'}</span></td>
+                  <td>Tenant #{item.resolved_from || id}</td>
+                  {canManageTenants ? (
+                    <td>
+                      {item.shared_capable ? (
+                        <button type="button" className="btn-link" onClick={() => toggleIntegrationMode(item)}>
+                          Usar {item.credential_mode === 'SHARED' ? 'OWN' : 'SHARED'}
+                        </button>
+                      ) : '—'}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
 
       {canViewBilling ? (
         <section className="card" style={{ marginBottom: '1.5rem' }}>

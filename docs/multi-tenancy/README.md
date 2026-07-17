@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–6
+# Multi-tenancy e modularidade — Fases 1–7
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -221,6 +221,39 @@ Provedores suportados: **gpswox**, **traccar** (via gateway existente).
 
 ---
 
+## Fase 7 — Integrações SHARED/OWN por tenant
+
+### Modos de credencial
+| Modo | Comportamento |
+|------|---------------|
+| `SHARED` | Usa credenciais do tenant plataforma (#1) — default para novos tenants |
+| `OWN` | Credenciais exclusivas da empresa |
+
+Coluna `credential_mode` em `integration_configs`. Infra (`gateway`, `gateway_client`) permanece global.
+
+### TenantIntegrationService
+- `resolveConfig(key, tenantId)` — merge settings SHARED + overrides não-secretos
+- `getSettings(key, tenantId)` — settings efetivos para runtime
+- `updateForTenant()` — bloqueia gravação de segredos em modo SHARED
+- `setCredentialMode()` — alternância SHARED ↔ OWN (platform)
+
+### API
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/admin/integracoes` | Lista com modo resolvido |
+| `PUT /v1/admin/integracoes/:key` | Salva + `credential_mode` |
+| `GET /v1/platform/tenants/:id/integrations` | Visão platform |
+| `PATCH /v1/platform/tenants/:id/integrations/:key/mode` | Alterar modo |
+
+### UI
+- Admin: seletor SHARED/OWN em `/admin/integracoes/:key`
+- Platform: tabela de integrações no detalhe da empresa
+
+### Migration Fase 7
+`migrate-phase7-tenant-integrations.js`
+
+---
+
 ## Testes
 
 ```bash
@@ -234,8 +267,9 @@ npm run test:api
 | `test/modules/saas-billing.test.js` | Billing SaaS, limites de uso |
 | `apps/web/src/lib/platform-access.test.js` | RBAC painel master |
 | `test/lib/tracking-provider.test.js` | TrackingProvider, sync strategies, factory |
+| `test/services/tenant-integration.test.js` | SHARED/OWN, merge settings |
 
-**73 testes API + testes web** passando.
+**77 testes API + testes web** passando.
 
 ---
 
@@ -243,7 +277,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 7 | Integrações SHARED/OWN por tenant |
 | 8 | Onboarding B2B empresa |
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

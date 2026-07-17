@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getStore, getSchema, maskSettings } = require('@aguia/integrations');
+const { getTenantIntegrationService } = require('../../../services/tenant-integration-service');
 const { getAuditService } = require('../../../services/audit-service');
 
 const router = Router();
@@ -25,8 +26,7 @@ function stripMaskedSecrets(body, currentSettings) {
 
 router.get('/', async (req, res) => {
   try {
-    const store = getStore();
-    const integracoes = await store.list({ masked: true, ...tenantOpts(req) });
+    const integracoes = await getTenantIntegrationService().listForTenant(req.tenantId || 1, { masked: true });
     res.json({ success: true, data: integracoes });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -35,8 +35,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:key', async (req, res) => {
   try {
-    const store = getStore();
-    const config = await store.get(req.params.key, tenantOpts(req));
+    const config = await getTenantIntegrationService().resolveConfig(req.params.key, req.tenantId || 1);
     res.json({
       success: true,
       data: {
@@ -52,13 +51,14 @@ router.get('/:key', async (req, res) => {
 
 router.put('/:key', async (req, res) => {
   try {
-    const store = getStore();
-    const current = await store.get(req.params.key, { useCache: false, ...tenantOpts(req) });
-    const { settings = {}, enabled } = req.body;
+    const tenantId = req.tenantId || 1;
+    const integrations = getTenantIntegrationService();
+    const current = await integrations.resolveConfig(req.params.key, tenantId);
+    const { settings = {}, enabled, credential_mode } = req.body;
     const cleaned = stripMaskedSecrets(settings, current.settings);
 
     if (req.params.key === 'rastreamento' && cleaned.provider === 'traccar') {
-      const traccar = await store.get('traccar', { useCache: false, ...tenantOpts(req) });
+      const traccar = await integrations.resolveConfig('traccar', tenantId);
       const ts = traccar.settings || {};
       const hasAuth = Boolean(ts.api_token || (ts.email && ts.password));
       if (!ts.url || !hasAuth) {
@@ -69,20 +69,22 @@ router.put('/:key', async (req, res) => {
       }
     }
 
-    const updated = await store.update(req.params.key, cleaned, {
+    const updated = await integrations.updateForTenant(req.params.key, cleaned, {
       enabled,
+      credentialMode: credential_mode,
       updatedBy: req.headers['x-admin-user'] || 'admin',
-      ...tenantOpts(req),
+      tenantId,
     });
     await getAuditService().adminAction('integration.update', {
       resourceType: 'integration',
       resourceId: req.params.key,
-      metadata: { enabled: updated.enabled },
+      metadata: { enabled: updated.enabled, credential_mode: updated.credential_mode },
       req,
     });
     res.json({ success: true, data: updated, message: 'Configuração salva. Serviços recarregarão automaticamente.' });
   } catch (err) {
-    res.status(err.message.includes('não existe') ? 404 : 500).json({ success: false, error: err.message });
+    const status = err.statusCode || (err.message.includes('não existe') ? 404 : 500);
+    res.status(status).json({ success: false, error: err.message, code: err.code });
   }
 });
 
@@ -106,7 +108,8 @@ router.post('/:key/test', async (req, res) => {
 
   try {
     const store = getStore();
-    const settings = await store.getSettings(key);
+    const tenantId = req.tenantId || 1;
+    const settings = await getTenantIntegrationService().getSettings(key, tenantId);
 
     if (key === 'traccar') {
       if (!settings.url) {
@@ -150,7 +153,7 @@ router.post('/:key/test', async (req, res) => {
     if (key === 'rastreamento') {
       const provider = settings.provider || 'gpswox';
       if (provider === 'traccar') {
-        const traccar = await store.getSettings('traccar');
+        const traccar = await getTenantIntegrationService().getSettings('traccar', tenantId);
         const hasAuth = Boolean(traccar.api_token || (traccar.email && traccar.password));
         if (!traccar.url || !hasAuth) {
           return res.status(400).json({
