@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { hasPlatformAccess } from '../../lib/platform-access';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,6 +32,12 @@ export default function LoginPage() {
 
       if (result.requires_2fa_setup) {
         setError(result.message || 'Configure 2FA antes de continuar.');
+        return;
+      }
+
+      const user = result.user || api.getStoredAdminUser();
+      if (hasPlatformAccess(user) && user?.role?.startsWith('platform_')) {
+        navigate('/platform');
         return;
       }
 

@@ -42,6 +42,13 @@ import LandingPage from './pages/LandingPage';
 import AdminSecurityPage from './pages/admin/AdminSecurityPage';
 import ClientSessionGate from './components/ClientSessionGate';
 import AdminSessionGate from './components/AdminSessionGate';
+import PlatformSessionGate from './components/PlatformSessionGate';
+import PlatformLayout from './pages/platform/PlatformLayout';
+import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
+import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
+import PlatformTenantDetailPage from './pages/platform/PlatformTenantDetailPage';
+import PlatformModulesPage from './pages/platform/PlatformModulesPage';
+import PlatformSaasPlansPage from './pages/platform/PlatformSaasPlansPage';
 
 function AdminRoute({ children }) {
   return <AdminSessionGate>{children}</AdminSessionGate>;
@@ -53,6 +60,10 @@ function ClientRoute({ children }) {
 
 function InstallerRoute({ children }) {
   return <ClientSessionGate installer>{children}</ClientSessionGate>;
+}
+
+function PlatformRoute({ children }) {
+  return <PlatformSessionGate>{children}</PlatformSessionGate>;
 }
 
 export default function App() {
@@ -128,6 +139,22 @@ export default function App() {
         <Route path="clientes" element={<AdminClientesPage />} />
         <Route path="clientes/:id" element={<AdminClienteDetailPage />} />
         <Route path="emergencia" element={<AdminEmergenciaPage />} />
+      </Route>
+
+      {/* Plataforma master (SaaS) */}
+      <Route
+        path="/platform"
+        element={
+          <PlatformRoute>
+            <PlatformLayout />
+          </PlatformRoute>
+        }
+      >
+        <Route index element={<PlatformDashboardPage />} />
+        <Route path="tenants" element={<PlatformTenantsPage />} />
+        <Route path="tenants/:id" element={<PlatformTenantDetailPage />} />
+        <Route path="modules" element={<PlatformModulesPage />} />
+        <Route path="saas-plans" element={<PlatformSaasPlansPage />} />
       </Route>
     </Routes>
   );

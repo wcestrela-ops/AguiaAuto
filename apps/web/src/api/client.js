@@ -1409,6 +1409,112 @@ class ApiClient {
   getAdminAuditResourceTypes() {
     return this.request('/v1/admin/audit/recursos', {}, { useAdmin: true });
   }
+
+  // ─── Platform (painel master) ───────────────────────────────────────────
+  getStoredAdminUser() {
+    try {
+      return JSON.parse(localStorage.getItem('admin_user') || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  getPlatformHealth() {
+    return this.request('/v1/platform/health', {}, { useAdmin: true });
+  }
+
+  getPlatformTenants(limit = 50) {
+    return this.request(`/v1/platform/tenants?limit=${limit}`, {}, { useAdmin: true });
+  }
+
+  getPlatformTenant(id) {
+    return this.request(`/v1/platform/tenants/${id}`, {}, { useAdmin: true });
+  }
+
+  createPlatformTenant(payload) {
+    return this.request('/v1/platform/tenants', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  updatePlatformTenant(id, payload) {
+    return this.request(`/v1/platform/tenants/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  suspendPlatformTenant(id) {
+    return this.request(`/v1/platform/tenants/${id}/suspend`, { method: 'POST' }, { useAdmin: true });
+  }
+
+  getPlatformModules() {
+    return this.request('/v1/platform/modules', {}, { useAdmin: true });
+  }
+
+  activatePlatformTenantModule(tenantId, code) {
+    return this.request(`/v1/platform/tenants/${tenantId}/modules/${code}/activate`, {
+      method: 'POST',
+      body: JSON.stringify({ source: 'MANUAL' }),
+    }, { useAdmin: true });
+  }
+
+  suspendPlatformTenantModule(tenantId, code) {
+    return this.request(`/v1/platform/tenants/${tenantId}/modules/${code}/suspend`, {
+      method: 'POST',
+    }, { useAdmin: true });
+  }
+
+  getPlatformSaasPlans(status = 'ACTIVE') {
+    return this.request(`/v1/platform/saas-plans?status=${status}`, {}, { useAdmin: true });
+  }
+
+  getPlatformSaasPlan(id) {
+    return this.request(`/v1/platform/saas-plans/${id}`, {}, { useAdmin: true });
+  }
+
+  createPlatformSaasPlan(payload) {
+    return this.request('/v1/platform/saas-plans', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  updatePlatformSaasPlan(id, payload) {
+    return this.request(`/v1/platform/saas-plans/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  setPlatformSaasPlanModules(id, moduleCodes) {
+    return this.request(`/v1/platform/saas-plans/${id}/modules`, {
+      method: 'PUT',
+      body: JSON.stringify({ module_codes: moduleCodes }),
+    }, { useAdmin: true });
+  }
+
+  getPlatformTenantSubscription(tenantId) {
+    return this.request(`/v1/platform/tenants/${tenantId}/subscription`, {}, { useAdmin: true });
+  }
+
+  assignPlatformTenantSubscription(tenantId, payload) {
+    return this.request(`/v1/platform/tenants/${tenantId}/subscription`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  getPlatformTenantUsage(tenantId) {
+    return this.request(`/v1/platform/tenants/${tenantId}/usage`, {}, { useAdmin: true });
+  }
+
+  refreshPlatformTenantUsage(tenantId) {
+    return this.request(`/v1/platform/tenants/${tenantId}/usage/refresh`, {
+      method: 'POST',
+    }, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

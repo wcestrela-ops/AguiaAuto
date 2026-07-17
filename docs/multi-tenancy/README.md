@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–4
+# Multi-tenancy e modularidade — Fases 1–5
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -149,6 +149,36 @@ Permissão: `billing.view`
 
 ---
 
+## Fase 5 — Painel master UI (frontend)
+
+SPA React em `apps/web` — rota `/platform/*`, reutiliza login admin (`/admin/login`).
+
+### Acesso
+- Mesma sessão admin (cookies HttpOnly + CSRF)
+- Gate: `PlatformSessionGate` verifica papel `platform_*`, permissão `platform.*` ou `superadmin`
+- Operadores `platform_*` são redirecionados para `/platform` após login
+
+### Páginas
+| Rota | Componente | API |
+|------|------------|-----|
+| `/platform` | Dashboard | `GET /v1/platform/health` |
+| `/platform/tenants` | Empresas | `GET/POST /v1/platform/tenants` |
+| `/platform/tenants/:id` | Detalhe | tenant, módulos, assinatura, uso |
+| `/platform/modules` | Catálogo | `GET /v1/platform/modules` |
+| `/platform/saas-plans` | Planos SaaS | CRUD `/v1/platform/saas-plans` |
+
+### Arquivos principais
+| Arquivo | Função |
+|---------|--------|
+| `apps/web/src/lib/platform-access.js` | RBAC frontend |
+| `apps/web/src/components/PlatformSessionGate.jsx` | Gate de sessão |
+| `apps/web/src/pages/platform/PlatformLayout.jsx` | Layout + nav |
+| `apps/web/src/api/client.js` | Métodos `getPlatform*` |
+
+Link **Plataforma SaaS** no sidebar admin para usuários com acesso.
+
+---
+
 ## Testes
 
 ```bash
@@ -160,8 +190,9 @@ npm run test:api
 | `test/tenant/tenant-isolation.test.js` | Contexto, spoof, cache prefix |
 | `test/modules/module-access.test.js` | Platform roles, route→module map |
 | `test/modules/saas-billing.test.js` | Billing SaaS, limites de uso |
+| `apps/web/src/lib/platform-access.test.js` | RBAC painel master |
 
-**66 testes** passando.
+**66 testes API + testes web** passando.
 
 ---
 
@@ -169,7 +200,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 5 | Painel master UI (frontend) |
 | 6 | TrackingProvider formal + external_entity_mappings |
 | 7 | Integrações SHARED/OWN por tenant |
 | 8 | Onboarding B2B empresa |

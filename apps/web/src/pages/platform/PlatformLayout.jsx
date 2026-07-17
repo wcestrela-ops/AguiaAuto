@@ -1,48 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import { getStoredAdminUser, hasPlatformAccess } from '../../lib/platform-access';
+import { filterPlatformNav, getStoredAdminUser, hasPlatformAccess } from '../../lib/platform-access';
 
 const NAV = [
-  { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/integracoes', label: 'Integrações' },
-  { to: '/admin/whatsapp', label: 'WhatsApp' },
-  { to: '/admin/sms', label: 'SMS Rastreador' },
-  { to: '/admin/veiculos', label: 'Veículos' },
-  { to: '/admin/clientes', label: 'Clientes' },
-  { to: '/admin/financeiro', label: 'Financeiro' },
-  { to: '/admin/planos', label: 'Planos' },
-  { to: '/admin/site', label: 'Landing page' },
-  { to: '/admin/alertas', label: 'Alertas' },
-  { to: '/admin/emergencia', label: 'Emergência' },
-  { to: '/admin/instaladores', label: 'Instaladores' },
-  { to: '/admin/contratos', label: 'Contratos' },
-  { to: '/admin/frota', label: 'Documentos' },
-  { to: '/admin/indicacoes', label: 'Indicações' },
-  { to: '/admin/seguranca', label: 'Segurança' },
-  { to: '/admin/auditoria', label: 'Auditoria' },
+  { to: '/platform', label: 'Dashboard', end: true, permission: 'platform.health.view' },
+  { to: '/platform/tenants', label: 'Empresas', permission: 'platform.tenants.view' },
+  { to: '/platform/modules', label: 'Módulos', permission: 'platform.modules.view' },
+  { to: '/platform/saas-plans', label: 'Planos SaaS', permission: 'platform.billing.view' },
 ];
 
-const PAGE_TITLES = Object.fromEntries(NAV.map((item) => [item.to, item.label]));
+const PAGE_TITLES = {
+  '/platform': 'Dashboard',
+  '/platform/tenants': 'Empresas',
+  '/platform/modules': 'Módulos',
+  '/platform/saas-plans': 'Planos SaaS',
+};
 
 function resolvePageTitle(pathname) {
-  if (pathname.startsWith('/admin/integracoes/')) return 'Integração';
-  if (pathname.startsWith('/admin/clientes/')) return 'Cliente';
-  return PAGE_TITLES[pathname] || 'Águia Admin';
+  if (pathname.startsWith('/platform/tenants/')) return 'Empresa';
+  return PAGE_TITLES[pathname] || 'Plataforma Águia';
 }
 
-export default function AdminLayout() {
+export default function PlatformLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const pageTitle = resolvePageTitle(location.pathname);
   const user = useMemo(() => getStoredAdminUser(), [location.pathname]);
-  const showPlatformLink = hasPlatformAccess(user);
+  const navItems = useMemo(() => filterPlatformNav(user, NAV), [user]);
+  const showAdminLink = user && !user.role?.startsWith('platform_');
 
   useEffect(() => {
-    document.title = `${pageTitle} · Águia Admin`;
+    document.title = `${pageTitle} · Plataforma Águia`;
     return () => {
-      document.title = 'Águia Admin';
+      document.title = 'Plataforma Águia';
     };
   }, [pageTitle]);
 
@@ -63,7 +55,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className={`admin-shell${navOpen ? ' nav-open' : ''}`}>
+    <div className={`admin-shell platform-shell${navOpen ? ' nav-open' : ''}`}>
       {navOpen ? (
         <button
           type="button"
@@ -73,17 +65,17 @@ export default function AdminLayout() {
         />
       ) : null}
 
-      <aside className="sidebar" aria-label="Navegação admin">
+      <aside className="sidebar" aria-label="Navegação plataforma">
         <div className="sidebar-brand">
-          <span>🦅</span>
+          <span>🌐</span>
           <div>
             <strong>Águia</strong>
-            <small>Gestão Veicular</small>
+            <small>Plataforma SaaS</small>
           </div>
         </div>
 
         <nav>
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
               {item.label}
             </NavLink>
@@ -91,14 +83,11 @@ export default function AdminLayout() {
         </nav>
 
         <div className="sidebar-footer">
-          {showPlatformLink ? (
-            <NavLink to="/platform" className="nav-link nav-link-compact">
-              Plataforma SaaS
+          {showAdminLink && hasPlatformAccess(user) ? (
+            <NavLink to="/admin" className="nav-link nav-link-compact">
+              Admin tenant
             </NavLink>
           ) : null}
-          <NavLink to="/admin/integracoes" className="nav-link nav-link-compact">
-            Integrações
-          </NavLink>
           <button type="button" className="btn-ghost" onClick={logout}>
             Sair
           </button>
