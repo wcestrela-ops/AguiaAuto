@@ -1,10 +1,15 @@
 # Produção — EasyPanel / VPS
 # Compose file path no EasyPanel: docker-compose.prod.yml
+# Guia completo: docs/deploy/easypanel.md
 #
 # 1. Copie .env.production.example → .env e preencha os valores
-# 2. Domínio + HTTPS apenas no serviço web (porta 80)
-# 3. API fica em /api via Nginx (apps/web/nginx.conf)
-# 4. WebSocket em /ws via Nginx
+# 2. Valide: ./scripts/deploy-check.sh .env
+# 3. Domínio + HTTPS apenas no serviço web (porta 80)
+# 4. API fica em /api via Nginx (apps/web/nginx.conf)
+# 5. WebSocket em /ws via Nginx
+# 6. Probes: GET /health/live (liveness), GET /health/ready (readiness)
+#
+# Imagens GHCR (CD): substitua build: por image: ghcr.io/<owner>/aguia-api:latest etc.
 
 services:
   postgres:
@@ -87,7 +92,7 @@ services:
     networks:
       - aguia_network
     healthcheck:
-      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/health/ready', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       start_period: 20s

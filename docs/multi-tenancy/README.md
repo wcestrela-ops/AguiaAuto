@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–8
+# Multi-tenancy e modularidade — Fases 1–9
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -291,6 +291,32 @@ Link **Onboarding B2B** na nav platform e na listagem de empresas.
 
 ---
 
+## Fase 9 — Deploy EasyPanel e operação
+
+Documentação operacional para produção em VPS/EasyPanel.
+
+### Health probes
+| Endpoint | Tipo | Descrição |
+|----------|------|-----------|
+| `GET /health/live` | Liveness | Processo API vivo |
+| `GET /health/ready` | Readiness | Postgres acessível |
+| `GET /health` | Completo | DB, Redis, gateway, filas |
+
+### Documentos
+| Arquivo | Conteúdo |
+|---------|----------|
+| [`docs/deploy/easypanel.md`](../deploy/easypanel.md) | Guia passo a passo EasyPanel |
+| [`docs/operations/runbook.md`](../operations/runbook.md) | Backup, multi-tenant, troubleshooting |
+| [`scripts/deploy-check.sh`](../../scripts/deploy-check.sh) | Pré-validação de `.env` |
+| [`.env.production.example`](../../.env.production.example) | Variáveis produção + SaaS |
+
+### Compose produção
+- `docker-compose.prod.yml` — 7 serviços + profile backup
+- Healthcheck API usa `/health/ready`
+- CD publica imagens GHCR (`.github/workflows/cd.yml`)
+
+---
+
 ## Testes
 
 ```bash
@@ -306,8 +332,9 @@ npm run test:api
 | `test/lib/tracking-provider.test.js` | TrackingProvider, sync strategies, factory |
 | `test/services/tenant-integration.test.js` | SHARED/OWN, merge settings |
 | `test/services/tenant-onboarding.test.js` | Slugify, steps B2B onboarding |
+| `test/infrastructure/health-probes.test.js` | Liveness/readiness, aggregateStatus |
 
-**80 testes API + testes web** passando.
+**83 testes API + testes web** passando.
 
 ---
 
@@ -315,6 +342,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 9 | Deploy EasyPanel / documentação operacional |
+| 10 | Observabilidade avançada, OpenAPI, carga |
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

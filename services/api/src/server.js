@@ -49,7 +49,7 @@ const { migratePhase4SaasBilling } = require('./db/migrate-phase4-saas-billing')
 const { migratePhase6TrackingProvider } = require('./db/migrate-phase6-tracking-provider');
 const { migratePhase7TenantIntegrations } = require('./db/migrate-phase7-tenant-integrations');
 const { migrateCommandStates } = require('./db/migrate-command-states');
-const { getHealthReport } = require('./infrastructure/health-service');
+const { getHealthReport, getReadinessReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
 const { isRedisEnabled } = require('./infrastructure/redis');
 const { getRbacRepository } = require('./repositories/rbac-repository');
@@ -148,6 +148,35 @@ app.get('/health', async (req, res) => {
     res.status(503).json({
       status: 'UNAVAILABLE',
       service: 'aguia-api',
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+app.get('/health/live', (req, res) => {
+  res.status(200).json({
+    status: 'HEALTHY',
+    service: 'aguia-api',
+    probe: 'live',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health/ready', async (req, res) => {
+  try {
+    const report = await getReadinessReport();
+    const httpStatus = report.status === 'UNAVAILABLE' ? 503 : 200;
+    res.status(httpStatus).json({
+      service: 'aguia-api',
+      probe: 'ready',
+      ...report,
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'UNAVAILABLE',
+      service: 'aguia-api',
+      probe: 'ready',
       error: err.message,
       timestamp: new Date().toISOString(),
     });

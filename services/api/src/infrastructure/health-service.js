@@ -8,6 +8,9 @@ const startedAt = Date.now();
 
 async function checkPostgres() {
   const start = Date.now();
+  if (!process.env.DATABASE_URL) {
+    return { status: 'UNAVAILABLE', latencyMs: 0, error: 'DATABASE_URL not configured' };
+  }
   try {
     await getPool().query('SELECT 1');
     return { status: 'HEALTHY', latencyMs: Date.now() - start };
@@ -54,17 +57,6 @@ async function checkGateway(name, baseUrl) {
   }
 }
 
-function aggregateStatus(components) {
-  const values = Object.values(components).map((c) => c.status);
-  if (values.every((s) => s === 'HEALTHY')) return 'HEALTHY';
-  if (values.some((s) => s === 'UNAVAILABLE')) {
-    const unhealthyCore = ['postgres', 'api'].some((k) => components[k]?.status === 'UNAVAILABLE');
-    return unhealthyCore ? 'UNAVAILABLE' : 'DEGRADED';
-  }
-  if (values.some((s) => s === 'RECOVERING')) return 'RECOVERING';
-  return 'DEGRADED';
-}
-
 async function getHealthReport() {
   const gatewayUrl = process.env.GATEWAY_URL || 'http://localhost:3001';
   const [postgres, redis, gpswoxGateway, traccarGateway, queues] = await Promise.all([
@@ -109,7 +101,36 @@ async function getHealthReport() {
   };
 }
 
+function aggregateStatus(components) {
+  const values = Object.values(components).map((c) => c.status);
+  if (values.every((s) => s === 'HEALTHY')) return 'HEALTHY';
+  if (values.some((s) => s === 'UNAVAILABLE')) {
+    const unhealthyCore = ['postgres', 'api'].some((k) => components[k]?.status === 'UNAVAILABLE');
+    return unhealthyCore ? 'UNAVAILABLE' : 'DEGRADED';
+  }
+  if (values.some((s) => s === 'RECOVERING')) return 'RECOVERING';
+  return 'DEGRADED';
+}
+
+async function getReadinessReport() {
+  const [postgres, redis] = await Promise.all([
+    checkPostgres(),
+    checkRedis(),
+  ]);
+
+  const components = { postgres, redis };
+  const status = postgres.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'HEALTHY';
+
+  return {
+    status,
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+    components,
+  };
+}
+
 module.exports = {
   getHealthReport,
+  getReadinessReport,
   aggregateStatus,
 };
