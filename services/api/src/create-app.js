@@ -52,6 +52,7 @@ const adminSaasAccountRoutes = require('./modules/admin/saas-account/routes');
 const adminExportRoutes = require('./modules/admin/export/routes');
 const platformRoutes = require('./modules/platform/routes');
 const tenantRoutes = require('./modules/tenant/routes');
+const clientModulesRoutes = require('./modules/client/modules/routes');
 const lgpdRoutes = require('./modules/lgpd/routes');
 const { requireModule } = require('./middleware/require-module');
 const { adminRbac } = require('./lib/security/admin-route-permissions');
@@ -176,6 +177,7 @@ function createApp() {
   app.use('/v1/indicacoes', jwtAuth, tenantContext, requireServiceContract, indicacoesRoutes);
   app.use('/v1/frota', jwtAuth, tenantContext, requireServiceContract, frotaRoutes);
   app.use('/v1/contratos', jwtAuth, tenantContext, contratosRoutes);
+  app.use('/v1/client/modules', jwtAuth, tenantContext, clientModulesRoutes);
   app.use('/v1/instalador', jwtAuth, tenantContext, requireRole('installer', 'admin'), instaladorRoutes);
   app.use('/v1/platform', platformRoutes);
   app.use('/v1/admin/auth', adminAuthRoutes);

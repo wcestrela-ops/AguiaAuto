@@ -67,7 +67,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | [`docs/multi-tenancy/README.md`](docs/multi-tenancy/README.md) | Transformação SaaS (Fases 1–9) |
 
 Health probes: `GET /health/live`, `GET /health/ready`, `GET /health`.  
-OpenAPI: `GET /v1/openapi.json` · Prometheus: `GET /metrics` (com `PROMETHEUS_ENABLED=true`).
+OpenAPI: `GET /v1/openapi.json` · Swagger UI: `GET /v1/docs` · Prometheus: `GET /metrics` (com `PROMETHEUS_ENABLED=true`).
 
 ### Painel Admin (PWA)
 
