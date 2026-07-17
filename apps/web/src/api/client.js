@@ -1553,6 +1553,10 @@ class ApiClient {
     return this.request('/v1/admin/modules', {}, { useAdmin: true });
   }
 
+  getClientModules() {
+    return this.request('/v1/client/modules', {}, { useClient: true });
+  }
+
   getAdminBranding() {
     return this.request('/v1/admin/branding', {}, { useAdmin: true });
   }

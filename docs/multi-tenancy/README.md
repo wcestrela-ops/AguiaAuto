@@ -444,6 +444,29 @@ Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architect
 
 ---
 
+## Fase 12 — Menu cliente PWA dinâmico
+
+### API
+- `GET /v1/client/modules` — módulos ativos do tenant (JWT cliente + tenantContext)
+
+### Frontend
+- `apps/web/src/lib/client-modules.js` — `CLIENT_NAV` filtrado por módulos contratados
+- `ClientLayout.jsx` — busca módulos quando `VITE_MULTI_TENANT_ENABLED=true`
+- Contrato pendente: `CONTRACT_ONLY_NAV` (só Contratos) permanece inalterado
+- Branding do tenant na sidebar (logo + nome)
+
+### Mapeamento rota → módulo (cliente)
+| Rota PWA | Módulo |
+|----------|--------|
+| `/app/veiculos` | TRACKING |
+| `/app/financeiro` | FINANCE |
+| `/app/contratos` | CONTRACTS |
+| `/app/frota` | CORE_VEHICLES |
+| `/app/emergencia`, `/app/alertas` | NOTIFICATIONS |
+| `/app`, `/app/perfil` | sempre visível |
+
+---
+
 ## Fase 13 — Swagger UI
 
 ### Endpoint
@@ -456,4 +479,4 @@ Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architect
 
 ### Testes
 - `test/infrastructure/openapi-docs.test.js` — flag de habilitação
-- E2E: `GET /v1/docs` retorna HTML Swagger
+- E2E: `GET /v1/docs/` retorna HTML Swagger
