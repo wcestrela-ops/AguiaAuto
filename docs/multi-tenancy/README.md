@@ -367,8 +367,11 @@ npm run test:api
 | `test/infrastructure/health-probes.test.js` | Liveness/readiness, aggregateStatus |
 | `test/infrastructure/prometheus-metrics.test.js` | Métricas Prometheus, normalizeRoute |
 | `test/infrastructure/openapi.test.js` | Spec OpenAPI SaaS |
+| `test/tenant/repository-tenant-helpers.test.js` | Helper isolamento repositórios |
+| `test/tenant/repository-sql-isolation.test.js` | SQL tenant em repositórios |
+| `test/integration/tenant-cross-tenant.integration.test.js` | Cross-tenant DB (opcional) |
 
-**88 testes API + testes web** passando.
+**100 testes API** (99 pass + 1 skip integração) + testes web passando.
 
 ---
 
@@ -413,5 +416,28 @@ TENANT_INTEGRATION_TEST=true DATABASE_URL=postgresql://... npm run test:api
 4. Onboarding B2B em `/platform/onboarding`
 5. Validar admin tenant A não vê dados tenant B
 6. Produção: ativar flag após validação
+
+---
+
+## Fase 11 — Branding e menu dinâmico (go-live UX)
+
+### Branding por tenant
+- Migration: `migrate-phase11-tenant-branding.js` — `brand_name`, `logo_url`, `primary_color`, `favicon_url`, `custom_domain`
+- API pública: `GET /v1/tenant/branding` (slug via subdomínio, header `X-Tenant-Slug` ou query)
+- API admin: `GET/PATCH /v1/admin/branding` (permissão `settings.manage`)
+- Frontend: `loadTenantBranding()` aplica CSS vars e favicon no boot
+
+### Resolução de subdomínio
+- `resolveTenantSlugFromHost` / `resolveTenantSlugFromRequest` em `tenant-resolver.js`
+- `defaultTenantContext` resolve tenant por subdomínio quando `MULTI_TENANT_ENABLED=true`
+
+### Menu admin dinâmico
+- `apps/web/src/lib/admin-modules.js` — filtra `ADMIN_NAV` por módulos ativos
+- `GET /v1/admin/modules` — módulos contratados do tenant
+- Flag frontend: `VITE_MULTI_TENANT_ENABLED=true`
+
+### Testes E2E HTTP
+- `services/api/test/e2e/http-smoke.test.js` — supertest em `createApp()`
+- Cobre: `/health/live`, `/v1/openapi.json`, `/v1/tenant/branding`, rejeição tenant spoofed
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

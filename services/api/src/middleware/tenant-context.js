@@ -1,12 +1,32 @@
-const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
-const { resolveTenantId, validateClientTenantScope } = require('../lib/tenant/tenant-resolver');
+const { DEFAULT_TENANT_ID, isMultiTenantEnabled } = require('../lib/tenant/tenant-config');
+const { resolveTenantId, validateClientTenantScope, resolveTenantSlugFromRequest } = require('../lib/tenant/tenant-resolver');
+const { getTenantRepository } = require('../repositories/tenant-repository');
 
-function defaultTenantContext(req, res, next) {
-  req.tenantId = DEFAULT_TENANT_ID;
+async function defaultTenantContext(req, res, next) {
+  let tenantId = DEFAULT_TENANT_ID;
+  let tenantSlug = null;
+  let source = 'default';
+
+  if (isMultiTenantEnabled()) {
+    tenantSlug = resolveTenantSlugFromRequest(req);
+    if (tenantSlug && process.env.DATABASE_URL) {
+      try {
+        const tenant = await getTenantRepository().findBySlug(tenantSlug);
+        if (tenant && tenant.active !== false) {
+          tenantId = tenant.id;
+          source = 'subdomain';
+        }
+      } catch {
+        /* fallback para tenant padrão */
+      }
+    }
+  }
+
+  req.tenantId = tenantId;
   req.tenantContext = {
-    tenantId: DEFAULT_TENANT_ID,
-    tenantSlug: null,
-    source: 'default',
+    tenantId,
+    tenantSlug,
+    source,
   };
   next();
 }
@@ -29,9 +49,9 @@ function tenantContext(req, res, next) {
   req.tenantId = validation.tenantId;
   req.tenantContext = {
     tenantId: validation.tenantId,
-    tenantSlug: req.admin?.tenant_slug || req.user?.tenant_slug || null,
+    tenantSlug: req.admin?.tenant_slug || req.user?.tenant_slug || req.tenantContext?.tenantSlug || null,
     userId: req.admin?.id || req.user?.id || null,
-    source: req.admin ? 'admin' : req.user ? 'user' : 'default',
+    source: req.admin ? 'admin' : req.user ? 'user' : req.tenantContext?.source || 'default',
   };
 
   return next();

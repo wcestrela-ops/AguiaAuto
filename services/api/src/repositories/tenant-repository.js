@@ -10,6 +10,7 @@ class TenantRepository {
     const { rows } = await this.pool.query(
       `SELECT id, name, legal_name, trade_name, slug, document_type, document_number,
               email, phone, status, timezone, locale, currency, active,
+              brand_name, logo_url, primary_color, favicon_url, custom_domain,
               created_at, updated_at, deleted_at
        FROM tenants
        WHERE id = $1 AND deleted_at IS NULL`,
@@ -21,7 +22,8 @@ class TenantRepository {
   async findBySlug(slug) {
     if (!slug) return null;
     const { rows } = await this.pool.query(
-      `SELECT id, name, legal_name, trade_name, slug, status, active, timezone, locale, currency
+      `SELECT id, name, legal_name, trade_name, slug, status, active, timezone, locale, currency,
+              brand_name, logo_url, primary_color, favicon_url, custom_domain
        FROM tenants
        WHERE slug = $1 AND deleted_at IS NULL`,
       [String(slug).toLowerCase().trim()],
@@ -100,6 +102,11 @@ class TenantRepository {
         timezone = COALESCE($10, timezone),
         locale = COALESCE($11, locale),
         currency = COALESCE($12, currency),
+        brand_name = COALESCE($13, brand_name),
+        logo_url = COALESCE($14, logo_url),
+        primary_color = COALESCE($15, primary_color),
+        favicon_url = COALESCE($16, favicon_url),
+        custom_domain = COALESCE($17, custom_domain),
         updated_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING *`,
@@ -116,6 +123,11 @@ class TenantRepository {
         data.timezone,
         data.locale,
         data.currency,
+        data.brand_name,
+        data.logo_url,
+        data.primary_color,
+        data.favicon_url,
+        data.custom_domain,
       ],
     );
     return rows[0] || null;

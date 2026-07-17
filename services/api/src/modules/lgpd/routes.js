@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { getLgpdService } = require('../../../services/lgpd-service');
+const { getLgpdService } = require('../../services/lgpd-service');
 
 const router = Router();
 

@@ -5,7 +5,7 @@ const { getModuleAccessService } = require('../../../services/module-access-serv
 
 const router = Router();
 
-router.get('/modules', adminAuth, requirePermission('modules.view'), async (req, res) => {
+router.get('/', adminAuth, requirePermission('modules.view'), async (req, res) => {
   try {
     const modules = await getModuleAccessService().getActiveModules(req.tenantId);
     res.json({ success: true, data: modules });

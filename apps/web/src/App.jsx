@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { api } from './api/client';
+import { loadTenantBranding } from './lib/tenant-branding';
 import LoginPage from './pages/admin/LoginPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
@@ -68,6 +71,10 @@ function PlatformRoute({ children }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    loadTenantBranding(api);
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

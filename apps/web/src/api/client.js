@@ -1543,6 +1543,26 @@ class ApiClient {
       body: JSON.stringify(payload),
     }, { useAdmin: true });
   }
+
+  getTenantBranding(slug) {
+    const qs = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+    return this.request(`/v1/tenant/branding${qs}`);
+  }
+
+  getAdminModules() {
+    return this.request('/v1/admin/modules', {}, { useAdmin: true });
+  }
+
+  getAdminBranding() {
+    return this.request('/v1/admin/branding', {}, { useAdmin: true });
+  }
+
+  updateAdminBranding(payload) {
+    return this.request('/v1/admin/branding', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

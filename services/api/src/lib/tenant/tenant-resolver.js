@@ -45,9 +45,35 @@ function validateClientTenantScope(req, resolvedTenantId) {
   return { ok: true, tenantId: resolvedTenantId };
 }
 
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'platform', 'localhost']);
+
+function resolveTenantSlugFromHost(hostHeader) {
+  if (!hostHeader) return null;
+  const host = String(hostHeader).toLowerCase().split(':')[0];
+  const parts = host.split('.').filter(Boolean);
+  if (parts.length >= 3) {
+    const sub = parts[0];
+    if (!RESERVED_SUBDOMAINS.has(sub)) return sub;
+  }
+  if (parts.length === 2 && parts[1] === 'localhost' && !RESERVED_SUBDOMAINS.has(parts[0])) {
+    return parts[0];
+  }
+  return null;
+}
+
+function resolveTenantSlugFromRequest(req) {
+  const headerSlug = req.headers['x-tenant-slug'] || req.headers['x-tenant'];
+  if (headerSlug) return String(headerSlug).toLowerCase().trim();
+  if (req.query?.tenant_slug) return String(req.query.tenant_slug).toLowerCase().trim();
+  if (req.query?.tenant) return String(req.query.tenant).toLowerCase().trim();
+  return resolveTenantSlugFromHost(req.headers.host);
+}
+
 module.exports = {
   resolveTenantId,
   resolveTenantFromAuth,
   extractClientTenantId,
   validateClientTenantScope,
+  resolveTenantSlugFromHost,
+  resolveTenantSlugFromRequest,
 };
