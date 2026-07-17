@@ -42,6 +42,8 @@ const PLATFORM_PERMISSIONS = [
   { slug: 'platform.health.view', category: 'platform', description: 'Saúde operacional da plataforma' },
   { slug: 'platform.audit.view', category: 'platform', description: 'Auditoria cross-tenant' },
   { slug: 'platform.support.impersonate', category: 'platform', description: 'Modo suporte controlado' },
+  { slug: 'platform.billing.view', category: 'platform', description: 'Visualizar planos e assinaturas SaaS' },
+  { slug: 'platform.billing.manage', category: 'platform', description: 'Gerenciar planos, assinaturas e limites' },
 ];
 
 const ALL_PERMISSIONS = [...PERMISSIONS, ...PLATFORM_PERMISSIONS];
@@ -94,6 +96,7 @@ const PLATFORM_ROLE_PERMISSIONS = {
   ],
   platform_finance: [
     'platform.tenants.view', 'platform.modules.view', 'platform.health.view',
+    'platform.billing.view', 'platform.billing.manage',
   ],
 };
 

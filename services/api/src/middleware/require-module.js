@@ -10,7 +10,7 @@ function requireModule(moduleCode) {
       await getModuleAccessService().assertActive(req.tenantId, code);
       return next();
     } catch (err) {
-      if (err.code === 'MODULE_NOT_ACTIVE') {
+      if (err.code === 'MODULE_NOT_ACTIVE' || err.code === 'SAAS_SUBSCRIPTION_INACTIVE') {
         return res.status(403).json({
           success: false,
           error: {

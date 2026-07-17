@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–3
+# Multi-tenancy e modularidade — Fases 1–4
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -96,6 +96,59 @@ plan, audit, alert (+ backfill via JOIN users/vehicles)
 
 ---
 
+## Fase 4 — Planos SaaS, assinaturas e limites
+
+### Tabelas (prefixo `saas_` — distinto de planos B2C `plans`)
+| Tabela | Descrição |
+|--------|-----------|
+| `saas_plans` | Planos comerciais da plataforma |
+| `saas_plan_modules` | Módulos incluídos por plano |
+| `module_prices` | Preços por módulo/ciclo |
+| `tenant_saas_subscriptions` | Assinatura SaaS por empresa |
+| `tenant_usage_limits` | Limites configuráveis por tenant |
+| `tenant_usage_metrics` | Cache de métricas medidas |
+
+Plano seed: **aguia-completo** — tenant #1 com assinatura ACTIVE e limites enterprise.
+
+### Serviços
+| Serviço | Responsabilidade |
+|---------|------------------|
+| `SaasBillingService` | Planos, assinaturas, sync módulos do plano |
+| `UsageMeteringService` | Medição e verificação de limites |
+
+### Integração com módulos
+- `ModuleAccessService` verifica assinatura SaaS ativa quando `MULTI_TENANT_ENABLED=true`
+- `requireUsageLimit(metric)` — middleware HTTP 429 quando limite excedido
+
+### Painel master — billing SaaS
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/saas-plans` | Listar planos |
+| `POST /v1/platform/saas-plans` | Criar plano |
+| `GET /v1/platform/saas-plans/:id` | Detalhe + módulos |
+| `PATCH /v1/platform/saas-plans/:id` | Editar plano |
+| `PUT /v1/platform/saas-plans/:id/modules` | Módulos do plano |
+| `GET /v1/platform/tenants/:id/subscription` | Assinatura ativa |
+| `POST /v1/platform/tenants/:id/subscription` | Atribuir plano |
+| `PATCH /v1/platform/tenants/:id/subscription/:subId` | Alterar status |
+| `GET /v1/platform/tenants/:id/usage` | Uso vs limites |
+| `PUT /v1/platform/tenants/:id/usage-limits` | Configurar limites |
+
+Permissões: `platform.billing.view`, `platform.billing.manage`
+
+### Admin tenant
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/admin/subscription` | Assinatura e plano da empresa |
+| `GET /v1/admin/usage` | Consumo vs limites |
+
+Permissão: `billing.view`
+
+### Migration Fase 4
+`migrate-phase4-saas-billing.js`
+
+---
+
 ## Testes
 
 ```bash
@@ -106,8 +159,9 @@ npm run test:api
 |-------|--------|
 | `test/tenant/tenant-isolation.test.js` | Contexto, spoof, cache prefix |
 | `test/modules/module-access.test.js` | Platform roles, route→module map |
+| `test/modules/saas-billing.test.js` | Billing SaaS, limites de uso |
 
-**60 testes** passando.
+**66 testes** passando.
 
 ---
 
@@ -115,7 +169,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 4 | Planos SaaS, assinaturas, limites de uso |
 | 5 | Painel master UI (frontend) |
 | 6 | TrackingProvider formal + external_entity_mappings |
 | 7 | Integrações SHARED/OWN por tenant |

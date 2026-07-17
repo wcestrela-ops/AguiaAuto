@@ -45,6 +45,7 @@ const { migrateTenantsFoundation } = require('./db/migrate-tenants-foundation');
 const { migrateAguiaTenantSeed } = require('./db/migrate-aguia-tenant-seed');
 const { migratePhase2TenantTables } = require('./db/migrate-phase2-tenant-tables');
 const { migratePhase3Modules } = require('./db/migrate-phase3-modules');
+const { migratePhase4SaasBilling } = require('./db/migrate-phase4-saas-billing');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
@@ -94,6 +95,7 @@ const adminAuthRoutes = require('./modules/admin/auth/routes');
 const adminSecurityRoutes = require('./modules/admin/security/routes');
 const adminLgpdRoutes = require('./modules/admin/lgpd/routes');
 const adminModulesRoutes = require('./modules/admin/modules/routes');
+const adminSaasAccountRoutes = require('./modules/admin/saas-account/routes');
 const platformRoutes = require('./modules/platform/routes');
 const lgpdRoutes = require('./modules/lgpd/routes');
 const { requireModule } = require('./middleware/require-module');
@@ -205,6 +207,7 @@ const adminProtected = [adminAuth, tenantContext, adminRbac];
 app.use('/v1/admin/security', adminSecurityRoutes);
 app.use('/v1/admin/lgpd', adminLgpdRoutes);
 app.use('/v1/admin/modules', ...adminProtected, adminModulesRoutes);
+app.use('/v1/admin', ...adminProtected, adminSaasAccountRoutes);
 app.use('/v1/admin/export', ...adminProtected, adminExportRoutes);
 app.use('/v1/admin/integracoes', ...adminProtected, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', ...adminProtected, adminWhatsappRoutes);
@@ -301,6 +304,9 @@ async function bootstrap() {
 
     const moduleSeed = await migratePhase3Modules();
     logger.info(`Fase 3 — catálogo de módulos: ${moduleSeed.modules} módulos, tenant Águia ativado.`);
+
+    const saasBillingSeed = await migratePhase4SaasBilling();
+    logger.info(`Fase 4 — billing SaaS: plano ${saasBillingSeed.plan_id}, ${saasBillingSeed.modules_linked} módulos vinculados.`);
 
     await getRbacRepository().seedDefaults();
     logger.info('RBAC padrão (funções e permissões) inicializado.');
