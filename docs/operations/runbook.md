@@ -52,9 +52,28 @@ curl -s https://<dominio>/api/health | jq .
 ```env
 SENTRY_DSN=https://...
 UPTIME_KUMA_PUSH_URL=https://...
-PROMETHEUS_ENABLED=false
+PROMETHEUS_ENABLED=true
 LOG_LEVEL=info
 ```
+
+### Prometheus
+
+Scrape interno (rede Docker):
+
+```yaml
+# prometheus.yml (exemplo)
+scrape_configs:
+  - job_name: aguia-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:3000']
+```
+
+Métricas HTTP incluem label `tenant_id` quando multi-tenant ativo.
+
+Spec OpenAPI: `GET /v1/openapi.json` — ver [`docs/api/openapi.md`](../api/openapi.md).
+
+Teste de carga: `node scripts/load-test.js` — ver [`docs/operations/load-testing.md`](load-testing.md).
 
 ---
 

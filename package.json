@@ -21,6 +21,7 @@
     "test:api": "npm run test -w @aguia/api",
     "test:web": "npm run test -w @aguia/web",
     "test:gateway": "npm run test -w @aguia/gpswox-gateway",
+    "load-test": "node scripts/load-test.js",
     "diagnostico": "npm run diagnostico -w @aguia/gpswox-gateway"
   }
 }

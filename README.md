@@ -66,7 +66,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 | [`docs/operations/runbook.md`](docs/operations/runbook.md) | Backup, multi-tenant, troubleshooting |
 | [`docs/multi-tenancy/README.md`](docs/multi-tenancy/README.md) | Transformação SaaS (Fases 1–9) |
 
-Health probes: `GET /health/live`, `GET /health/ready`, `GET /health`.
+Health probes: `GET /health/live`, `GET /health/ready`, `GET /health`.  
+OpenAPI: `GET /v1/openapi.json` · Prometheus: `GET /metrics` (com `PROMETHEUS_ENABLED=true`).
 
 ### Painel Admin (PWA)
 

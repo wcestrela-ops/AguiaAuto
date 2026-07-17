@@ -50,6 +50,8 @@ const { migratePhase6TrackingProvider } = require('./db/migrate-phase6-tracking-
 const { migratePhase7TenantIntegrations } = require('./db/migrate-phase7-tenant-integrations');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport, getReadinessReport } = require('./infrastructure/health-service');
+const { formatMetrics, isPrometheusEnabled } = require('./infrastructure/prometheus-metrics');
+const { metricsMiddleware } = require('./middleware/metrics-middleware');
 const { attachWebSocket } = require('./infrastructure/websocket');
 const { isRedisEnabled } = require('./infrastructure/redis');
 const { getRbacRepository } = require('./repositories/rbac-repository');
@@ -112,6 +114,7 @@ const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
 const siteRoutes = require('./modules/site/routes');
 const configRoutes = require('./modules/config/routes');
+const openapiRoutes = require('./modules/openapi/routes');
 
 const app = express();
 const PORT = process.env.API_PORT || process.env.PORT || 3000;
@@ -122,6 +125,7 @@ app.use(securityHeaders);
 app.use(cookieParser());
 app.use(cors);
 app.use(defaultTenantContext);
+app.use(metricsMiddleware);
 app.use(express.json({
   limit: process.env.API_JSON_LIMIT || '1mb',
   verify: (req, res, buf) => {
@@ -183,7 +187,19 @@ app.get('/health/ready', async (req, res) => {
   }
 });
 
+app.get('/metrics', (req, res) => {
+  if (!isPrometheusEnabled()) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Métricas desabilitadas. Defina PROMETHEUS_ENABLED=true.', requestId: req.requestId },
+    });
+  }
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.send(formatMetrics());
+});
+
 // Planos públicos (cadastro) e landing page
+app.use('/v1', openapiRoutes);
 app.use('/v1/plans', plansRoutes);
 app.use('/v1/site', siteRoutes);
 

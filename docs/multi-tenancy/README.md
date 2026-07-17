@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–9
+# Multi-tenancy e modularidade — Fases 1–10
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -317,6 +317,38 @@ Documentação operacional para produção em VPS/EasyPanel.
 
 ---
 
+## Fase 10 — Observabilidade, OpenAPI e carga
+
+### Prometheus
+| Item | Descrição |
+|------|-----------|
+| `PROMETHEUS_ENABLED=true` | Ativa middleware de métricas + endpoint |
+| `GET /metrics` | Formato text/plain Prometheus |
+| Métricas | `aguia_http_requests_total`, `aguia_http_request_duration_seconds`, process stats |
+| Labels | `method`, `route` (normalizada), `status`, `tenant_id` |
+
+Middleware: `services/api/src/middleware/metrics-middleware.js`
+
+### OpenAPI
+| Item | Descrição |
+|------|-----------|
+| Spec | `services/api/openapi/spec.json` |
+| Endpoint | `GET /v1/openapi.json` |
+| Docs | [`docs/api/openapi.md`](../api/openapi.md) |
+
+Cobre health, auth, platform, onboarding B2B, admin SaaS e webhooks.
+
+### Teste de carga
+Script: `scripts/load-test.js` — RPS, p50/p95/p99 em health + rotas públicas.
+
+Docs: [`docs/operations/load-testing.md`](../operations/load-testing.md)
+
+```bash
+node scripts/load-test.js --url http://localhost:3000 --duration 15 --concurrency 10
+```
+
+---
+
 ## Testes
 
 ```bash
@@ -333,15 +365,19 @@ npm run test:api
 | `test/services/tenant-integration.test.js` | SHARED/OWN, merge settings |
 | `test/services/tenant-onboarding.test.js` | Slugify, steps B2B onboarding |
 | `test/infrastructure/health-probes.test.js` | Liveness/readiness, aggregateStatus |
+| `test/infrastructure/prometheus-metrics.test.js` | Métricas Prometheus, normalizeRoute |
+| `test/infrastructure/openapi.test.js` | Spec OpenAPI SaaS |
 
-**83 testes API + testes web** passando.
+**88 testes API + testes web** passando.
 
 ---
 
-## Próximas fases
+## Roadmap contínuo
 
-| Fase | Foco |
+| Área | Foco |
 |------|------|
-| 10 | Observabilidade avançada, OpenAPI, carga |
+| Observabilidade | Sentry, tracing distribuído, dashboards Grafana |
+| OpenAPI | Expansão rotas admin/cliente |
+| Carga | k6/Locust para cenários autenticados |
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)
