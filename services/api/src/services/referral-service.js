@@ -322,10 +322,10 @@ class ReferralService {
     });
   }
 
-  async getAdminOverview() {
+  async getAdminOverview(tenantId) {
     const [stats, rows] = await Promise.all([
-      this.referrals.getGlobalStats(),
-      this.referrals.listAll({ limit: 100 }),
+      this.referrals.getGlobalStats(tenantId),
+      this.referrals.listAll({ limit: 100, tenantId }),
     ]);
 
     const statusLabels = {

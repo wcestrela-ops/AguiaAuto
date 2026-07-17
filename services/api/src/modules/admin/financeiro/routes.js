@@ -57,7 +57,7 @@ router.get('/notificacoes', async (req, res) => {
 
 router.get('/cobrancas', async (req, res) => {
   try {
-    const data = await getFinanceiroService().listAllCharges();
+    const data = await getFinanceiroService().listAllCharges({ tenantId: req.tenantId });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

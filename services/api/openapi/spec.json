@@ -1,0 +1,288 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Águia Gestão Veicular API",
+    "version": "0.1.0",
+    "description": "API REST da plataforma Águia — gestão veicular, SaaS multi-tenant e painel master.",
+    "contact": {
+      "name": "ÁguiaAuto"
+    }
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Desenvolvimento" },
+    { "url": "https://app.seudominio.com/api", "description": "Produção (via Nginx /api)" }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Probes e diagnóstico" },
+    { "name": "Observability", "description": "Métricas e documentação" },
+    { "name": "Auth", "description": "Autenticação cliente" },
+    { "name": "Admin Auth", "description": "Autenticação painel admin" },
+    { "name": "Onboarding", "description": "Cadastro B2C e B2B" },
+    { "name": "Platform", "description": "Painel master SaaS" },
+    { "name": "Admin", "description": "Operação tenant" },
+    { "name": "Client", "description": "PWA cliente autenticado" },
+    { "name": "Webhooks", "description": "Integrações externas" },
+    { "name": "Public", "description": "Rotas públicas" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Diagnóstico completo",
+        "responses": {
+          "200": { "description": "HEALTHY ou DEGRADED" },
+          "503": { "description": "UNAVAILABLE" }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "responses": { "200": { "description": "Processo vivo" } }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness probe (Postgres)",
+        "responses": {
+          "200": { "description": "Pronto" },
+          "503": { "description": "Dependências indisponíveis" }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": ["Observability"],
+        "summary": "Métricas Prometheus (text/plain)",
+        "description": "Disponível quando PROMETHEUS_ENABLED=true",
+        "responses": {
+          "200": { "description": "Texto Prometheus", "content": { "text/plain": {} } },
+          "404": { "description": "Desabilitado" }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "tags": ["Observability"],
+        "summary": "Esta especificação OpenAPI",
+        "responses": { "200": { "description": "OpenAPI JSON" } }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login cliente",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Tokens JWT" }, "401": { "description": "Credenciais inválidas" } }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Perfil do cliente autenticado",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Usuário" }, "401": { "description": "Não autenticado" } }
+      }
+    },
+    "/v1/admin/auth/login": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Login admin (cookies HttpOnly + CSRF)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Sessão admin" }, "401": { "description": "Credenciais inválidas" } }
+      }
+    },
+    "/v1/onboarding": {
+      "get": {
+        "tags": ["Onboarding"],
+        "summary": "Dados do fluxo de cadastro B2C",
+        "responses": { "200": { "description": "Planos e contrato" } }
+      }
+    },
+    "/v1/onboarding/cadastro": {
+      "post": {
+        "tags": ["Onboarding"],
+        "summary": "Cadastro cliente B2C",
+        "responses": { "201": { "description": "Cliente provisionado" }, "400": { "description": "Validação" } }
+      }
+    },
+    "/v1/platform/health": {
+      "get": {
+        "tags": ["Platform"],
+        "summary": "Saúde da plataforma (filas, workers)",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Relatório ops" }, "403": { "description": "Sem permissão platform" } }
+      }
+    },
+    "/v1/platform/tenants": {
+      "get": {
+        "tags": ["Platform"],
+        "summary": "Listar empresas (tenants)",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Lista de tenants" } }
+      },
+      "post": {
+        "tags": ["Platform"],
+        "summary": "Criar tenant (básico)",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "201": { "description": "Tenant criado" } }
+      }
+    },
+    "/v1/platform/onboarding/tenants": {
+      "post": {
+        "tags": ["Platform", "Onboarding"],
+        "summary": "Onboarding B2B completo",
+        "description": "Tenant + integrações SHARED + plano SaaS + owner admin",
+        "security": [{ "adminCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["company", "owner", "plan_id"],
+                "properties": {
+                  "company": { "type": "object" },
+                  "owner": { "type": "object" },
+                  "plan_id": { "type": "integer" },
+                  "trial_days": { "type": "integer", "default": 14 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Empresa provisionada" } }
+      }
+    },
+    "/v1/platform/saas-plans": {
+      "get": {
+        "tags": ["Platform"],
+        "summary": "Planos SaaS comerciais",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Planos" } }
+      }
+    },
+    "/v1/admin/modules": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Módulos ativos do tenant",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Módulos contratados" } }
+      }
+    },
+    "/v1/admin/subscription": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Assinatura SaaS do tenant",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Plano e status" } }
+      }
+    },
+    "/v1/admin/integracoes": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Integrações (SHARED/OWN)",
+        "security": [{ "adminCookie": [] }],
+        "responses": { "200": { "description": "Lista integrações" } }
+      }
+    },
+    "/v1/veiculos": {
+      "get": {
+        "tags": ["Client"],
+        "summary": "Veículos do cliente",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lista veículos" } }
+      }
+    },
+    "/v1/plans": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Planos públicos (cadastro)",
+        "responses": { "200": { "description": "Planos B2C" } }
+      }
+    },
+    "/webhooks/asaas": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Webhook Asaas",
+        "responses": { "200": { "description": "Processado" } }
+      }
+    },
+    "/webhooks/gpswox": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Webhook alertas GPSWOX",
+        "responses": { "200": { "description": "Processado" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token cliente (Authorization: Bearer)"
+      },
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "admin_access",
+        "description": "Sessão admin HttpOnly + header X-CSRF-Token em mutações"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "requestId": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Success": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": { "type": "object" }
+        }
+      }
+    }
+  }
+}

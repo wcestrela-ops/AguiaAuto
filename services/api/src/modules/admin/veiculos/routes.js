@@ -21,8 +21,8 @@ router.get('/', async (req, res) => {
 
     const service = getVehicleService();
     const [vehicles, total] = await Promise.all([
-      service.listForAdmin(filters),
-      service.countForAdmin(filters),
+      service.listForAdmin(filters, req.tenantId),
+      service.countForAdmin(filters, req.tenantId),
     ]);
 
     res.json({

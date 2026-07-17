@@ -335,8 +335,8 @@ class ContractService {
     return updated;
   }
 
-  async listAcceptancesAdmin() {
-    const rows = await this.contracts.listAllAcceptances();
+  async listAcceptancesAdmin(tenantId) {
+    const rows = await this.contracts.listAllAcceptances({ tenantId });
     return rows.map((row) => ({
       id: row.id,
       user_id: row.user_id,

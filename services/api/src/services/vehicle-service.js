@@ -1,7 +1,7 @@
 const { getVehicleRepository, VEHICLE_STATUS } = require('../repositories/vehicle-repository');
 const { getVehicleCommandLogRepository } = require('../repositories/vehicle-command-log-repository');
 const { getUserRepository } = require('../repositories/user-repository');
-const gpswox = require('../integrations/gpswox-gateway');
+const { getTrackingService } = require('./tracking-service');
 const sms = require('./sms');
 const firebase = require('./firebase');
 const { VEHICLE_COMMANDS, normalizeVehicleAction } = require('../lib/vehicle-commands');
@@ -17,7 +17,61 @@ const {
   normalizeHistoryRange,
   missingTrackerDeviceError,
 } = require('../lib/tracking-platform');
+const { getLastPosition } = require('../infrastructure/tracking-cache');
+const { trackVehicleViewer } = require('../infrastructure/presence');
+const { enqueue, QUEUE_NAMES } = require('../infrastructure/queues');
+const { isRedisEnabled } = require('../infrastructure/redis');
 const logger = require('../logger');
+
+function cacheToLocalizacao(cached) {
+  if (!cached) return null;
+  return {
+    ...(cached.raw || {}),
+    latitude: cached.latitude,
+    longitude: cached.longitude,
+    lat: cached.latitude,
+    lng: cached.longitude,
+    speed: cached.speed,
+    velocidade: cached.speed,
+    ignition: cached.ignition,
+    ignicao: cached.ignition,
+    online: cached.online,
+    endereco: cached.address,
+    address: cached.address,
+    capturado_em: cached.device_time,
+    provider: cached.provider,
+    atualizado_em: cached.updated_at,
+  };
+}
+
+function buildCacheMeta(cached) {
+  if (!cached) {
+    return { hit: false, refreshing: true };
+  }
+  const ageMs = Date.now() - new Date(cached.updated_at || 0).getTime();
+  return {
+    hit: true,
+    age_ms: ageMs,
+    stale: ageMs > parseInt(process.env.TRACKING_CACHE_STALE_MS || '60000', 10),
+    refreshing: true,
+  };
+}
+
+async function enqueuePositionRefresh(vehicle, userId) {
+  if (!isRedisEnabled()) return;
+  await trackVehicleViewer(String(vehicle.id), userId);
+  await enqueue(
+    QUEUE_NAMES.TRACKING_POSITION,
+    'refresh',
+    { vehicleDbId: vehicle.id, provider: vehicleProvider(vehicle) },
+    {
+      jobId: `pos-${vehicle.id}-${Math.floor(Date.now() / 10000)}`,
+      removeOnComplete: true,
+    },
+  ).catch((err) => {
+    logger.warn('Falha ao enfileirar refresh de posição.', { vehicleId: vehicle.id, err: err.message });
+  });
+}
 
 function vehicleProvider(vehicle) {
   return normalizeProviderName(vehicle.tracking_provider || 'gpswox');
@@ -78,6 +132,25 @@ class VehicleService {
       throw new Error('Veículo aguardando instalação do rastreador.');
     }
 
+    const cached = await getLastPosition(String(vehicle.id), vehicle.tenant_id);
+    await enqueuePositionRefresh(vehicle, userId);
+
+    if (cached) {
+      return {
+        veiculo: formatVehicle(vehicle),
+        localizacao: cacheToLocalizacao(cached),
+        cache: buildCacheMeta(cached),
+      };
+    }
+
+    if (isRedisEnabled()) {
+      return {
+        veiculo: formatVehicle(vehicle),
+        localizacao: null,
+        cache: buildCacheMeta(null),
+      };
+    }
+
     const location = await gpswox.getLocation({
       device_id: vehicle.tracker_device_id,
       veiculo: vehicle.tracker_name || vehicle.plate,
@@ -86,7 +159,8 @@ class VehicleService {
 
     return {
       veiculo: formatVehicle(vehicle),
-      localizacao: location,
+      localizacao: location?.data || location?.localizacao || location,
+      cache: { hit: false, refreshing: false, fallback: true },
     };
   }
 
@@ -281,14 +355,14 @@ class VehicleService {
   }
 
   async _sendViaGps(vehicle, normalized, command) {
-    const provider = vehicleProvider(vehicle);
+    const tracking = getTrackingService();
     if (normalized === 'bloquear') {
-      return gpswox.blockDevice(vehicle.tracker_device_id, provider);
+      return tracking.blockDevice(vehicle);
     }
     if (normalized === 'desbloquear') {
-      return gpswox.unblockDevice(vehicle.tracker_device_id, provider);
+      return tracking.unblockDevice(vehicle);
     }
-    return gpswox.sendCommand(vehicle.tracker_device_id, command.gpswox, provider);
+    return tracking.sendCommand(vehicle, command.gpswox);
   }
 
   async _logCommand(entry) {
@@ -306,11 +380,10 @@ class VehicleService {
       ? normalizeHistoryRange(from, to, provider)
       : defaultHistoryRange(hours || 24, provider);
 
-    const response = await gpswox.getHistory(
-      vehicle.tracker_device_id,
+    const response = await getTrackingService().getHistory(
+      vehicle,
       range.from,
       range.to,
-      vehicleProvider(vehicle),
     );
 
     return {
@@ -322,11 +395,7 @@ class VehicleService {
 
   async shareLocation(userId, vehicleId, { duration_minutes = 60 } = {}) {
     const vehicle = await this._requireDevice(vehicleId, userId);
-    const response = await gpswox.createSharing(
-      vehicle.tracker_device_id,
-      duration_minutes,
-      vehicleProvider(vehicle),
-    );
+    const response = await getTrackingService().createSharing(vehicle, duration_minutes);
     const share = response.data || response;
 
     return {
@@ -361,11 +430,11 @@ class VehicleService {
     return formatVehicle(vehicle);
   }
 
-  async listAll(filters) {
+  async listAll(filters, tenantId) {
     if (filters && Object.keys(filters).some((key) => filters[key])) {
-      return this.listForAdmin(filters);
+      return this.listForAdmin(filters, tenantId);
     }
-    const vehicles = await this.repo.listAll();
+    const vehicles = await this.repo.listAll(tenantId);
     return vehicles.map(v => ({
       ...formatVehicle(v),
       user_id: v.user_id,
@@ -374,13 +443,13 @@ class VehicleService {
     }));
   }
 
-  async listForAdmin(filters = {}) {
-    const vehicles = await this.repo.listForAdmin(filters);
+  async listForAdmin(filters = {}, tenantId) {
+    const vehicles = await this.repo.listForAdmin(filters, tenantId);
     return vehicles.map((v) => this._formatAdminVehicle(v));
   }
 
-  async countForAdmin(filters = {}) {
-    return this.repo.countForAdmin(filters);
+  async countForAdmin(filters = {}, tenantId) {
+    return this.repo.countForAdmin(filters, tenantId);
   }
 
   async assignInstaller(vehicleId, { installer_id: installerId, installation_scheduled_at: scheduledAt }) {

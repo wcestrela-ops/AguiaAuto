@@ -1,4 +1,10 @@
 const { getPool } = require('../db/pool');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const {
+  sqlAndTenant,
+  appendTenantConditions,
+  tenantIdForInsert,
+} = require('../lib/tenant/repository-tenant');
 
 class ReferralRepository {
   constructor() {
@@ -40,12 +46,14 @@ class ReferralRepository {
     return Boolean(rows[0]);
   }
 
-  async create(data) {
+  async create(data, tenantId = DEFAULT_TENANT_ID) {
+    const tid = tenantIdForInsert(data, tenantId);
     const { rows } = await this.pool.query(
       `INSERT INTO referrals (
-        referrer_user_id, referred_user_id, referral_code, discount_percent, discount_status
-      ) VALUES ($1,$2,$3,$4,'awaiting_completion') RETURNING *`,
+        tenant_id, referrer_user_id, referred_user_id, referral_code, discount_percent, discount_status
+      ) VALUES ($1,$2,$3,$4,$5,'awaiting_completion') RETURNING *`,
       [
+        tid,
         data.referrer_user_id,
         data.referred_user_id,
         data.referral_code,
@@ -55,116 +63,151 @@ class ReferralRepository {
     return rows[0];
   }
 
-  async findByReferredUser(referredUserId) {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM referrals WHERE referred_user_id = $1',
-      [referredUserId]
-    );
+  async findByReferredUser(referredUserId, tenantId = DEFAULT_TENANT_ID) {
+    const params = [referredUserId];
+    let sql = 'SELECT * FROM referrals WHERE referred_user_id = $1';
+    const tenant = sqlAndTenant(tenantId, 2);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query('SELECT * FROM referrals WHERE id = $1', [id]);
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = 'SELECT * FROM referrals WHERE id = $1';
+    const tenant = sqlAndTenant(tenantId, 2);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
-  async listByReferrer(referrerUserId, { limit = 50 } = {}) {
-    const { rows } = await this.pool.query(
-      `SELECT r.*, u.name AS referred_name, u.email AS referred_email, u.created_at AS referred_at
+  async listByReferrer(referrerUserId, { limit = 50, tenantId = DEFAULT_TENANT_ID } = {}) {
+    const params = [referrerUserId];
+    let sql = `SELECT r.*, u.name AS referred_name, u.email AS referred_email, u.created_at AS referred_at
        FROM referrals r
        JOIN users u ON u.id = r.referred_user_id
-       WHERE r.referrer_user_id = $1
-       ORDER BY r.created_at DESC
-       LIMIT $2`,
-      [referrerUserId, limit]
-    );
+       WHERE r.referrer_user_id = $1`;
+    const tenant = sqlAndTenant(tenantId, 2, { alias: 'r' });
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    const limitIdx = tenant.nextIndex;
+    params.push(limit);
+    sql += ` ORDER BY r.created_at DESC LIMIT $${limitIdx}`;
+    const { rows } = await this.pool.query(sql, params);
     return rows;
   }
 
-  async countByReferrer(referrerUserId) {
-    const { rows } = await this.pool.query(
-      `SELECT
+  async countByReferrer(referrerUserId, tenantId = DEFAULT_TENANT_ID) {
+    const params = [referrerUserId];
+    let sql = `SELECT
          COUNT(*)::int AS total,
          COUNT(*) FILTER (WHERE discount_status IN ('qualified', 'applied'))::int AS confirmadas,
          COUNT(*) FILTER (WHERE discount_applied = true)::int AS com_desconto
-       FROM referrals WHERE referrer_user_id = $1`,
-      [referrerUserId]
-    );
+       FROM referrals WHERE referrer_user_id = $1`;
+    const tenant = sqlAndTenant(tenantId, 2);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    const { rows } = await this.pool.query(sql, params);
     return rows[0];
   }
 
-  async markQualified(id) {
-    const { rows } = await this.pool.query(
-      `UPDATE referrals SET
+  async markQualified(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = `UPDATE referrals SET
         discount_status = 'qualified',
         qualified_at = COALESCE(qualified_at, NOW())
-       WHERE id = $1 AND discount_status = 'awaiting_completion'
-       RETURNING *`,
-      [id]
-    );
+       WHERE id = $1 AND discount_status = 'awaiting_completion'`;
+    const tenant = sqlAndTenant(tenantId, 2);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    sql += ' RETURNING *';
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
-  async countQualifiedInMonth(referrerUserId, yearMonth) {
-    const { rows } = await this.pool.query(
-      `SELECT COUNT(*)::int AS count FROM referrals
+  async countQualifiedInMonth(referrerUserId, yearMonth, tenantId = DEFAULT_TENANT_ID) {
+    const params = [referrerUserId, yearMonth];
+    let sql = `SELECT COUNT(*)::int AS count FROM referrals
        WHERE referrer_user_id = $1
          AND qualified_at IS NOT NULL
-         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2`,
-      [referrerUserId, yearMonth]
-    );
+         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2`;
+    const tenant = sqlAndTenant(tenantId, 3);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    const { rows } = await this.pool.query(sql, params);
     return rows[0].count;
   }
 
-  async listQualifiedInMonth(referrerUserId, yearMonth) {
-    const { rows } = await this.pool.query(
-      `SELECT * FROM referrals
+  async listQualifiedInMonth(referrerUserId, yearMonth, tenantId = DEFAULT_TENANT_ID) {
+    const params = [referrerUserId, yearMonth];
+    let sql = `SELECT * FROM referrals
        WHERE referrer_user_id = $1
          AND qualified_at IS NOT NULL
-         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2
-       ORDER BY qualified_at ASC`,
-      [referrerUserId, yearMonth]
-    );
+         AND to_char(qualified_at AT TIME ZONE 'UTC', 'YYYY-MM') = $2`;
+    const tenant = sqlAndTenant(tenantId, 3);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    sql += ' ORDER BY qualified_at ASC';
+    const { rows } = await this.pool.query(sql, params);
     return rows;
   }
 
-  async markAppliedForInvoice(ids, invoiceId) {
+  async markAppliedForInvoice(ids, invoiceId, tenantId = DEFAULT_TENANT_ID) {
     if (!ids.length) return [];
-    const { rows } = await this.pool.query(
-      `UPDATE referrals SET
+    const params = [ids, invoiceId];
+    let sql = `UPDATE referrals SET
         discount_applied = true,
         discount_invoice_id = $2,
         discount_status = 'applied'
-       WHERE id = ANY($1::int[])
-       RETURNING *`,
-      [ids, invoiceId]
-    );
+       WHERE id = ANY($1::int[])`;
+    const tenant = sqlAndTenant(tenantId, 3);
+    sql += tenant.clause;
+    params.push(...tenant.params);
+    sql += ' RETURNING *';
+    const { rows } = await this.pool.query(sql, params);
     return rows;
   }
 
   async listReferrersNeedingRewardSync() {
+    const params = [];
+    const conditions = ["discount_status = 'qualified'"];
+    appendTenantConditions(conditions, params, 1, null, { allTenants: true });
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await this.pool.query(
       `SELECT DISTINCT referrer_user_id FROM referrals
-       WHERE discount_status = 'qualified'
-       ORDER BY referrer_user_id`
+       ${where}
+       ORDER BY referrer_user_id`,
+      params,
     );
     return rows.map((r) => r.referrer_user_id);
   }
 
   async listAwaitingCompletion() {
+    const params = [];
+    const conditions = ["discount_status = 'awaiting_completion'"];
+    appendTenantConditions(conditions, params, 1, null, { allTenants: true });
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await this.pool.query(
-      `SELECT * FROM referrals WHERE discount_status = 'awaiting_completion'`
+      `SELECT * FROM referrals ${where}`,
+      params,
     );
     return rows;
   }
 
-  async listAll({ limit = 100, status } = {}) {
+  async listAll({ limit = 100, status, tenantId = DEFAULT_TENANT_ID } = {}) {
     const params = [Math.min(limit, 300)];
-    let where = '';
+    const conditions = [];
+    let idx = 2;
     if (status) {
+      conditions.push(`r.discount_status = $${idx++}`);
       params.push(status);
-      where = `WHERE r.discount_status = $${params.length}`;
     }
+    idx = appendTenantConditions(conditions, params, idx, tenantId, { alias: 'r' });
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const { rows } = await this.pool.query(
       `SELECT r.*,
@@ -181,7 +224,12 @@ class ReferralRepository {
     return rows;
   }
 
-  async getGlobalStats() {
+  async getGlobalStats(tenantId = DEFAULT_TENANT_ID) {
+    const params = [];
+    const conditions = [];
+    appendTenantConditions(conditions, params, 1, tenantId);
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await this.pool.query(
       `SELECT
          COUNT(*)::int AS total,
@@ -189,7 +237,9 @@ class ReferralRepository {
          COUNT(*) FILTER (WHERE discount_status = 'qualified')::int AS qualificadas,
          COUNT(*) FILTER (WHERE discount_status = 'applied')::int AS desconto_aplicado,
          COUNT(DISTINCT referrer_user_id)::int AS indicadores_ativos
-       FROM referrals`,
+       FROM referrals
+       ${where}`,
+      params,
     );
     return rows[0];
   }

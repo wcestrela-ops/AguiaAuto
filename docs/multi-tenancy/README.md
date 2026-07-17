@@ -1,0 +1,443 @@
+# Multi-tenancy e modularidade — Fases 1–10
+
+Documentação da transformação SaaS multi-tenant do AguiaAuto.
+
+## Feature flag
+
+```env
+# false (default) — comportamento single-tenant legado (tenant_id=1)
+# true — ativa isolamento por tenant e verificação de módulos
+MULTI_TENANT_ENABLED=false
+```
+
+Enquanto a flag estiver **desligada**, o sistema opera como antes: todos os dados pertencem ao tenant `1` (Águia) e todos os módulos são considerados ativos.
+
+---
+
+## Fase 1 — Fundação multi-tenant
+
+### Entidade Tenant
+- Tabela `tenants` expandida (`legal_name`, `trade_name`, `slug`, `status`, `timezone`, `locale`, `currency`)
+- Seed: tenant `1` = **Águia Gestão Veicular** (`slug: aguia`)
+
+### Camada TenantContext
+| Componente | Arquivo |
+|------------|---------|
+| Config / flag | `services/api/src/lib/tenant/tenant-config.js` |
+| SQL helpers | `services/api/src/lib/tenant/tenant-query.js` |
+| Resolver | `services/api/src/lib/tenant/tenant-resolver.js` |
+| Guard | `services/api/src/lib/tenant/tenant-guard.js` |
+| Middleware | `services/api/src/middleware/tenant-context.js` |
+
+### Migrations Fase 1
+1. `migrate-tenants-foundation.js`
+2. `migrate-aguia-tenant-seed.js`
+
+### Repositórios (filtro tenant quando flag ativa)
+user, vehicle, invoice, subscription, integrations store
+
+---
+
+## Fase 2 — RBAC platform + isolamento expandido
+
+### Papéis platform
+| Papel | Escopo |
+|-------|--------|
+| `platform_super_admin` | Acesso total à plataforma |
+| `platform_admin` | Gestão tenants e módulos |
+| `platform_support` | Suporte + impersonação controlada |
+| `platform_finance` | Visão financeira/operacional |
+
+Aliases tenant: `TENANT_OWNER` → `superadmin`, `TENANT_ADMIN` → `admin`, etc.
+
+### Painel master — `/v1/platform/*`
+| Rota | Descrição |
+|------|-----------|
+| `GET /health` | Saúde API, filas, workers |
+| `GET /tenants` | Listar empresas |
+| `POST /tenants` | Criar empresa |
+| `GET /tenants/:id` | Detalhe + módulos |
+| `PATCH /tenants/:id` | Editar empresa |
+| `POST /tenants/:id/suspend` | Suspender |
+| `GET /modules` | Catálogo global |
+| `POST /tenants/:id/modules/:code/activate` | Ativar módulo |
+| `POST /tenants/:id/modules/:code/suspend` | Suspender módulo |
+
+Auth: `platformAuth` + permissões `platform.*`. Superadmin tenant #1 também acessa (transição).
+
+### Migration Fase 2
+`migrate-phase2-tenant-tables.js` — `tenant_id` em alert_events, contracts, installations, billing, emergency, webhook_events, etc.
+
+### Repositórios adicionais
+plan, audit, alert (+ backfill via JOIN users/vehicles)
+
+---
+
+## Fase 3 — Sistema modular
+
+### Tabelas
+- **`modules`** — catálogo global (18 módulos: TRACKING, FINANCE, WHATSAPP, …)
+- **`tenant_modules`** — vínculo empresa ↔ módulo (status, source, expires_at)
+
+### ModuleAccessService
+- `isActive(tenantId, code)` — verifica módulo contratado
+- `getActiveModules(tenantId)` — lista para frontend
+- `checkDependencies()` — dependências entre módulos
+
+### Middleware
+- `requireModule()` — bloqueia API se módulo inativo
+- Mapeamento automático: `lib/modules/route-modules.js`
+
+### Admin tenant
+- `GET /v1/admin/modules` — módulos ativos da empresa
+
+### Migration Fase 3
+`migrate-phase3-modules.js` — seed catálogo + ativa todos os módulos para tenant Águia
+
+---
+
+## Fase 4 — Planos SaaS, assinaturas e limites
+
+### Tabelas (prefixo `saas_` — distinto de planos B2C `plans`)
+| Tabela | Descrição |
+|--------|-----------|
+| `saas_plans` | Planos comerciais da plataforma |
+| `saas_plan_modules` | Módulos incluídos por plano |
+| `module_prices` | Preços por módulo/ciclo |
+| `tenant_saas_subscriptions` | Assinatura SaaS por empresa |
+| `tenant_usage_limits` | Limites configuráveis por tenant |
+| `tenant_usage_metrics` | Cache de métricas medidas |
+
+Plano seed: **aguia-completo** — tenant #1 com assinatura ACTIVE e limites enterprise.
+
+### Serviços
+| Serviço | Responsabilidade |
+|---------|------------------|
+| `SaasBillingService` | Planos, assinaturas, sync módulos do plano |
+| `UsageMeteringService` | Medição e verificação de limites |
+
+### Integração com módulos
+- `ModuleAccessService` verifica assinatura SaaS ativa quando `MULTI_TENANT_ENABLED=true`
+- `requireUsageLimit(metric)` — middleware HTTP 429 quando limite excedido
+
+### Painel master — billing SaaS
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/saas-plans` | Listar planos |
+| `POST /v1/platform/saas-plans` | Criar plano |
+| `GET /v1/platform/saas-plans/:id` | Detalhe + módulos |
+| `PATCH /v1/platform/saas-plans/:id` | Editar plano |
+| `PUT /v1/platform/saas-plans/:id/modules` | Módulos do plano |
+| `GET /v1/platform/tenants/:id/subscription` | Assinatura ativa |
+| `POST /v1/platform/tenants/:id/subscription` | Atribuir plano |
+| `PATCH /v1/platform/tenants/:id/subscription/:subId` | Alterar status |
+| `GET /v1/platform/tenants/:id/usage` | Uso vs limites |
+| `PUT /v1/platform/tenants/:id/usage-limits` | Configurar limites |
+
+Permissões: `platform.billing.view`, `platform.billing.manage`
+
+### Admin tenant
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/admin/subscription` | Assinatura e plano da empresa |
+| `GET /v1/admin/usage` | Consumo vs limites |
+
+Permissão: `billing.view`
+
+### Migration Fase 4
+`migrate-phase4-saas-billing.js`
+
+---
+
+## Fase 5 — Painel master UI (frontend)
+
+SPA React em `apps/web` — rota `/platform/*`, reutiliza login admin (`/admin/login`).
+
+### Acesso
+- Mesma sessão admin (cookies HttpOnly + CSRF)
+- Gate: `PlatformSessionGate` verifica papel `platform_*`, permissão `platform.*` ou `superadmin`
+- Operadores `platform_*` são redirecionados para `/platform` após login
+
+### Páginas
+| Rota | Componente | API |
+|------|------------|-----|
+| `/platform` | Dashboard | `GET /v1/platform/health` |
+| `/platform/tenants` | Empresas | `GET/POST /v1/platform/tenants` |
+| `/platform/tenants/:id` | Detalhe | tenant, módulos, assinatura, uso |
+| `/platform/modules` | Catálogo | `GET /v1/platform/modules` |
+| `/platform/saas-plans` | Planos SaaS | CRUD `/v1/platform/saas-plans` |
+
+### Arquivos principais
+| Arquivo | Função |
+|---------|--------|
+| `apps/web/src/lib/platform-access.js` | RBAC frontend |
+| `apps/web/src/components/PlatformSessionGate.jsx` | Gate de sessão |
+| `apps/web/src/pages/platform/PlatformLayout.jsx` | Layout + nav |
+| `apps/web/src/api/client.js` | Métodos `getPlatform*` |
+
+Link **Plataforma SaaS** no sidebar admin para usuários com acesso.
+
+---
+
+## Fase 6 — TrackingProvider formal + external_entity_mappings
+
+### Tabelas
+| Tabela | Descrição |
+|--------|-----------|
+| `tenant_tracking_configs` | Provedor padrão e estratégia de sync por tenant |
+| `external_entity_mappings` | Vínculo interno ↔ ID externo (GPSWOX/Traccar) |
+
+### Estratégias de sync
+| Estratégia | Comportamento |
+|------------|---------------|
+| `PROVIDER_MASTER` | Plataforma externa é fonte de verdade (default) |
+| `READ_ONLY` | Aguia lê posição/histórico; bloqueia comandos e writes |
+
+### Camada TrackingProvider
+| Componente | Arquivo |
+|------------|---------|
+| Interface base | `lib/tracking/tracking-provider.js` |
+| Adapter gateway | `lib/tracking/gateway-tracking-provider.js` |
+| Factory por tenant | `lib/tracking/tracking-provider-factory.js` |
+| Facade | `services/tracking-service.js` |
+| Mappings | `services/external-entity-mapping-service.js` |
+
+Provedores suportados: **gpswox**, **traccar** (via gateway existente).
+
+### Integração
+- `provisioning-service` — cria usuário na plataforma + grava mapping
+- `gpswox-sync-service` — sync de devices + mappings de veículos
+- `vehicle-service` — comandos/histórico/compartilhamento via `TrackingService`
+
+### API platform
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/tenants/:id/tracking-config` | Config de rastreamento |
+| `PATCH /v1/platform/tenants/:id/tracking-config` | Alterar provider/strategy |
+| `GET /v1/platform/tenants/:id/entity-mappings` | Listar mappings |
+
+### Migration Fase 6
+`migrate-phase6-tracking-provider.js` — backfill de `users.gpswox_user_id`, `traccar_user_id` e `vehicles.tracker_device_id`
+
+---
+
+## Fase 7 — Integrações SHARED/OWN por tenant
+
+### Modos de credencial
+| Modo | Comportamento |
+|------|---------------|
+| `SHARED` | Usa credenciais do tenant plataforma (#1) — default para novos tenants |
+| `OWN` | Credenciais exclusivas da empresa |
+
+Coluna `credential_mode` em `integration_configs`. Infra (`gateway`, `gateway_client`) permanece global.
+
+### TenantIntegrationService
+- `resolveConfig(key, tenantId)` — merge settings SHARED + overrides não-secretos
+- `getSettings(key, tenantId)` — settings efetivos para runtime
+- `updateForTenant()` — bloqueia gravação de segredos em modo SHARED
+- `setCredentialMode()` — alternância SHARED ↔ OWN (platform)
+
+### API
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/admin/integracoes` | Lista com modo resolvido |
+| `PUT /v1/admin/integracoes/:key` | Salva + `credential_mode` |
+| `GET /v1/platform/tenants/:id/integrations` | Visão platform |
+| `PATCH /v1/platform/tenants/:id/integrations/:key/mode` | Alterar modo |
+
+### UI
+- Admin: seletor SHARED/OWN em `/admin/integracoes/:key`
+- Platform: tabela de integrações no detalhe da empresa
+
+### Migration Fase 7
+`migrate-phase7-tenant-integrations.js`
+
+---
+
+## Fase 8 — Onboarding B2B empresa
+
+Fluxo orquestrado para cadastrar uma nova empresa na plataforma com plano SaaS, integrações SHARED, limites de uso e usuário owner admin.
+
+### TenantOnboardingService
+| Etapa | Descrição |
+|-------|-----------|
+| `validacao_dados` | Slug, e-mail owner, plano SaaS, CNPJ/CPF opcional |
+| `criacao_tenant` | Tenant com status TRIAL |
+| `integracoes_shared` | Seed de integrações SHARED a partir do tenant #1 |
+| `assinatura_saas` | Plano SaaS + trial configurável |
+| `limites_uso` | `DEFAULT_USAGE_LIMITS` ou custom |
+| `usuario_owner` | Superadmin da empresa (senha opcional ou temporária) |
+| `conclusao` | URLs de login e detalhe |
+
+Arquivo: `services/api/src/services/tenant-onboarding-service.js`
+
+### API platform — onboarding
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/onboarding/schema` | Campos e steps do wizard |
+| `GET /v1/platform/onboarding/plans` | Planos SaaS ativos |
+| `POST /v1/platform/onboarding/tenants` | Provisionar empresa completa |
+
+Permissões: `platform.tenants.view`, `platform.tenants.create`, `platform.billing.view`
+
+Auditoria: `platform.tenant.onboarding`
+
+### UI
+| Rota | Componente |
+|------|------------|
+| `/platform/onboarding` | `PlatformOnboardingPage` — wizard B2B |
+
+Link **Onboarding B2B** na nav platform e na listagem de empresas.
+
+---
+
+## Fase 9 — Deploy EasyPanel e operação
+
+Documentação operacional para produção em VPS/EasyPanel.
+
+### Health probes
+| Endpoint | Tipo | Descrição |
+|----------|------|-----------|
+| `GET /health/live` | Liveness | Processo API vivo |
+| `GET /health/ready` | Readiness | Postgres acessível |
+| `GET /health` | Completo | DB, Redis, gateway, filas |
+
+### Documentos
+| Arquivo | Conteúdo |
+|---------|----------|
+| [`docs/deploy/easypanel.md`](../deploy/easypanel.md) | Guia passo a passo EasyPanel |
+| [`docs/operations/runbook.md`](../operations/runbook.md) | Backup, multi-tenant, troubleshooting |
+| [`scripts/deploy-check.sh`](../../scripts/deploy-check.sh) | Pré-validação de `.env` |
+| [`.env.production.example`](../../.env.production.example) | Variáveis produção + SaaS |
+
+### Compose produção
+- `docker-compose.prod.yml` — 7 serviços + profile backup
+- Healthcheck API usa `/health/ready`
+- CD publica imagens GHCR (`.github/workflows/cd.yml`)
+
+---
+
+## Fase 10 — Observabilidade, OpenAPI e carga
+
+### Prometheus
+| Item | Descrição |
+|------|-----------|
+| `PROMETHEUS_ENABLED=true` | Ativa middleware de métricas + endpoint |
+| `GET /metrics` | Formato text/plain Prometheus |
+| Métricas | `aguia_http_requests_total`, `aguia_http_request_duration_seconds`, process stats |
+| Labels | `method`, `route` (normalizada), `status`, `tenant_id` |
+
+Middleware: `services/api/src/middleware/metrics-middleware.js`
+
+### OpenAPI
+| Item | Descrição |
+|------|-----------|
+| Spec | `services/api/openapi/spec.json` |
+| Endpoint | `GET /v1/openapi.json` |
+| Docs | [`docs/api/openapi.md`](../api/openapi.md) |
+
+Cobre health, auth, platform, onboarding B2B, admin SaaS e webhooks.
+
+### Teste de carga
+Script: `scripts/load-test.js` — RPS, p50/p95/p99 em health + rotas públicas.
+
+Docs: [`docs/operations/load-testing.md`](../operations/load-testing.md)
+
+```bash
+node scripts/load-test.js --url http://localhost:3000 --duration 15 --concurrency 10
+```
+
+---
+
+## Testes
+
+```bash
+npm run test:api
+```
+
+| Suite | Escopo |
+|-------|--------|
+| `test/tenant/tenant-isolation.test.js` | Contexto, spoof, cache prefix |
+| `test/modules/module-access.test.js` | Platform roles, route→module map |
+| `test/modules/saas-billing.test.js` | Billing SaaS, limites de uso |
+| `apps/web/src/lib/platform-access.test.js` | RBAC painel master |
+| `test/lib/tracking-provider.test.js` | TrackingProvider, sync strategies, factory |
+| `test/services/tenant-integration.test.js` | SHARED/OWN, merge settings |
+| `test/services/tenant-onboarding.test.js` | Slugify, steps B2B onboarding |
+| `test/infrastructure/health-probes.test.js` | Liveness/readiness, aggregateStatus |
+| `test/infrastructure/prometheus-metrics.test.js` | Métricas Prometheus, normalizeRoute |
+| `test/infrastructure/openapi.test.js` | Spec OpenAPI SaaS |
+| `test/tenant/repository-tenant-helpers.test.js` | Helper isolamento repositórios |
+| `test/tenant/repository-sql-isolation.test.js` | SQL tenant em repositórios |
+| `test/integration/tenant-cross-tenant.integration.test.js` | Cross-tenant DB (opcional) |
+
+**100 testes API** (99 pass + 1 skip integração) + testes web passando.
+
+---
+
+## Roadmap contínuo
+
+| Área | Foco |
+|------|------|
+| Observabilidade | Sentry, tracing distribuído, dashboards Grafana |
+| OpenAPI | Expansão rotas admin/cliente |
+| Carga | k6/Locust para cenários autenticados |
+
+---
+
+## Go-live SaaS — isolamento tenant (Opção A)
+
+### Repositórios
+17 repositórios das tabelas Fase 2 agora filtram por `tenant_id` quando `MULTI_TENANT_ENABLED=true`:
+
+- Helper: `services/api/src/lib/tenant/repository-tenant.js`
+- Admin `listAll` / `findById` recebem `tenantId` (default `1`)
+- Jobs de sistema usam `{ allTenants: true }` onde necessário (cron)
+
+### Rotas admin
+Passam `req.tenantId` para serviços: alertas, emergência, frota, indicações, financeiro, veículos, contratos, usuários.
+
+### Testes
+| Suite | Escopo |
+|-------|--------|
+| `test/tenant/repository-tenant-helpers.test.js` | Helper repository-tenant |
+| `test/tenant/repository-sql-isolation.test.js` | SQL mock — filtro tenant |
+| `test/integration/tenant-cross-tenant.integration.test.js` | DB real (skip sem `DATABASE_URL`) |
+
+Integração com Postgres:
+```bash
+TENANT_INTEGRATION_TEST=true DATABASE_URL=postgresql://... npm run test:api
+```
+
+### Checklist go-live
+1. `./scripts/deploy-check.sh .env`
+2. `npm test` (99+ passando)
+3. Staging: `MULTI_TENANT_ENABLED=true`
+4. Onboarding B2B em `/platform/onboarding`
+5. Validar admin tenant A não vê dados tenant B
+6. Produção: ativar flag após validação
+
+---
+
+## Fase 11 — Branding e menu dinâmico (go-live UX)
+
+### Branding por tenant
+- Migration: `migrate-phase11-tenant-branding.js` — `brand_name`, `logo_url`, `primary_color`, `favicon_url`, `custom_domain`
+- API pública: `GET /v1/tenant/branding` (slug via subdomínio, header `X-Tenant-Slug` ou query)
+- API admin: `GET/PATCH /v1/admin/branding` (permissão `settings.manage`)
+- Frontend: `loadTenantBranding()` aplica CSS vars e favicon no boot
+
+### Resolução de subdomínio
+- `resolveTenantSlugFromHost` / `resolveTenantSlugFromRequest` em `tenant-resolver.js`
+- `defaultTenantContext` resolve tenant por subdomínio quando `MULTI_TENANT_ENABLED=true`
+
+### Menu admin dinâmico
+- `apps/web/src/lib/admin-modules.js` — filtra `ADMIN_NAV` por módulos ativos
+- `GET /v1/admin/modules` — módulos contratados do tenant
+- Flag frontend: `VITE_MULTI_TENANT_ENABLED=true`
+
+### Testes E2E HTTP
+- `services/api/test/e2e/http-smoke.test.js` — supertest em `createApp()`
+- Cobre: `/health/live`, `/v1/openapi.json`, `/v1/tenant/branding`, rejeição tenant spoofed
+
+Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

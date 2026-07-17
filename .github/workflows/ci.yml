@@ -30,6 +30,9 @@ jobs:
       - name: Rodar testes
         run: npm test
 
+      - name: Auditoria de dependências
+        run: npm audit --audit-level=high || true
+
   build-web:
     name: Build PWA
     runs-on: ubuntu-latest

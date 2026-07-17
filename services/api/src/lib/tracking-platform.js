@@ -21,11 +21,11 @@ function normalizeProviderName(value) {
   return name === 'traccar' ? 'traccar' : DEFAULT_PROVIDER;
 }
 
-async function getDefaultProviderName() {
-  const store = getStore();
+async function getDefaultProviderName(tenantId) {
+  const { getTenantIntegrationService } = require('../services/tenant-integration-service');
   try {
-    const config = await store.get('rastreamento');
-    return normalizeProviderName(config.settings?.default_provider || config.settings?.provider);
+    const settings = await getTenantIntegrationService().getSettings('rastreamento', tenantId);
+    return normalizeProviderName(settings.default_provider || settings.provider);
   } catch {
     return DEFAULT_PROVIDER;
   }
@@ -36,18 +36,20 @@ async function getActiveProviderName() {
   return getDefaultProviderName();
 }
 
-async function getPlatformSettings(provider) {
+async function getPlatformSettings(provider, tenantId) {
   const name = normalizeProviderName(provider);
-  const store = getStore();
+  const { getTenantIntegrationService } = require('../services/tenant-integration-service');
   const configKey = PROVIDER_CONFIG_KEYS[name];
 
   try {
-    const config = await store.get(configKey);
+    const config = await getTenantIntegrationService().resolveConfig(configKey, tenantId);
     return {
       provider: name,
       configKey,
       enabled: config.enabled !== false,
       settings: config.settings || {},
+      credential_mode: config.credential_mode,
+      resolved_from: config.resolved_from,
     };
   } catch {
     return {
@@ -59,16 +61,16 @@ async function getPlatformSettings(provider) {
   }
 }
 
-async function getActivePlatformSettings() {
-  return getPlatformSettings(await getDefaultProviderName());
+async function getActivePlatformSettings(tenantId) {
+  return getPlatformSettings(await getDefaultProviderName(tenantId), tenantId);
 }
 
 function getProviderLabel(provider) {
   return PROVIDER_LABELS[normalizeProviderName(provider)] || PROVIDER_LABELS.gpswox;
 }
 
-async function getSyncSettingsForProvider(provider) {
-  const platform = await getPlatformSettings(provider);
+async function getSyncSettingsForProvider(provider, tenantId) {
+  const platform = await getPlatformSettings(provider, tenantId);
   const { settings, enabled: integrationEnabled } = platform;
 
   const envPrefix = platform.provider === 'traccar' ? 'TRACCAR' : 'GPSWOX';

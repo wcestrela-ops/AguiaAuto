@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantWhereClause } = require('../lib/tenant/tenant-query');
 
 class SubscriptionRepository {
   constructor() {
@@ -17,11 +19,15 @@ class SubscriptionRepository {
     return rows[0] || null;
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query(
-      `SELECT * FROM subscriptions WHERE id = $1`,
-      [id]
-    );
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = 'SELECT * FROM subscriptions WHERE id = $1';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -37,13 +43,15 @@ class SubscriptionRepository {
   }
 
   async create(data) {
+    const tenantId = data.tenant_id ?? DEFAULT_TENANT_ID;
     const { rows } = await this.pool.query(
       `INSERT INTO subscriptions (
-        user_id, plan_id, vehicle_id, status, asaas_subscription_id,
+        user_id, tenant_id, plan_id, vehicle_id, status, asaas_subscription_id,
         mercadopago_subscription_id, external_subscription_id, payment_provider, billing_type
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [
         data.user_id,
+        tenantId,
         data.plan_id,
         data.vehicle_id || null,
         data.status || 'active',

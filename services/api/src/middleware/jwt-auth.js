@@ -15,6 +15,7 @@ function jwtAuth(req, res, next) {
       id: payload.sub,
       email: payload.email,
       role: payload.role,
+      tenant_id: payload.tenant_id || 1,
     };
     next();
   } catch (err) {

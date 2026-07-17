@@ -1,11 +1,6 @@
 require('dotenv').config();
 
-const express = require('express');
 const logger = require('./logger');
-const cors = require('./middleware/cors');
-const adminAuth = require('./middleware/admin-auth');
-const { jwtAuth, requireRole } = require('./middleware/jwt-auth');
-const { requireServiceContract } = require('./middleware/require-service-contract');
 const { getStore } = require('@aguia/integrations');
 const { getRepository } = require('@aguia/whatsapp');
 const { migrateUsers } = require('./db/migrate-users');
@@ -25,8 +20,8 @@ const { migrateVehicleSms } = require('./db/migrate-vehicle-sms');
 const { migrateAdminAudit } = require('./db/migrate-admin-audit');
 const { migrateTrackerLibrary } = require('./db/migrate-tracker-library');
 const { migrateTrackerGpswoxSms } = require('./db/migrate-tracker-gpswox-sms');
-    const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
-    const { migrateAsaasSyncRuns } = require('./db/migrate-asaas-sync-runs');
+const { migrateGpswoxSyncRuns } = require('./db/migrate-gpswox-sync-runs');
+const { migrateAsaasSyncRuns } = require('./db/migrate-asaas-sync-runs');
 const { migrateTrackerPlatformColumns } = require('./db/migrate-tracker-platform-columns');
 const { migrateVehiclePerPlatform } = require('./db/migrate-vehicle-per-platform');
 const { migrateBillingNotifications } = require('./db/migrate-billing-notifications');
@@ -40,132 +35,25 @@ const { migrateVehicleInstallerAssignment } = require('./db/migrate-vehicle-inst
 const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-channels');
 const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
-const { startAnchorPoller } = require('./services/anchor-service');
-const { startReferralRewardPoller } = require('./services/referral-service');
-const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
-const { startBillingReminderPoller } = require('./services/billing-reminder-service');
-const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
+const { migrateSecurityPhase3 } = require('./db/migrate-security-phase3');
+const { migrateTenantsFoundation } = require('./db/migrate-tenants-foundation');
+const { migrateAguiaTenantSeed } = require('./db/migrate-aguia-tenant-seed');
+const { migratePhase2TenantTables } = require('./db/migrate-phase2-tenant-tables');
+const { migratePhase3Modules } = require('./db/migrate-phase3-modules');
+const { migratePhase4SaasBilling } = require('./db/migrate-phase4-saas-billing');
+const { migratePhase6TrackingProvider } = require('./db/migrate-phase6-tracking-provider');
+const { migratePhase7TenantIntegrations } = require('./db/migrate-phase7-tenant-integrations');
+const { migratePhase11TenantBranding } = require('./db/migrate-phase11-tenant-branding');
+const { migrateCommandStates } = require('./db/migrate-command-states');
+const { attachWebSocket } = require('./infrastructure/websocket');
+const { isRedisEnabled } = require('./infrastructure/redis');
+const { getRbacRepository } = require('./repositories/rbac-repository');
+const { getAdminAuthService } = require('./services/admin-auth-service');
+const http = require('http');
+const { createApp } = require('./create-app');
 
-const authRoutes = require('./modules/auth/routes');
-const dashboardRoutes = require('./modules/dashboard/routes');
-const veiculosRoutes = require('./modules/veiculos/routes');
-const financeiroRoutes = require('./modules/financeiro/routes');
-const alertasRoutes = require('./modules/alertas/routes');
-const emergenciaRoutes = require('./modules/emergencia/routes');
-const perfilRoutes = require('./modules/perfil/routes');
-const notificacoesRoutes = require('./modules/notificacoes/routes');
-const indicacoesRoutes = require('./modules/indicacoes/routes');
-const indicacoesPublicRoutes = require('./modules/indicacoes/public-routes');
-const frotaRoutes = require('./modules/frota/routes');
-const contratosRoutes = require('./modules/contratos/routes');
-const instaladorRoutes = require('./modules/instalador/routes');
-const webhooksRoutes = require('./modules/webhooks/routes');
-const onboardingRoutes = require('./modules/onboarding/routes');
-const adminIntegracoesRoutes = require('./modules/admin/integracoes/routes');
-const adminWhatsappRoutes = require('./modules/admin/whatsapp/routes');
-const adminVeiculosRoutes = require('./modules/admin/veiculos/routes');
-const adminUsuariosRoutes = require('./modules/admin/usuarios/routes');
-const adminFinanceiroRoutes = require('./modules/admin/financeiro/routes');
-const adminPlansRoutes = require('./modules/admin/plans/routes');
-const adminAlertasRoutes = require('./modules/admin/alertas/routes');
-const adminComunicacaoRoutes = require('./modules/admin/comunicacao/routes');
-const adminInstaladoresRoutes = require('./modules/admin/instaladores/routes');
-const adminContratosRoutes = require('./modules/admin/contratos/routes');
-const adminAuditRoutes = require('./modules/admin/audit/routes');
-const adminFrotaRoutes = require('./modules/admin/frota/routes');
-const adminIndicacoesRoutes = require('./modules/admin/indicacoes/routes');
-const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
-const adminSiteRoutes = require('./modules/admin/site/routes');
-const adminSmsRoutes = require('./modules/admin/sms/routes');
-const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
-const adminExportRoutes = require('./modules/admin/export/routes');
-const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
-const plansRoutes = require('./modules/plans/routes');
-const siteRoutes = require('./modules/site/routes');
-const configRoutes = require('./modules/config/routes');
-
-const app = express();
+const PROCESS_ROLE = process.env.PROCESS_ROLE || 'api';
 const PORT = process.env.API_PORT || process.env.PORT || 3000;
-
-app.use(cors);
-app.use(express.json());
-
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`);
-  next();
-});
-
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'aguia-api',
-    version: '0.1.0',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Planos públicos (cadastro) e landing page
-app.use('/v1/plans', plansRoutes);
-app.use('/v1/site', siteRoutes);
-
-// Indicações — validação pública do código (cadastro)
-app.use('/v1/indicacoes', indicacoesPublicRoutes);
-
-// Auth público
-app.use('/v1/auth', authRoutes);
-
-// Config pública (Firebase web config)
-app.use('/v1/config', configRoutes);
-
-// Webhooks públicos
-app.use('/webhooks', webhooksRoutes);
-
-// Gateway SMS GPSWOX (entrada HTTP — padrão %NUMBER% / %MESSAGE%)
-app.use('/v1/sms/gateway', gpswoxGatewayRoutes);
-
-// Onboarding (parcialmente público durante cadastro)
-app.use('/v1/onboarding', onboardingRoutes);
-
-// Rotas do cliente — requer JWT (+ contrato de serviço aceito, exceto /contratos)
-app.use('/v1/dashboard', jwtAuth, requireServiceContract, dashboardRoutes);
-app.use('/v1/veiculos', jwtAuth, requireServiceContract, veiculosRoutes);
-app.use('/v1/financeiro', jwtAuth, requireServiceContract, financeiroRoutes);
-app.use('/v1/alertas', jwtAuth, requireServiceContract, alertasRoutes);
-app.use('/v1/emergencia', jwtAuth, requireServiceContract, emergenciaRoutes);
-app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
-app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
-app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
-app.use('/v1/frota', jwtAuth, requireServiceContract, frotaRoutes);
-app.use('/v1/contratos', jwtAuth, contratosRoutes);
-
-// Área do instalador — JWT + role
-app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
-
-// Painel admin — ADMIN_SECRET
-app.use('/v1/admin/export', adminAuth, adminExportRoutes);
-app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
-app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
-app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);
-app.use('/v1/admin/sms/gpswox-templates', adminAuth, adminSmsGpswoxTemplatesRoutes);
-app.use('/v1/admin/sms', adminAuth, adminSmsRoutes);
-app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
-app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
-app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
-app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
-app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
-app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
-app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
-app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
-app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
-app.use('/v1/admin/frota', adminAuth, adminFrotaRoutes);
-app.use('/v1/admin/indicacoes', adminAuth, adminIndicacoesRoutes);
-app.use('/v1/admin/emergencia', adminAuth, adminEmergenciaRoutes);
-app.use('/v1/admin/site', adminAuth, adminSiteRoutes);
-app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Rota não encontrada.' });
-});
 
 async function bootstrap() {
   if (process.env.DATABASE_URL) {
@@ -214,6 +102,47 @@ async function bootstrap() {
 
     await migrateVehicleSms();
     logger.info('Veículos — chip SMS e logs de comando inicializados.');
+
+    await migrateCommandStates();
+    logger.info('Estados de comando (máquina de estados) inicializados.');
+
+    await migrateSecurityPhase3();
+    logger.info('Segurança Fase 3 (RBAC, sessões, auditoria estendida) inicializada.');
+
+    await migrateTenantsFoundation();
+    logger.info('Fundação multi-tenant (tenant_id em tabelas core) inicializada.');
+
+    const aguiaSeed = await migrateAguiaTenantSeed();
+    logger.info(`Tenant Águia seed aplicado: ${JSON.stringify(aguiaSeed.counts)}`);
+
+    await migratePhase2TenantTables();
+    logger.info('Fase 2 — tenant_id em tabelas operacionais aplicado.');
+
+    const moduleSeed = await migratePhase3Modules();
+    logger.info(`Fase 3 — catálogo de módulos: ${moduleSeed.modules} módulos, tenant Águia ativado.`);
+
+    const saasBillingSeed = await migratePhase4SaasBilling();
+    logger.info(`Fase 4 — billing SaaS: plano ${saasBillingSeed.plan_id}, ${saasBillingSeed.modules_linked} módulos vinculados.`);
+
+    const trackingSeed = await migratePhase6TrackingProvider();
+    logger.info(`Fase 6 — TrackingProvider: ${trackingSeed.vehicles} veículos, ${trackingSeed.gpswox_users} users GPSWOX mapeados.`);
+
+    const integrationsSeed = await migratePhase7TenantIntegrations();
+    logger.info(`Fase 7 — integrações tenant: modos ${integrationsSeed.credential_modes.join('/')}, ${integrationsSeed.tenants_seeded} tenants seed.`);
+
+    await migratePhase11TenantBranding();
+    logger.info('Fase 11 — branding por tenant (nome, logo, cor, domínio) inicializado.');
+
+    await getRbacRepository().seedDefaults();
+    logger.info('RBAC padrão (funções e permissões) inicializado.');
+
+    await getAdminAuthService().bootstrapSuperAdmin();
+    logger.info('Bootstrap de superadmin verificado.');
+
+    const encryptionMigration = await getStore().migrateEncryptedSettings?.();
+    if (encryptionMigration?.migrated) {
+      logger.info(`Credenciais migradas para settings_encrypted: ${encryptionMigration.migrated}.`);
+    }
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
@@ -278,11 +207,27 @@ async function bootstrap() {
     logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
   }
 
-  app.listen(PORT, () => {
-    logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
+  const app = createApp();
+  const server = http.createServer(app);
+
+  if (PROCESS_ROLE === 'api') {
+    attachWebSocket(server);
+  }
+
+  server.listen(PORT, () => {
+    logger.info(`API Águia Gestão Veicular rodando na porta ${PORT} (role=${PROCESS_ROLE})`);
     logger.info('Auth cliente: POST /v1/auth/login | POST /v1/auth/register');
 
-    if (process.env.DATABASE_URL) {
+    const inlinePollers = process.env.ENABLE_INLINE_POLLERS === 'true'
+      || (!isRedisEnabled() && PROCESS_ROLE === 'api');
+
+    if (process.env.DATABASE_URL && inlinePollers) {
+      const { startAnchorPoller } = require('./services/anchor-service');
+      const { startReferralRewardPoller } = require('./services/referral-service');
+      const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
+      const { startBillingReminderPoller } = require('./services/billing-reminder-service');
+      const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
+
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
       startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
@@ -292,12 +237,16 @@ async function bootstrap() {
       startFleetReminderPoller(
         parseInt(process.env.FLEET_REMINDER_CHECK_MS || '0', 10) || undefined,
       );
-      logger.info('Pollers de âncora, indicações, sync GPSWOX, lembretes de cobrança e frota iniciados.');
+      logger.info('Pollers inline iniciados (modo compatibilidade).');
     }
   });
 }
 
-bootstrap().catch(err => {
-  logger.error('Falha ao iniciar API.', { err: err.message });
-  process.exit(1);
-});
+if (require.main === module) {
+  bootstrap().catch((err) => {
+    logger.error('Falha ao iniciar API.', { err: err.message });
+    process.exit(1);
+  });
+}
+
+module.exports = { createApp, bootstrap };

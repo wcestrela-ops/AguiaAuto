@@ -1,5 +1,5 @@
 const { IntegrationStore, getStore } = require('./store');
-const { INTEGRATIONS, getSchema, listSchemas, getDefaults, maskSettings } = require('./schemas');
+const { INTEGRATIONS, getSchema, listSchemas, getDefaults, maskSettings, isSharedCapable } = require('./schemas');
 
 module.exports = {
   IntegrationStore,
@@ -9,4 +9,5 @@ module.exports = {
   listSchemas,
   getDefaults,
   maskSettings,
+  isSharedCapable,
 };

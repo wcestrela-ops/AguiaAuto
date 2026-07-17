@@ -5,7 +5,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const data = await getReferralService().getAdminOverview();
+    const data = await getReferralService().getAdminOverview(req.tenantId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

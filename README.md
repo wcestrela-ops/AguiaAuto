@@ -48,6 +48,27 @@ docker compose up -d --build
 # API: http://localhost:3000
 ```
 
+## Deploy (EasyPanel / VPS)
+
+Produção usa `docker-compose.prod.yml` com Nginx no serviço `web` (API em `/api`, WebSocket em `/ws`).
+
+```bash
+cp .env.production.example .env
+# Preencha segredos, CORS_ORIGIN (https) e ADMIN_BOOTSTRAP_*
+
+./scripts/deploy-check.sh .env
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [`docs/deploy/easypanel.md`](docs/deploy/easypanel.md) | Guia passo a passo EasyPanel |
+| [`docs/operations/runbook.md`](docs/operations/runbook.md) | Backup, multi-tenant, troubleshooting |
+| [`docs/multi-tenancy/README.md`](docs/multi-tenancy/README.md) | Transformação SaaS (Fases 1–9) |
+
+Health probes: `GET /health/live`, `GET /health/ready`, `GET /health`.  
+OpenAPI: `GET /v1/openapi.json` · Prometheus: `GET /metrics` (com `PROMETHEUS_ENABLED=true`).
+
 ### Painel Admin (PWA)
 
 Acesse `http://localhost:8080/admin` e use o `ADMIN_SECRET` como token.

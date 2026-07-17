@@ -3,11 +3,13 @@ const jwt = require('jsonwebtoken');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPasswordResetRepository } = require('../repositories/password-reset-repository');
 const authNotifications = require('./auth-notifications');
+const { rehashIfNeeded } = require('../lib/security/password-hash');
 const {
   normalizePasswordResetChannel,
   buildPasswordResetMessage,
 } = require('../lib/notification-policy');
 const logger = require('../logger');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || '1h';
@@ -37,7 +39,12 @@ function generateRefreshToken() {
 function signAccessToken(user) {
   ensureJwtSecret();
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role },
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: user.tenant_id || DEFAULT_TENANT_ID,
+    },
     JWT_SECRET,
     { expiresIn: ACCESS_EXPIRES }
   );
@@ -69,6 +76,7 @@ function sanitizeUser(user) {
     phone: user.phone,
     cpf_cnpj: user.cpf_cnpj,
     role: user.role,
+    tenant_id: user.tenant_id || DEFAULT_TENANT_ID,
     active: user.active,
     email_verified: user.email_verified,
     last_access_at: user.last_access_at || null,
@@ -255,9 +263,16 @@ class AuthService {
       throw new Error('Credenciais inválidas.');
     }
 
-    const valid = await this.users.verifyPassword(user, password);
-    if (!valid) {
+    const fullUser = await this.users.findByIdWithPassword(user.id);
+    const passwordResult = await this.users.verifyPasswordDetailed(fullUser, password);
+    if (!passwordResult.valid) {
       throw new Error('Credenciais inválidas.');
+    }
+
+    if (passwordResult.needsRehash) {
+      await rehashIfNeeded(fullUser.id, password, fullUser.password_hash, (id, hash) =>
+        this.users.updatePasswordHash(id, hash),
+      );
     }
 
     return this._issueTokens(user, {

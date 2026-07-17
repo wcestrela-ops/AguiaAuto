@@ -271,6 +271,13 @@ const INTEGRATIONS = {
   },
 };
 
+function isSharedCapable(key) {
+  if (!key || ['gateway', 'gateway_client'].includes(key)) return false;
+  const schema = getSchema(key);
+  if (schema?.sharedCapable === false) return false;
+  return true;
+}
+
 function getSchema(key) {
   return INTEGRATIONS[key] || null;
 }
@@ -325,4 +332,5 @@ module.exports = {
   listSchemas,
   getDefaults,
   maskSettings,
+  isSharedCapable,
 };

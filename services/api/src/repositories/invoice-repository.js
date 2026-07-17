@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantWhereClause, assertResourceTenant } = require('../lib/tenant/tenant-query');
 
 class InvoiceRepository {
   constructor() {
@@ -14,13 +16,20 @@ class InvoiceRepository {
     return rows;
   }
 
-  async listAll({ limit = 100 } = {}) {
+  async listAll({ limit = 100, tenantId = DEFAULT_TENANT_ID } = {}) {
+    const params = [limit];
+    let tenantFilter = '';
+    if (isMultiTenantEnabled()) {
+      tenantFilter = ' AND i.tenant_id = $2';
+      params.push(tenantId);
+    }
     const { rows } = await this.pool.query(
       `SELECT i.*, u.email AS user_email, u.name AS user_name
        FROM invoices i
        JOIN users u ON u.id = i.user_id
+       WHERE 1=1${tenantFilter}
        ORDER BY i.created_at DESC LIMIT $1`,
-      [limit]
+      params,
     );
     return rows;
   }
@@ -38,16 +47,27 @@ class InvoiceRepository {
     return this.findByExternalPayment('asaas', asaasPaymentId);
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query('SELECT * FROM invoices WHERE id = $1', [id]);
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = 'SELECT * FROM invoices WHERE id = $1';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
-  async findByIdForUser(id, userId) {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM invoices WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+  async findByIdForUser(id, userId, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id, userId];
+    let sql = 'SELECT * FROM invoices WHERE id = $1 AND user_id = $2';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 3 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 

@@ -14,7 +14,7 @@ function getService() {
 
 router.get('/documentos', async (req, res) => {
   try {
-    const data = await getService().adminListDocuments();
+    const data = await getService().adminListDocuments(req.tenantId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -29,6 +29,7 @@ router.post('/documentos/veiculos/:vehicleId', vehicleDocumentUpload.single('fil
     const data = await getService().adminCreateDocument(
       { ...req.body, vehicle_id: req.params.vehicleId },
       fileMeta,
+      req.tenantId,
     );
     await getAuditService().adminAction('fleet.document.create', {
       resourceType: 'vehicle',
@@ -45,7 +46,7 @@ router.post('/documentos/veiculos/:vehicleId', vehicleDocumentUpload.single('fil
 router.put('/documentos/:id', vehicleDocumentUpload.single('file'), async (req, res) => {
   try {
     const fileMeta = storeVehicleDocumentFile(req.file, req.body?.vehicle_id);
-    const data = await getService().adminUpdateDocument(Number(req.params.id), req.body, fileMeta);
+    const data = await getService().adminUpdateDocument(Number(req.params.id), req.body, fileMeta, req.tenantId);
     await getAuditService().adminAction('fleet.document.update', {
       resourceType: 'vehicle',
       resourceId: data.vehicle_id,
@@ -61,7 +62,7 @@ router.put('/documentos/:id', vehicleDocumentUpload.single('file'), async (req, 
 
 router.delete('/documentos/:id', async (req, res) => {
   try {
-    const data = await getService().adminDeleteDocument(Number(req.params.id));
+    const data = await getService().adminDeleteDocument(Number(req.params.id), req.tenantId);
     await getAuditService().adminAction('fleet.document.delete', {
       resourceType: 'vehicle',
       resourceId: data.vehicle_id,
@@ -77,7 +78,7 @@ router.delete('/documentos/:id', async (req, res) => {
 
 router.get('/documentos/:id/arquivo', async (req, res) => {
   try {
-    const file = await getService().adminGetDocumentFile(Number(req.params.id));
+    const file = await getService().adminGetDocumentFile(Number(req.params.id), req.tenantId);
     res.sendFile(path.resolve(file.path), {
       headers: { 'Content-Disposition': `inline; filename="${file.filename}"` },
     });
@@ -89,7 +90,7 @@ router.get('/documentos/:id/arquivo', async (req, res) => {
 
 router.get('/manutencao', async (req, res) => {
   try {
-    const data = await getService().adminListMaintenance();
+    const data = await getService().adminListMaintenance(req.tenantId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -102,7 +103,7 @@ router.post('/manutencao', async (req, res) => {
     if (!req.body?.title?.trim()) throw new Error('Título é obrigatório.');
     if (!req.body?.performed_at) throw new Error('Data da manutenção é obrigatória.');
 
-    const data = await getService().adminCreateMaintenance(req.body);
+    const data = await getService().adminCreateMaintenance(req.body, req.tenantId);
     await getAuditService().adminAction('fleet.maintenance.create', {
       resourceType: 'vehicle',
       resourceId: data.vehicle_id,
@@ -117,7 +118,7 @@ router.post('/manutencao', async (req, res) => {
 
 router.put('/manutencao/:id', async (req, res) => {
   try {
-    const data = await getService().adminUpdateMaintenance(Number(req.params.id), req.body);
+    const data = await getService().adminUpdateMaintenance(Number(req.params.id), req.body, req.tenantId);
     await getAuditService().adminAction('fleet.maintenance.update', {
       resourceType: 'vehicle',
       resourceId: data.vehicle_id,
@@ -133,7 +134,7 @@ router.put('/manutencao/:id', async (req, res) => {
 
 router.delete('/manutencao/:id', async (req, res) => {
   try {
-    const data = await getService().adminDeleteMaintenance(Number(req.params.id));
+    const data = await getService().adminDeleteMaintenance(Number(req.params.id), req.tenantId);
     await getAuditService().adminAction('fleet.maintenance.delete', {
       resourceType: 'vehicle',
       resourceId: data.vehicle_id,
@@ -154,8 +155,8 @@ router.get('/lembretes', async (req, res) => {
     const repo = getFleetReminderNotificationRepository();
     const [status, notifications, runs] = await Promise.all([
       getFleetReminderService().getStatus(),
-      repo.listRecent({ limit, userId }),
-      repo.listRecentRuns({ limit: 10 }),
+      repo.listRecent({ limit, userId, tenantId: req.tenantId }),
+      repo.listRecentRuns({ limit: 10, tenantId: req.tenantId }),
     ]);
     res.json({ success: true, data: { status, notifications, runs } });
   } catch (err) {

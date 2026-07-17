@@ -1,8 +1,8 @@
-const bcrypt = require('bcryptjs');
+const { hashPassword, verifyPassword: verifyPasswordHash, rehashIfNeeded } = require('../lib/security/password-hash');
 const crypto = require('crypto');
 const { getPool } = require('../db/pool');
-
-const SALT_ROUNDS = 12;
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantWhereClause, appendTenantFilter } = require('../lib/tenant/tenant-query');
 
 const CLIENT_SORT_SQL = {
   created_desc: 'u.created_at DESC',
@@ -22,11 +22,15 @@ class UserRepository {
     this.pool = getPool();
   }
 
-  async findByEmail(email) {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
-    );
+  async findByEmail(email, tenantId = DEFAULT_TENANT_ID) {
+    const params = [email.toLowerCase().trim()];
+    let sql = 'SELECT * FROM users WHERE email = $1';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -55,13 +59,17 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query(
-      `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,
-              last_access_at, last_access_ip, created_at, updated_at
-       FROM users WHERE id = $1`,
-      [id]
-    );
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,
+              tenant_id, last_access_at, last_access_ip, created_at, updated_at
+       FROM users WHERE id = $1`;
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -90,13 +98,13 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async create({ email, password, name, phone, cpf_cnpj, role = 'client' }) {
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  async create({ email, password, name, phone, cpf_cnpj, role = 'client', tenant_id = DEFAULT_TENANT_ID }) {
+    const passwordHash = await hashPassword(password);
     const { rows } = await this.pool.query(
-      `INSERT INTO users (email, password_hash, name, phone, cpf_cnpj, role)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, email, name, phone, cpf_cnpj, role, active, email_verified, created_at`,
-      [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role]
+      `INSERT INTO users (email, password_hash, name, phone, cpf_cnpj, role, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, name, phone, cpf_cnpj, role, tenant_id, active, email_verified, created_at`,
+      [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role, tenant_id]
     );
     return rows[0];
   }
@@ -108,7 +116,7 @@ class UserRepository {
     cpf_cnpj,
     asaas_customer_id,
   }) {
-    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString('base64url'), SALT_ROUNDS);
+    const passwordHash = await hashPassword(crypto.randomBytes(16).toString('base64url'));
     const { rows } = await this.pool.query(
       `INSERT INTO users (
         email, password_hash, name, phone, cpf_cnpj, role,
@@ -129,9 +137,16 @@ class UserRepository {
   }
 
   async updatePassword(userId, newPassword) {
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const passwordHash = await hashPassword(newPassword);
     await this.pool.query(
-      'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+      'UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW() WHERE id = $1',
+      [userId, passwordHash]
+    );
+  }
+
+  async updatePasswordHash(userId, passwordHash) {
+    await this.pool.query(
+      'UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW() WHERE id = $1',
       [userId, passwordHash]
     );
   }
@@ -150,7 +165,12 @@ class UserRepository {
   }
 
   async verifyPassword(user, password) {
-    return bcrypt.compare(password, user.password_hash);
+    const result = await verifyPasswordHash(password, user.password_hash);
+    return result.valid;
+  }
+
+  async verifyPasswordDetailed(user, password) {
+    return verifyPasswordHash(password, user.password_hash);
   }
 
   async saveRefreshToken(userId, tokenHash, expiresAt) {
@@ -185,14 +205,21 @@ class UserRepository {
     );
   }
 
-  async listAll() {
+  async listAll(tenantId = DEFAULT_TENANT_ID) {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+    idx = appendTenantFilter(conditions, params, idx, tenantId);
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
               asaas_customer_id, mercadopago_payer_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at
        FROM users
-       ORDER BY name NULLS LAST, email`
+       ${where}
+       ORDER BY name NULLS LAST, email`,
+      params,
     );
     return rows;
   }
@@ -227,7 +254,7 @@ class UserRepository {
     if (filters.never_accessed === 'true' || filters.never_accessed === true) {
       conditions.push('u.last_access_at IS NULL');
       conditions.push('u.active = true');
-    } else if (filters.access_inactive_days) {
+    } else     if (filters.access_inactive_days) {
       const days = Math.max(parseInt(filters.access_inactive_days, 10), 1);
       conditions.push(`(
         u.last_access_at IS NULL
@@ -236,6 +263,10 @@ class UserRepository {
       params.push(String(days));
       idx += 1;
       conditions.push('u.active = true');
+    }
+
+    if (isMultiTenantEnabled()) {
+      idx = appendTenantFilter(conditions, params, idx, filters.tenantId ?? DEFAULT_TENANT_ID, { alias: 'u' });
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

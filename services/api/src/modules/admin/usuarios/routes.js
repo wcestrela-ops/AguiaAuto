@@ -7,7 +7,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const data = await getUserRepository().listAll();
+    const data = await getUserRepository().listAll(req.tenantId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -35,6 +35,7 @@ router.get('/painel', async (req, res) => {
       sort: req.query.sort,
       limit: req.query.limit,
       offset: req.query.offset,
+      tenantId: req.tenantId,
     });
     res.json({ success: true, data });
   } catch (err) {

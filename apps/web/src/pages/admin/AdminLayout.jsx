@@ -1,46 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-
-const NAV = [
-  { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/integracoes', label: 'Integrações' },
-  { to: '/admin/whatsapp', label: 'WhatsApp' },
-  { to: '/admin/sms', label: 'SMS Rastreador' },
-  { to: '/admin/veiculos', label: 'Veículos' },
-  { to: '/admin/clientes', label: 'Clientes' },
-  { to: '/admin/financeiro', label: 'Financeiro' },
-  { to: '/admin/planos', label: 'Planos' },
-  { to: '/admin/site', label: 'Landing page' },
-  { to: '/admin/alertas', label: 'Alertas' },
-  { to: '/admin/emergencia', label: 'Emergência' },
-  { to: '/admin/instaladores', label: 'Instaladores' },
-  { to: '/admin/contratos', label: 'Contratos' },
-  { to: '/admin/frota', label: 'Documentos' },
-  { to: '/admin/indicacoes', label: 'Indicações' },
-  { to: '/admin/auditoria', label: 'Auditoria' },
-];
-
-const PAGE_TITLES = Object.fromEntries(NAV.map((item) => [item.to, item.label]));
-
-function resolvePageTitle(pathname) {
-  if (pathname.startsWith('/admin/integracoes/')) return 'Integração';
-  if (pathname.startsWith('/admin/clientes/')) return 'Cliente';
-  return PAGE_TITLES[pathname] || 'Águia Admin';
-}
+import { getStoredAdminUser, hasPlatformAccess } from '../../lib/platform-access';
+import {
+  ADMIN_NAV,
+  filterAdminNav,
+  isMultiTenantNavEnabled,
+  resolveAdminPageTitle,
+} from '../../lib/admin-modules';
+import { getCachedBranding } from '../../lib/tenant-branding';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
-  const pageTitle = resolvePageTitle(location.pathname);
+  const [navItems, setNavItems] = useState(ADMIN_NAV);
+  const pageTitle = resolveAdminPageTitle(location.pathname, navItems);
+  const user = useMemo(() => getStoredAdminUser(), [location.pathname]);
+  const showPlatformLink = hasPlatformAccess(user);
+  const branding = getCachedBranding();
+  const brandName = branding?.brand_name || branding?.trade_name || 'Águia';
+  const brandSubtitle = branding?.slug ? 'Gestão Veicular' : 'Gestão Veicular';
 
   useEffect(() => {
-    document.title = `${pageTitle} · Águia Admin`;
+    if (!isMultiTenantNavEnabled()) return undefined;
+
+    let cancelled = false;
+    api.getAdminModules()
+      .then((res) => {
+        if (cancelled) return;
+        setNavItems(filterAdminNav(ADMIN_NAV, res.data || []));
+      })
+      .catch(() => {
+        if (!cancelled) setNavItems(ADMIN_NAV);
+      });
+
     return () => {
-      document.title = 'Águia Admin';
+      cancelled = true;
     };
-  }, [pageTitle]);
+  }, []);
+
+  useEffect(() => {
+    document.title = `${pageTitle} · ${brandName} Admin`;
+    return () => {
+      document.title = `${brandName} Admin`;
+    };
+  }, [pageTitle, brandName]);
 
   useEffect(() => {
     setNavOpen(false);
@@ -53,8 +58,8 @@ export default function AdminLayout() {
     };
   }, [navOpen]);
 
-  function logout() {
-    api.clearToken();
+  async function logout() {
+    await api.adminLogout();
     navigate('/admin/login');
   }
 
@@ -71,15 +76,19 @@ export default function AdminLayout() {
 
       <aside className="sidebar" aria-label="Navegação admin">
         <div className="sidebar-brand">
-          <span>🦅</span>
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="" className="sidebar-brand-logo" />
+          ) : (
+            <span>🦅</span>
+          )}
           <div>
-            <strong>Águia</strong>
-            <small>Gestão Veicular</small>
+            <strong>{brandName}</strong>
+            <small>{brandSubtitle}</small>
           </div>
         </div>
 
         <nav>
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
               {item.label}
             </NavLink>
@@ -87,6 +96,11 @@ export default function AdminLayout() {
         </nav>
 
         <div className="sidebar-footer">
+          {showPlatformLink ? (
+            <NavLink to="/platform" className="nav-link nav-link-compact">
+              Plataforma SaaS
+            </NavLink>
+          ) : null}
           <NavLink to="/admin/integracoes" className="nav-link nav-link-compact">
             Integrações
           </NavLink>

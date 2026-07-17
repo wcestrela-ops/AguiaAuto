@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { appendTenantFilter } = require('../lib/tenant/tenant-query');
 
 class AuditRepository {
   constructor() {
@@ -8,8 +10,10 @@ class AuditRepository {
   async create(entry) {
     const { rows } = await this.pool.query(
       `INSERT INTO audit_logs
-        (actor_type, actor_id, action, resource_type, resource_id, metadata, ip_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (actor_type, actor_id, action, resource_type, resource_id, metadata,
+         ip_address, user_agent, tenant_id, user_role, old_values, new_values,
+         device_id, request_id, severity)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         entry.actor_type,
@@ -19,15 +23,25 @@ class AuditRepository {
         entry.resource_id || null,
         entry.metadata ? JSON.stringify(entry.metadata) : null,
         entry.ip_address || null,
+        entry.user_agent || null,
+        entry.tenant_id || 1,
+        entry.user_role || null,
+        entry.old_values ? JSON.stringify(entry.old_values) : null,
+        entry.new_values ? JSON.stringify(entry.new_values) : null,
+        entry.device_id || null,
+        entry.request_id || null,
+        entry.severity || 'info',
       ],
     );
     return rows[0];
   }
 
-  _buildListQuery(filters = {}) {
+  _buildListQuery(filters = {}, tenantId = DEFAULT_TENANT_ID) {
     const params = [];
     const conditions = [];
     let idx = 1;
+
+    idx = appendTenantFilter(conditions, params, idx, tenantId);
 
     if (filters.action) {
       conditions.push(`action = $${idx++}`);
@@ -73,10 +87,10 @@ class AuditRepository {
     return { where, params, nextIdx: idx };
   }
 
-  async list(filters = {}) {
+  async list(filters = {}, tenantId = DEFAULT_TENANT_ID) {
     const limit = Math.min(Math.max(parseInt(filters.limit || '50', 10), 1), 200);
     const offset = Math.max(parseInt(filters.offset || '0', 10), 0);
-    const { where, params, nextIdx } = this._buildListQuery(filters);
+    const { where, params, nextIdx } = this._buildListQuery(filters, tenantId);
 
     params.push(limit, offset);
     const { rows } = await this.pool.query(
@@ -89,8 +103,8 @@ class AuditRepository {
     return rows;
   }
 
-  async count(filters = {}) {
-    const { where, params } = this._buildListQuery(filters);
+  async count(filters = {}, tenantId = DEFAULT_TENANT_ID) {
+    const { where, params } = this._buildListQuery(filters, tenantId);
     const { rows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM audit_logs ${where}`,
       params,

@@ -21,7 +21,7 @@ router.post('/promocao', async (req, res) => {
     let targets = [];
 
     if (allClients) {
-      const list = await users.listAll();
+      const list = await users.listAll(req.tenantId);
       targets = list.filter(u => u.phone && u.active !== false);
     } else if (Array.isArray(userIds) && userIds.length) {
       for (const id of userIds) {

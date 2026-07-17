@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantWhereClause, assertResourceTenant } = require('../lib/tenant/tenant-query');
 
 const VEHICLE_STATUS = {
   PENDING_INSTALLATION: 'pending_installation',
@@ -22,29 +24,47 @@ class VehicleRepository {
     return rows;
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query('SELECT * FROM vehicles WHERE id = $1', [id]);
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = 'SELECT * FROM vehicles WHERE id = $1';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
-  async findByIdForAdmin(id) {
+  async findByIdForAdmin(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let tenantFilter = '';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2, tableAlias: 'v' });
+      tenantFilter = filter.clause;
+      params.push(...filter.params);
+    }
     const { rows } = await this.pool.query(
       `SELECT v.*, u.email AS user_email, u.name AS user_name,
               inst.name AS assigned_installer_name, inst.email AS assigned_installer_email
        FROM vehicles v
        JOIN users u ON u.id = v.user_id
        LEFT JOIN users inst ON inst.id = v.assigned_installer_id
-       WHERE v.id = $1`,
-      [id],
+       WHERE v.id = $1${tenantFilter}`,
+      params,
     );
     return rows[0] || null;
   }
 
-  async findByIdForUser(id, userId) {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM vehicles WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+  async findByIdForUser(id, userId, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id, userId];
+    let sql = 'SELECT * FROM vehicles WHERE id = $1 AND user_id = $2';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 3 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -58,14 +78,15 @@ class VehicleRepository {
   }
 
   async create(data) {
+    const tenantId = data.tenant_id ?? DEFAULT_TENANT_ID;
     const { rows } = await this.pool.query(
       `INSERT INTO vehicles (
-        user_id, tracking_provider, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
+        user_id, tenant_id, tracking_provider, tracker_device_id, tracker_name, plate, brand, model, color, year, status,
         tracker_phone, tracker_model, tracker_model_id, tracker_imei, tracker_synced_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
-        data.user_id, data.tracking_provider || null, data.tracker_device_id, data.tracker_name,
+        data.user_id, tenantId, data.tracking_provider || null, data.tracker_device_id, data.tracker_name,
         data.plate, data.brand, data.model, data.color, data.year,
         data.status || VEHICLE_STATUS.PENDING_INSTALLATION,
         data.tracker_phone || null,
@@ -78,9 +99,12 @@ class VehicleRepository {
     return rows[0];
   }
 
-  async update(id, data) {
-    const current = await this.findById(id);
+  async update(id, data, tenantId = DEFAULT_TENANT_ID) {
+    const current = await this.findById(id, tenantId);
     if (!current) throw new Error('Veículo não encontrado.');
+    if (isMultiTenantEnabled() && !assertResourceTenant(current, tenantId)) {
+      throw new Error('Veículo não pertence ao tenant autenticado.');
+    }
 
     const { rows } = await this.pool.query(
       `UPDATE vehicles SET
@@ -127,14 +151,19 @@ class VehicleRepository {
     return rows[0] || null;
   }
 
-  async listAll() {
-    return this.listForAdmin({});
+  async listAll(tenantId = DEFAULT_TENANT_ID) {
+    return this.listForAdmin({}, tenantId);
   }
 
-  _buildAdminListQuery(filters = {}) {
+  _buildAdminListQuery(filters = {}, tenantId = DEFAULT_TENANT_ID) {
     const params = [];
     const conditions = [];
     let idx = 1;
+
+    if (isMultiTenantEnabled()) {
+      conditions.push(`v.tenant_id = $${idx++}`);
+      params.push(tenantId);
+    }
 
     if (filters.q?.trim()) {
       conditions.push(`(
@@ -190,8 +219,8 @@ class VehicleRepository {
     return map[sort] || map.created_desc;
   }
 
-  async listForAdmin(filters = {}) {
-    const { where, params } = this._buildAdminListQuery(filters);
+  async listForAdmin(filters = {}, tenantId = DEFAULT_TENANT_ID) {
+    const { where, params } = this._buildAdminListQuery(filters, tenantId);
     const orderBy = this._resolveAdminSort(filters.sort);
     const { rows } = await this.pool.query(
       `SELECT v.*, u.email AS user_email, u.name AS user_name,
@@ -206,8 +235,8 @@ class VehicleRepository {
     return rows;
   }
 
-  async countForAdmin(filters = {}) {
-    const { where, params } = this._buildAdminListQuery(filters);
+  async countForAdmin(filters = {}, tenantId = DEFAULT_TENANT_ID) {
+    const { where, params } = this._buildAdminListQuery(filters, tenantId);
     const { rows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count
        FROM vehicles v

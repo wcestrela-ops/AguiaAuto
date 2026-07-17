@@ -195,7 +195,10 @@ class FinanceiroService {
   }
 
   async listAllCharges(options = {}) {
-    const rows = await this.invoices.listAll({ limit: options.limit || 100 });
+    const rows = await this.invoices.listAll({
+      limit: options.limit || 100,
+      tenantId: options.tenantId,
+    });
     const invoiceIds = rows.map((row) => row.id);
     const latestNotifications = await getBillingNotificationRepository()
       .mapLatestByInvoiceIds(invoiceIds);

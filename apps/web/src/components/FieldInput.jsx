@@ -1,4 +1,4 @@
-export default function FieldInput({ field, value, onChange }) {
+export default function FieldInput({ field, value, onChange, disabled = false }) {
   const id = `field-${field.key}`;
   const hint = field.hint || field.description;
 
@@ -10,6 +10,7 @@ export default function FieldInput({ field, value, onChange }) {
           type="checkbox"
           checked={value === true || value === 'true'}
           onChange={(e) => onChange(e.target.checked)}
+          disabled={disabled}
         />
         {field.label}
         {hint && <small className="hint">{hint}</small>}
@@ -26,6 +27,7 @@ export default function FieldInput({ field, value, onChange }) {
           id={id}
           value={value ?? field.default ?? ''}
           onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
         >
           {(field.options || []).map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -47,6 +49,7 @@ export default function FieldInput({ field, value, onChange }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder || ''}
+          disabled={disabled}
         />
         {hint && <small className="hint">{hint}</small>}
       </label>
@@ -64,6 +67,7 @@ export default function FieldInput({ field, value, onChange }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder || (field.secret ? '••••••••' : '')}
+          disabled={disabled}
         />
         <small className="hint">
           {hint || 'Deixe em branco para manter o valor atual (campos secretos).'}
@@ -82,6 +86,7 @@ export default function FieldInput({ field, value, onChange }) {
         value={value}
         onChange={(e) => onChange(field.type === 'number' ? parseInt(e.target.value, 10) : e.target.value)}
         placeholder={field.placeholder || ''}
+        disabled={disabled}
       />
       {hint && <small className="hint">{hint}</small>}
     </label>

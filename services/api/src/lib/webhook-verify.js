@@ -11,13 +11,13 @@ function safeEqual(a, b) {
 function verifyAsaasWebhook(req, config) {
   const token = req.headers['asaas-access-token'] || req.headers['access_token'];
   const expected = config.webhook_token || config.api_key;
-  if (!expected) return process.env.NODE_ENV !== 'production';
+  if (!expected) return process.env.NODE_ENV !== 'production' && process.env.WEBHOOK_ALLOW_UNVERIFIED === 'true';
   return safeEqual(token, expected);
 }
 
 function verifyMercadoPagoWebhook(req, config) {
   const secret = config.webhook_secret;
-  if (!secret) return process.env.NODE_ENV !== 'production';
+  if (!secret) return process.env.NODE_ENV !== 'production' && process.env.WEBHOOK_ALLOW_UNVERIFIED === 'true';
 
   const xSignature = req.headers['x-signature'];
   const xRequestId = req.headers['x-request-id'];
@@ -47,7 +47,7 @@ function verifyMercadoPagoWebhook(req, config) {
 function verifyGpswoxWebhook(req, config) {
   const secret = config.webhook_secret;
   if (!secret) {
-    return process.env.NODE_ENV !== 'production';
+    return process.env.NODE_ENV !== 'production' && process.env.WEBHOOK_ALLOW_UNVERIFIED === 'true';
   }
 
   const auth = req.headers.authorization || '';
@@ -59,7 +59,7 @@ function verifyGpswoxWebhook(req, config) {
 function verifyTraccarWebhook(req, config) {
   const secret = config.webhook_secret;
   if (!secret) {
-    return process.env.NODE_ENV !== 'production';
+    return process.env.NODE_ENV !== 'production' && process.env.WEBHOOK_ALLOW_UNVERIFIED === 'true';
   }
 
   const auth = req.headers.authorization || '';

@@ -1,11 +1,7 @@
-const gpswox = require('../integrations/gpswox-gateway');
-const {
-  getAllSyncSettings,
-  getSyncSettingsForProvider,
-  getProviderLabel,
-  TRACKING_PROVIDERS,
-  normalizeProviderName,
-} = require('../lib/tracking-platform');
+const { getAllSyncSettings, getSyncSettingsForProvider, getProviderLabel, TRACKING_PROVIDERS, normalizeProviderName } = require('../lib/tracking-platform');
+const { getTrackingService } = require('./tracking-service');
+const { getExternalEntityMappingService } = require('./external-entity-mapping-service');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 const { getTrackerModelRepository } = require('../repositories/tracker-model-repository');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
 const { getUserRepository } = require('../repositories/user-repository');
@@ -139,7 +135,7 @@ class GpswoxSyncService {
 
     let response;
     try {
-      response = await gpswox.listDevices(platform);
+      response = await getTrackingService().listDevices(DEFAULT_TENANT_ID, platform);
     } catch (err) {
       logger.warn(`Sync ${providerLabel} indisponível.`, { err: err.message });
       return {
@@ -218,6 +214,12 @@ class GpswoxSyncService {
             continue;
           }
           await this.vehicles.update(existing.id, payload);
+          await getExternalEntityMappingService().linkVehicle(
+            existing.tenant_id || DEFAULT_TENANT_ID,
+            { id: existing.id },
+            platform,
+            deviceId,
+          );
           summary.updated += 1;
           continue;
         }
@@ -232,7 +234,7 @@ class GpswoxSyncService {
           continue;
         }
 
-        await this.vehicles.create({
+        const created = await this.vehicles.create({
           user_id: userId,
           plate: payload.plate || payload.tracker_name.slice(0, 10).toUpperCase(),
           brand: device.brand || null,
@@ -240,6 +242,12 @@ class GpswoxSyncService {
           status: 'active',
           ...payload,
         });
+        await getExternalEntityMappingService().linkVehicle(
+          created.tenant_id || DEFAULT_TENANT_ID,
+          created,
+          platform,
+          deviceId,
+        );
         summary.created += 1;
       } catch (err) {
         summary.errors.push({

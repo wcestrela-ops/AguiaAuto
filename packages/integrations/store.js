@@ -1,7 +1,9 @@
 const { Pool } = require('pg');
-const { getSchema, getDefaults, maskSettings, listSchemas } = require('./schemas');
+const { getSchema, getDefaults, maskSettings, listSchemas, isSharedCapable } = require('./schemas');
+const { encryptJson, decryptJson, isEncryptionEnabled } = require('./encryption');
 
 const CACHE_TTL_MS = 60_000;
+const DEFAULT_TENANT_ID = 1;
 
 class IntegrationStore {
   constructor(databaseUrl) {
@@ -13,13 +15,20 @@ class IntegrationStore {
   async migrate() {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS integration_configs (
-        integration_key VARCHAR(50) PRIMARY KEY,
+        tenant_id       INTEGER NOT NULL DEFAULT 1,
+        integration_key VARCHAR(50) NOT NULL,
         settings        JSONB NOT NULL DEFAULT '{}',
         enabled         BOOLEAN NOT NULL DEFAULT true,
+        credential_mode VARCHAR(20) NOT NULL DEFAULT 'OWN',
         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_by      VARCHAR(100)
+        updated_by      VARCHAR(100),
+        PRIMARY KEY (tenant_id, integration_key)
       );
     `);
+  }
+
+  _cacheKey(tenantId, key) {
+    return `${tenantId || DEFAULT_TENANT_ID}:${key}`;
   }
 
   _isCacheValid() {
@@ -31,17 +40,78 @@ class IntegrationStore {
     this.cacheExpiry = 0;
   }
 
-  async _loadRow(key) {
+  async _loadRow(key, tenantId = DEFAULT_TENANT_ID) {
     const { rows } = await this.pool.query(
-      'SELECT integration_key, settings, enabled, updated_at, updated_by FROM integration_configs WHERE integration_key = $1',
-      [key]
+      'SELECT integration_key, settings, settings_encrypted, enabled, credential_mode, updated_at, updated_by, tenant_id FROM integration_configs WHERE tenant_id = $1 AND integration_key = $2',
+      [tenantId, key]
     );
     return rows[0] || null;
   }
 
-  async get(key, { useCache = true } = {}) {
-    if (useCache && this._isCacheValid() && this.cache.has(key)) {
-      return this.cache.get(key);
+  _resolveSettings(row, defaults) {
+    if (row?.settings_encrypted && isEncryptionEnabled()) {
+      const decrypted = decryptJson(row.settings_encrypted);
+      if (decrypted && typeof decrypted === 'object') {
+        return { ...defaults, ...decrypted };
+      }
+    }
+    return { ...defaults, ...(row?.settings || {}) };
+  }
+
+  _splitSecretSettings(key, settings) {
+    const schema = getSchema(key);
+    if (!schema || !isEncryptionEnabled()) {
+      return { publicSettings: settings, encryptedBlob: null };
+    }
+
+    const secretKeys = new Set(schema.fields.filter((f) => f.secret).map((f) => f.key));
+    const secrets = {};
+    const publicSettings = { ...settings };
+
+    for (const secretKey of secretKeys) {
+      if (publicSettings[secretKey] != null && publicSettings[secretKey] !== '') {
+        secrets[secretKey] = publicSettings[secretKey];
+      }
+      delete publicSettings[secretKey];
+    }
+
+    const encryptedBlob = Object.keys(secrets).length ? encryptJson(secrets) : null;
+    return { publicSettings, encryptedBlob };
+  }
+
+  async migrateEncryptedSettings() {
+    if (!isEncryptionEnabled()) return { migrated: 0 };
+
+    const { rows } = await this.pool.query(
+      `SELECT integration_key, settings, settings_encrypted
+       FROM integration_configs
+       WHERE settings_encrypted IS NULL AND settings <> '{}'::jsonb`,
+    );
+
+    let migrated = 0;
+    for (const row of rows) {
+      const schema = getSchema(row.integration_key);
+      if (!schema) continue;
+      const { publicSettings, encryptedBlob } = this._splitSecretSettings(row.integration_key, row.settings);
+      if (!encryptedBlob) continue;
+
+      await this.pool.query(
+        `UPDATE integration_configs
+         SET settings = $3, settings_encrypted = $4, updated_at = NOW()
+         WHERE tenant_id = $1 AND integration_key = $2`,
+        [row.tenant_id || DEFAULT_TENANT_ID, row.integration_key, JSON.stringify(publicSettings), encryptedBlob],
+      );
+      migrated += 1;
+    }
+
+    this._invalidateCache();
+    return { migrated };
+  }
+
+  async get(key, { useCache = true, tenantId = DEFAULT_TENANT_ID } = {}) {
+    const cacheKey = this._cacheKey(tenantId, key);
+    if (useCache && this._isCacheValid() && this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey);
     }
 
     const schema = getSchema(key);
@@ -49,44 +119,49 @@ class IntegrationStore {
       throw new Error(`Integração "${key}" não existe.`);
     }
 
-    const row = await this._loadRow(key);
+    const row = await this._loadRow(key, tenantId);
     const defaults = getDefaults(key);
-    const settings = { ...defaults, ...(row?.settings || {}) };
+    const settings = this._resolveSettings(row, defaults);
 
     const config = {
       key,
+      tenant_id: tenantId,
       label: schema.label,
       description: schema.description,
       enabled: row?.enabled ?? true,
+      credential_mode: row?.credential_mode || 'OWN',
+      shared_capable: isSharedCapable(key),
       settings,
       updated_at: row?.updated_at || null,
       updated_by: row?.updated_by || null,
     };
 
-    this.cache.set(key, config);
+    this.cache.set(cacheKey, config);
     this.cacheExpiry = Date.now() + CACHE_TTL_MS;
     return config;
   }
 
-  async getSettings(key) {
-    const config = await this.get(key);
+  async getSettings(key, { tenantId = DEFAULT_TENANT_ID } = {}) {
+    const config = await this.get(key, { tenantId });
     if (!config.enabled) {
       throw new Error(`Integração "${key}" está desabilitada.`);
     }
     return config.settings;
   }
 
-  async list({ masked = true } = {}) {
+  async list({ masked = true, tenantId = DEFAULT_TENANT_ID } = {}) {
     const schemas = listSchemas();
     const items = [];
 
     for (const schema of schemas) {
-      const config = await this.get(schema.key);
+      const config = await this.get(schema.key, { tenantId });
       items.push({
         key: config.key,
         label: config.label,
         description: config.description,
         enabled: config.enabled,
+        credential_mode: config.credential_mode,
+        shared_capable: config.shared_capable,
         configured: Object.keys(config.settings).some(k => config.settings[k] != null && config.settings[k] !== ''),
         settings: masked ? maskSettings(config.key, config.settings) : config.settings,
         fields: schema.fields,
@@ -98,13 +173,13 @@ class IntegrationStore {
     return items;
   }
 
-  async update(key, partialSettings, { updatedBy = 'admin', enabled } = {}) {
+  async update(key, partialSettings, { updatedBy = 'admin', enabled, tenantId = DEFAULT_TENANT_ID, credentialMode } = {}) {
     const schema = getSchema(key);
     if (!schema) {
       throw new Error(`Integração "${key}" não existe.`);
     }
 
-    const current = await this.get(key, { useCache: false });
+    const current = await this.get(key, { useCache: false, tenantId });
     const merged = { ...current.settings };
 
     for (const [field, value] of Object.entries(partialSettings)) {
@@ -126,26 +201,29 @@ class IntegrationStore {
     }
 
     const enabledValue = enabled !== undefined ? enabled : current.enabled;
+    const credentialModeValue = credentialMode || current.credential_mode || 'OWN';
+    const { publicSettings, encryptedBlob } = this._splitSecretSettings(key, merged);
 
     await this.pool.query(
-      `INSERT INTO integration_configs (integration_key, settings, enabled, updated_at, updated_by)
-       VALUES ($1, $2, $3, NOW(), $4)
-       ON CONFLICT (integration_key)
-       DO UPDATE SET settings = $2, enabled = $3, updated_at = NOW(), updated_by = $4`,
-      [key, JSON.stringify(merged), enabledValue, updatedBy]
+      `INSERT INTO integration_configs (tenant_id, integration_key, settings, settings_encrypted, enabled, credential_mode, updated_at, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+       ON CONFLICT (tenant_id, integration_key)
+       DO UPDATE SET settings = $3, settings_encrypted = COALESCE($4, integration_configs.settings_encrypted),
+                     enabled = $5, credential_mode = $6, updated_at = NOW(), updated_by = $7`,
+      [tenantId, key, JSON.stringify(publicSettings), encryptedBlob, enabledValue, credentialModeValue, updatedBy]
     );
 
     this._invalidateCache();
-    const updated = await this.get(key, { useCache: false });
+    const updated = await this.get(key, { useCache: false, tenantId });
     return {
       ...updated,
       settings: maskSettings(key, updated.settings),
     };
   }
 
-  async reload() {
+  async reload({ tenantId = DEFAULT_TENANT_ID } = {}) {
     this._invalidateCache();
-    return this.list();
+    return this.list({ tenantId });
   }
 
   async close() {

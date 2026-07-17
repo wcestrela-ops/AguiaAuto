@@ -1,11 +1,14 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { api } from './api/client';
+import { loadTenantBranding } from './lib/tenant-branding';
 import LoginPage from './pages/admin/LoginPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import IntegrationsPage from './pages/admin/IntegrationsPage';
 import IntegrationEditPage from './pages/admin/IntegrationEditPage';
 import WhatsAppPage from './pages/admin/WhatsAppPage';
+import SmsPage from './pages/admin/SmsPage';
 import AdminVehiclesPage from './pages/admin/AdminVehiclesPage';
 import AdminFinanceiroPage from './pages/admin/AdminFinanceiroPage';
 import AdminAlertsPage from './pages/admin/AdminAlertsPage';
@@ -39,13 +42,20 @@ import AdminEmergenciaPage from './pages/admin/AdminEmergenciaPage';
 import AdminPlansPage from './pages/admin/AdminPlansPage';
 import AdminLandingPage from './pages/admin/AdminLandingPage';
 import LandingPage from './pages/LandingPage';
-import SmsPage from './pages/admin/SmsPage';
+import AdminSecurityPage from './pages/admin/AdminSecurityPage';
 import ClientSessionGate from './components/ClientSessionGate';
+import AdminSessionGate from './components/AdminSessionGate';
+import PlatformSessionGate from './components/PlatformSessionGate';
+import PlatformLayout from './pages/platform/PlatformLayout';
+import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
+import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
+import PlatformTenantDetailPage from './pages/platform/PlatformTenantDetailPage';
+import PlatformModulesPage from './pages/platform/PlatformModulesPage';
+import PlatformSaasPlansPage from './pages/platform/PlatformSaasPlansPage';
+import PlatformOnboardingPage from './pages/platform/PlatformOnboardingPage';
 
 function AdminRoute({ children }) {
-  const token = api.adminToken || localStorage.getItem('admin_token');
-  if (!token) return <Navigate to="/admin/login" replace />;
-  return children;
+  return <AdminSessionGate>{children}</AdminSessionGate>;
 }
 
 function ClientRoute({ children }) {
@@ -56,7 +66,15 @@ function InstallerRoute({ children }) {
   return <ClientSessionGate installer>{children}</ClientSessionGate>;
 }
 
+function PlatformRoute({ children }) {
+  return <PlatformSessionGate>{children}</PlatformSessionGate>;
+}
+
 export default function App() {
+  useEffect(() => {
+    loadTenantBranding(api);
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -125,9 +143,27 @@ export default function App() {
         <Route path="frota" element={<AdminFrotaPage />} />
         <Route path="indicacoes" element={<AdminIndicacoesPage />} />
         <Route path="auditoria" element={<AdminAuditPage />} />
+        <Route path="seguranca" element={<AdminSecurityPage />} />
         <Route path="clientes" element={<AdminClientesPage />} />
         <Route path="clientes/:id" element={<AdminClienteDetailPage />} />
         <Route path="emergencia" element={<AdminEmergenciaPage />} />
+      </Route>
+
+      {/* Plataforma master (SaaS) */}
+      <Route
+        path="/platform"
+        element={
+          <PlatformRoute>
+            <PlatformLayout />
+          </PlatformRoute>
+        }
+      >
+        <Route index element={<PlatformDashboardPage />} />
+        <Route path="tenants" element={<PlatformTenantsPage />} />
+        <Route path="tenants/:id" element={<PlatformTenantDetailPage />} />
+        <Route path="modules" element={<PlatformModulesPage />} />
+        <Route path="saas-plans" element={<PlatformSaasPlansPage />} />
+        <Route path="onboarding" element={<PlatformOnboardingPage />} />
       </Route>
     </Routes>
   );
