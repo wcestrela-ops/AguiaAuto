@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-
-const NAV = [
-  { to: '/app', label: 'Início', end: true },
-  { to: '/app/veiculos', label: 'Meus Veículos' },
-  { to: '/app/financeiro', label: 'Financeiro' },
-  { to: '/app/contratos', label: 'Contratos' },
-  { to: '/app/frota', label: 'Documentos' },
-  { to: '/app/emergencia', label: 'Emergência' },
-  { to: '/app/alertas', label: 'Alertas' },
-  { to: '/app/perfil', label: 'Meu Perfil' },
-];
-
-const CONTRACT_ONLY_NAV = [
-  { to: '/app/contratos', label: 'Contratos', end: true },
-];
+import {
+  CLIENT_NAV,
+  CONTRACT_ONLY_NAV,
+  filterClientNav,
+  isMultiTenantClientNavEnabled,
+} from '../../lib/client-modules';
+import { getCachedBranding } from '../../lib/tenant-branding';
 
 export default function ClientLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = api.getStoredUser();
+  const branding = getCachedBranding();
+  const brandName = branding?.brand_name || branding?.trade_name || 'Águia';
+  const [fullNav, setFullNav] = useState(CLIENT_NAV);
   const [serviceAccepted, setServiceAccepted] = useState(
     api.isServiceContractAccepted() ? true : null,
   );
@@ -46,6 +41,24 @@ export default function ClientLayout() {
     api.setContractRequiredHandler(redirectToContracts);
     return () => api.setContractRequiredHandler(null);
   }, [redirectToContracts]);
+
+  useEffect(() => {
+    if (!isMultiTenantClientNavEnabled()) return undefined;
+
+    let cancelled = false;
+    api.getClientModules()
+      .then((res) => {
+        if (cancelled) return;
+        setFullNav(filterClientNav(CLIENT_NAV, res.data || []));
+      })
+      .catch(() => {
+        if (!cancelled) setFullNav(CLIENT_NAV);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,16 +103,20 @@ export default function ClientLayout() {
     navigate('/login');
   }
 
-  const navItems = serviceAccepted === false ? CONTRACT_ONLY_NAV : NAV;
+  const navItems = serviceAccepted === false ? CONTRACT_ONLY_NAV : fullNav;
   const blocked = serviceAccepted === false;
 
   return (
     <div className={`admin-shell client-shell${blocked ? ' contract-blocked' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span>🦅</span>
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="" className="sidebar-brand-logo" />
+          ) : (
+            <span>🦅</span>
+          )}
           <div>
-            <strong>Águia</strong>
+            <strong>{brandName}</strong>
             <small>{user.name || user.email || 'Cliente'}</small>
           </div>
         </div>
