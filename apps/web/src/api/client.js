@@ -1528,6 +1528,21 @@ class ApiClient {
       body: JSON.stringify({ credential_mode: credentialMode }),
     }, { useAdmin: true });
   }
+
+  getPlatformOnboardingSchema() {
+    return this.request('/v1/platform/onboarding/schema', {}, { useAdmin: true });
+  }
+
+  getPlatformOnboardingPlans() {
+    return this.request('/v1/platform/onboarding/plans', {}, { useAdmin: true });
+  }
+
+  createPlatformTenantOnboarding(payload) {
+    return this.request('/v1/platform/onboarding/tenants', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
 }
 
 export const api = new ApiClient();

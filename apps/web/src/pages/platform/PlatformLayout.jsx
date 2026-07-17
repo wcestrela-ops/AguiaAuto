@@ -6,6 +6,7 @@ import { filterPlatformNav, getStoredAdminUser, hasPlatformAccess } from '../../
 const NAV = [
   { to: '/platform', label: 'Dashboard', end: true, permission: 'platform.health.view' },
   { to: '/platform/tenants', label: 'Empresas', permission: 'platform.tenants.view' },
+  { to: '/platform/onboarding', label: 'Onboarding B2B', permission: 'platform.tenants.create' },
   { to: '/platform/modules', label: 'Módulos', permission: 'platform.modules.view' },
   { to: '/platform/saas-plans', label: 'Planos SaaS', permission: 'platform.billing.view' },
 ];
@@ -13,6 +14,7 @@ const NAV = [
 const PAGE_TITLES = {
   '/platform': 'Dashboard',
   '/platform/tenants': 'Empresas',
+  '/platform/onboarding': 'Onboarding B2B',
   '/platform/modules': 'Módulos',
   '/platform/saas-plans': 'Planos SaaS',
 };

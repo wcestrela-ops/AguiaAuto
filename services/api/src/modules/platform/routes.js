@@ -1,21 +1,23 @@
 const { Router } = require('express');
-const platformAuth = require('../../../middleware/platform-auth');
-const { requirePlatformPermission } = require('../../../middleware/platform-auth');
-const { getTenantRepository } = require('../../../repositories/tenant-repository');
-const { getModuleRepository } = require('../../../repositories/module-repository');
-const { getHealthReport } = require('../../../infrastructure/health-service');
-const { getAllQueueStats } = require('../../../infrastructure/queues');
-const { getAuditService } = require('../../../services/audit-service');
+const platformAuth = require('../../middleware/platform-auth');
+const { requirePlatformPermission } = require('../../middleware/platform-auth');
+const { getTenantRepository } = require('../../repositories/tenant-repository');
+const { getModuleRepository } = require('../../repositories/module-repository');
+const { getHealthReport } = require('../../infrastructure/health-service');
+const { getAllQueueStats } = require('../../infrastructure/queues');
+const { getAuditService } = require('../../services/audit-service');
 
 const saasRoutes = require('./saas-routes');
 const trackingRoutes = require('./tracking-routes');
 const integrationsRoutes = require('./integrations-routes');
+const onboardingRoutes = require('./onboarding-routes');
 
 const router = Router();
 
 router.use(saasRoutes);
 router.use(trackingRoutes);
 router.use(integrationsRoutes);
+router.use('/onboarding', onboardingRoutes);
 
 router.get('/health', platformAuth, requirePlatformPermission('platform.health.view'), async (req, res) => {
   try {

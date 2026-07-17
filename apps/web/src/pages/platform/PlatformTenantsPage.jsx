@@ -97,9 +97,14 @@ export default function PlatformTenantsPage() {
           <p className="muted">Tenants cadastrados na plataforma SaaS.</p>
         </div>
         {canCreate ? (
-          <button type="button" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? 'Cancelar' : 'Nova empresa'}
-          </button>
+          <div className="page-header-actions">
+            <Link to="/platform/onboarding" className="btn-secondary">
+              Onboarding B2B
+            </Link>
+            <button type="button" onClick={() => setShowForm((v) => !v)}>
+              {showForm ? 'Cancelar' : 'Nova empresa'}
+            </button>
+          </div>
         ) : null}
       </header>
 

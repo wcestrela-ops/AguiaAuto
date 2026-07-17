@@ -1,9 +1,9 @@
 const { Router } = require('express');
-const platformAuth = require('../../../middleware/platform-auth');
-const { requirePlatformPermission } = require('../../../middleware/platform-auth');
-const { getSaasBillingService } = require('../../../services/saas-billing-service');
-const { getUsageMeteringService } = require('../../../services/usage-metering-service');
-const { getAuditService } = require('../../../services/audit-service');
+const platformAuth = require('../../middleware/platform-auth');
+const { requirePlatformPermission } = require('../../middleware/platform-auth');
+const { getSaasBillingService } = require('../../services/saas-billing-service');
+const { getUsageMeteringService } = require('../../services/usage-metering-service');
+const { getAuditService } = require('../../services/audit-service');
 
 const router = Router();
 

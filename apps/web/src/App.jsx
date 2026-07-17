@@ -49,6 +49,7 @@ import PlatformTenantsPage from './pages/platform/PlatformTenantsPage';
 import PlatformTenantDetailPage from './pages/platform/PlatformTenantDetailPage';
 import PlatformModulesPage from './pages/platform/PlatformModulesPage';
 import PlatformSaasPlansPage from './pages/platform/PlatformSaasPlansPage';
+import PlatformOnboardingPage from './pages/platform/PlatformOnboardingPage';
 
 function AdminRoute({ children }) {
   return <AdminSessionGate>{children}</AdminSessionGate>;
@@ -155,6 +156,7 @@ export default function App() {
         <Route path="tenants/:id" element={<PlatformTenantDetailPage />} />
         <Route path="modules" element={<PlatformModulesPage />} />
         <Route path="saas-plans" element={<PlatformSaasPlansPage />} />
+        <Route path="onboarding" element={<PlatformOnboardingPage />} />
       </Route>
     </Routes>
   );

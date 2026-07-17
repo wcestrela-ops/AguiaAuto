@@ -1,4 +1,4 @@
-# Multi-tenancy e modularidade — Fases 1–7
+# Multi-tenancy e modularidade — Fases 1–8
 
 Documentação da transformação SaaS multi-tenant do AguiaAuto.
 
@@ -254,6 +254,43 @@ Coluna `credential_mode` em `integration_configs`. Infra (`gateway`, `gateway_cl
 
 ---
 
+## Fase 8 — Onboarding B2B empresa
+
+Fluxo orquestrado para cadastrar uma nova empresa na plataforma com plano SaaS, integrações SHARED, limites de uso e usuário owner admin.
+
+### TenantOnboardingService
+| Etapa | Descrição |
+|-------|-----------|
+| `validacao_dados` | Slug, e-mail owner, plano SaaS, CNPJ/CPF opcional |
+| `criacao_tenant` | Tenant com status TRIAL |
+| `integracoes_shared` | Seed de integrações SHARED a partir do tenant #1 |
+| `assinatura_saas` | Plano SaaS + trial configurável |
+| `limites_uso` | `DEFAULT_USAGE_LIMITS` ou custom |
+| `usuario_owner` | Superadmin da empresa (senha opcional ou temporária) |
+| `conclusao` | URLs de login e detalhe |
+
+Arquivo: `services/api/src/services/tenant-onboarding-service.js`
+
+### API platform — onboarding
+| Rota | Descrição |
+|------|-----------|
+| `GET /v1/platform/onboarding/schema` | Campos e steps do wizard |
+| `GET /v1/platform/onboarding/plans` | Planos SaaS ativos |
+| `POST /v1/platform/onboarding/tenants` | Provisionar empresa completa |
+
+Permissões: `platform.tenants.view`, `platform.tenants.create`, `platform.billing.view`
+
+Auditoria: `platform.tenant.onboarding`
+
+### UI
+| Rota | Componente |
+|------|------------|
+| `/platform/onboarding` | `PlatformOnboardingPage` — wizard B2B |
+
+Link **Onboarding B2B** na nav platform e na listagem de empresas.
+
+---
+
 ## Testes
 
 ```bash
@@ -268,8 +305,9 @@ npm run test:api
 | `apps/web/src/lib/platform-access.test.js` | RBAC painel master |
 | `test/lib/tracking-provider.test.js` | TrackingProvider, sync strategies, factory |
 | `test/services/tenant-integration.test.js` | SHARED/OWN, merge settings |
+| `test/services/tenant-onboarding.test.js` | Slugify, steps B2B onboarding |
 
-**77 testes API + testes web** passando.
+**80 testes API + testes web** passando.
 
 ---
 
@@ -277,6 +315,6 @@ npm run test:api
 
 | Fase | Foco |
 |------|------|
-| 8 | Onboarding B2B empresa |
+| 9 | Deploy EasyPanel / documentação operacional |
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

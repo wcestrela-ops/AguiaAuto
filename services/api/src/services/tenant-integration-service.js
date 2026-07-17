@@ -1,3 +1,4 @@
+const { getPool } = require('../db/pool');
 const { getStore, isSharedCapable, getSchema, maskSettings } = require('@aguia/integrations');
 const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 
@@ -147,6 +148,28 @@ class TenantIntegrationService {
       enabled: current.enabled,
       updatedBy: 'platform',
     });
+  }
+
+  async seedSharedIntegrationsForTenant(tenantId) {
+    const pool = getPool();
+    const result = await pool.query(
+      `INSERT INTO integration_configs (tenant_id, integration_key, settings, enabled, credential_mode)
+       SELECT $1, ic.integration_key, '{}'::jsonb, ic.enabled, 'SHARED'
+       FROM integration_configs ic
+       WHERE ic.tenant_id = $2
+         AND ic.integration_key NOT IN ('gateway', 'gateway_client')
+       ON CONFLICT (tenant_id, integration_key) DO NOTHING`,
+      [tenantId, PLATFORM_TENANT_ID],
+    );
+
+    await pool.query(
+      `INSERT INTO tenant_tracking_configs (tenant_id, default_provider, sync_strategy)
+       VALUES ($1, 'gpswox', 'PROVIDER_MASTER')
+       ON CONFLICT (tenant_id) DO NOTHING`,
+      [tenantId],
+    );
+
+    return { integrations_seeded: result.rowCount };
   }
 }
 
