@@ -40,11 +40,13 @@ const { migrateVehicleInstallerAssignment } = require('./db/migrate-vehicle-inst
 const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-channels');
 const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
-const { startAnchorPoller } = require('./services/anchor-service');
-const { startReferralRewardPoller } = require('./services/referral-service');
-const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
-const { startBillingReminderPoller } = require('./services/billing-reminder-service');
-const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
+const { migrateCommandStates } = require('./db/migrate-command-states');
+const { getHealthReport } = require('./infrastructure/health-service');
+const { attachWebSocket } = require('./infrastructure/websocket');
+const { isRedisEnabled } = require('./infrastructure/redis');
+const http = require('http');
+
+const PROCESS_ROLE = process.env.PROCESS_ROLE || 'api';
 
 const authRoutes = require('./modules/auth/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
@@ -79,6 +81,8 @@ const adminSiteRoutes = require('./modules/admin/site/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminExportRoutes = require('./modules/admin/export/routes');
+const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
+const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
 const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
 const plansRoutes = require('./modules/plans/routes');
 const siteRoutes = require('./modules/site/routes');
@@ -95,13 +99,24 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'aguia-api',
-    version: '0.1.0',
-    timestamp: new Date().toISOString(),
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const report = await getHealthReport();
+    const httpStatus = report.status === 'UNAVAILABLE' ? 503 : 200;
+    res.status(httpStatus).json({
+      status: report.status,
+      service: 'aguia-api',
+      version: '0.1.0',
+      ...report,
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'UNAVAILABLE',
+      service: 'aguia-api',
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Planos públicos (cadastro) e landing page
@@ -215,6 +230,9 @@ async function bootstrap() {
     await migrateVehicleSms();
     logger.info('Veículos — chip SMS e logs de comando inicializados.');
 
+    await migrateCommandStates();
+    logger.info('Estados de comando (máquina de estados) inicializados.');
+
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');
 
@@ -278,11 +296,26 @@ async function bootstrap() {
     logger.warn('DATABASE_URL ausente — integrações usarão apenas variáveis de ambiente.');
   }
 
-  app.listen(PORT, () => {
-    logger.info(`API Águia Gestão Veicular rodando na porta ${PORT}`);
+  const server = http.createServer(app);
+
+  if (PROCESS_ROLE === 'api') {
+    attachWebSocket(server);
+  }
+
+  server.listen(PORT, () => {
+    logger.info(`API Águia Gestão Veicular rodando na porta ${PORT} (role=${PROCESS_ROLE})`);
     logger.info('Auth cliente: POST /v1/auth/login | POST /v1/auth/register');
 
-    if (process.env.DATABASE_URL) {
+    const inlinePollers = process.env.ENABLE_INLINE_POLLERS === 'true'
+      || (!isRedisEnabled() && PROCESS_ROLE === 'api');
+
+    if (process.env.DATABASE_URL && inlinePollers) {
+      const { startAnchorPoller } = require('./services/anchor-service');
+      const { startReferralRewardPoller } = require('./services/referral-service');
+      const { startGpswoxSyncPoller } = require('./services/gpswox-sync-service');
+      const { startBillingReminderPoller } = require('./services/billing-reminder-service');
+      const { startFleetReminderPoller } = require('./services/fleet-reminder-service');
+
       startAnchorPoller(parseInt(process.env.ANCORA_POLL_MS || '30000', 10));
       startReferralRewardPoller(parseInt(process.env.REFERRAL_POLL_MS || '60000', 10));
       startGpswoxSyncPoller(parseInt(process.env.GPSWOX_SYNC_CHECK_MS || '900000', 10));
@@ -292,7 +325,7 @@ async function bootstrap() {
       startFleetReminderPoller(
         parseInt(process.env.FLEET_REMINDER_CHECK_MS || '0', 10) || undefined,
       );
-      logger.info('Pollers de âncora, indicações, sync GPSWOX, lembretes de cobrança e frota iniciados.');
+      logger.info('Pollers inline iniciados (modo compatibilidade).');
     }
   });
 }

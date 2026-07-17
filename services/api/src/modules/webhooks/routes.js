@@ -2,6 +2,8 @@ const { Router } = require('express');
 const asaas = require('../../integrations/asaas');
 const mercadopago = require('../../integrations/mercadopago');
 const { getFinanceiroService } = require('../../services/financeiro-service');
+const { enqueue, QUEUE_NAMES } = require('../../infrastructure/queues');
+const { isRedisEnabled } = require('../../infrastructure/redis');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 const {
   verifyAsaasWebhook,
@@ -11,6 +13,19 @@ const {
 } = require('../../lib/webhook-verify');
 
 const router = Router();
+
+async function processBillingWebhookAsync(provider, event, payment) {
+  if (isRedisEnabled()) {
+    await enqueue(QUEUE_NAMES.BILLING_WEBHOOK, `${provider}:${event}`, {
+      provider,
+      event,
+      payment,
+    });
+    return { queued: true, provider, event };
+  }
+
+  return getFinanceiroService().processWebhookEvent({ provider, event, payment });
+}
 
 router.post('/asaas', async (req, res) => {
   try {
@@ -24,11 +39,7 @@ router.post('/asaas', async (req, res) => {
       return res.json({ success: true, data: parsed });
     }
 
-    const result = await getFinanceiroService().processWebhookEvent({
-      provider: 'asaas',
-      event: parsed.event,
-      payment: parsed.payment,
-    });
+    const result = await processBillingWebhookAsync('asaas', parsed.event, parsed.payment);
 
     res.json({ success: true, data: result });
   } catch (err) {
@@ -49,11 +60,7 @@ router.post('/mercadopago', async (req, res) => {
     }
 
     if (parsed.payment) {
-      const result = await getFinanceiroService().processWebhookEvent({
-        provider: 'mercadopago',
-        event: parsed.event,
-        payment: parsed.payment,
-      });
+      const result = await processBillingWebhookAsync('mercadopago', parsed.event, parsed.payment);
       return res.json({ success: true, data: result });
     }
 

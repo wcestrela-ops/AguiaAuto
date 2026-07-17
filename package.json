@@ -13,6 +13,8 @@
     "dev:gateway": "npm run dev -w @aguia/gpswox-gateway",
     "dev:web": "npm run dev -w @aguia/web",
     "start:api": "npm run start -w @aguia/api",
+    "start:worker": "npm run start:worker -w @aguia/api",
+    "start:scheduler": "npm run start:scheduler -w @aguia/api",
     "start:gateway": "npm run start -w @aguia/gpswox-gateway",
     "build:web": "npm run build -w @aguia/web",
     "test": "npm run test -w @aguia/api && npm run test -w @aguia/web && npm run test -w @aguia/gpswox-gateway",

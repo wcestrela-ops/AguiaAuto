@@ -17,7 +17,61 @@ const {
   normalizeHistoryRange,
   missingTrackerDeviceError,
 } = require('../lib/tracking-platform');
+const { getLastPosition } = require('../infrastructure/tracking-cache');
+const { trackVehicleViewer } = require('../infrastructure/presence');
+const { enqueue, QUEUE_NAMES } = require('../infrastructure/queues');
+const { isRedisEnabled } = require('../infrastructure/redis');
 const logger = require('../logger');
+
+function cacheToLocalizacao(cached) {
+  if (!cached) return null;
+  return {
+    ...(cached.raw || {}),
+    latitude: cached.latitude,
+    longitude: cached.longitude,
+    lat: cached.latitude,
+    lng: cached.longitude,
+    speed: cached.speed,
+    velocidade: cached.speed,
+    ignition: cached.ignition,
+    ignicao: cached.ignition,
+    online: cached.online,
+    endereco: cached.address,
+    address: cached.address,
+    capturado_em: cached.device_time,
+    provider: cached.provider,
+    atualizado_em: cached.updated_at,
+  };
+}
+
+function buildCacheMeta(cached) {
+  if (!cached) {
+    return { hit: false, refreshing: true };
+  }
+  const ageMs = Date.now() - new Date(cached.updated_at || 0).getTime();
+  return {
+    hit: true,
+    age_ms: ageMs,
+    stale: ageMs > parseInt(process.env.TRACKING_CACHE_STALE_MS || '60000', 10),
+    refreshing: true,
+  };
+}
+
+async function enqueuePositionRefresh(vehicle, userId) {
+  if (!isRedisEnabled()) return;
+  await trackVehicleViewer(String(vehicle.id), userId);
+  await enqueue(
+    QUEUE_NAMES.TRACKING_POSITION,
+    'refresh',
+    { vehicleDbId: vehicle.id, provider: vehicleProvider(vehicle) },
+    {
+      jobId: `pos-${vehicle.id}-${Math.floor(Date.now() / 10000)}`,
+      removeOnComplete: true,
+    },
+  ).catch((err) => {
+    logger.warn('Falha ao enfileirar refresh de posição.', { vehicleId: vehicle.id, err: err.message });
+  });
+}
 
 function vehicleProvider(vehicle) {
   return normalizeProviderName(vehicle.tracking_provider || 'gpswox');
@@ -78,6 +132,26 @@ class VehicleService {
       throw new Error('Veículo aguardando instalação do rastreador.');
     }
 
+    const cacheKey = String(vehicle.id);
+    const cached = await getLastPosition(cacheKey);
+    await enqueuePositionRefresh(vehicle, userId);
+
+    if (cached) {
+      return {
+        veiculo: formatVehicle(vehicle),
+        localizacao: cacheToLocalizacao(cached),
+        cache: buildCacheMeta(cached),
+      };
+    }
+
+    if (isRedisEnabled()) {
+      return {
+        veiculo: formatVehicle(vehicle),
+        localizacao: null,
+        cache: buildCacheMeta(null),
+      };
+    }
+
     const location = await gpswox.getLocation({
       device_id: vehicle.tracker_device_id,
       veiculo: vehicle.tracker_name || vehicle.plate,
@@ -86,7 +160,8 @@ class VehicleService {
 
     return {
       veiculo: formatVehicle(vehicle),
-      localizacao: location,
+      localizacao: location?.data || location?.localizacao || location,
+      cache: { hit: false, refreshing: false, fallback: true },
     };
   }
 

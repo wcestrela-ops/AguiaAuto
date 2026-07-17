@@ -1,4 +1,6 @@
 const buckets = new Map();
+const { checkRateLimit } = require('../infrastructure/redis-rate-limit');
+const { isRedisEnabled } = require('../infrastructure/redis');
 
 function pruneBuckets() {
   const now = Date.now();
@@ -9,23 +11,41 @@ function pruneBuckets() {
 
 setInterval(pruneBuckets, 60_000).unref();
 
-function createRateLimiter({ windowMs = 60_000, max = 10, keyFn = (req) => req.ip || 'unknown' }) {
-  return (req, res, next) => {
-    const key = keyFn(req);
-    const now = Date.now();
-    let bucket = buckets.get(key);
+function memoryRateLimit(key, { windowMs = 60_000, max = 10 } = {}) {
+  const now = Date.now();
+  let bucket = buckets.get(key);
 
-    if (!bucket || now > bucket.resetAt) {
-      bucket = { count: 0, resetAt: now + windowMs };
-      buckets.set(key, bucket);
+  if (!bucket || now > bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    buckets.set(key, bucket);
+  }
+
+  bucket.count += 1;
+  return {
+    allowed: bucket.count <= max,
+    remaining: Math.max(0, max - bucket.count),
+  };
+}
+
+function createRateLimiter({ windowMs = 60_000, max = 10, keyFn = (req) => req.ip || 'unknown' }) {
+  return async (req, res, next) => {
+    const key = keyFn(req);
+
+    let result;
+    if (isRedisEnabled()) {
+      try {
+        result = await checkRateLimit(key, { windowMs, max });
+      } catch {
+        result = memoryRateLimit(key, { windowMs, max });
+      }
+    } else {
+      result = memoryRateLimit(key, { windowMs, max });
     }
 
-    bucket.count += 1;
-
     res.setHeader('X-RateLimit-Limit', String(max));
-    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, max - bucket.count)));
+    res.setHeader('X-RateLimit-Remaining', String(result.remaining));
 
-    if (bucket.count > max) {
+    if (!result.allowed) {
       return res.status(429).json({
         success: false,
         error: 'Muitas requisições. Tente novamente em instantes.',
