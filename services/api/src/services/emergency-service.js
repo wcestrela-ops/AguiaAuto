@@ -356,14 +356,14 @@ class EmergencyService {
     };
   }
 
-  async listRecentEvents(limit = 20) {
-    const rows = await this.events.listRecent({ limit });
+  async listRecentEvents(limit = 20, tenantId) {
+    const rows = await this.events.listRecent({ limit, tenantId });
     return rows.map(formatEvent);
   }
 
-  async getOperationalStats() {
-    const count24h = await this.events.countSince(24);
-    const recent = await this.events.listRecent({ limit: 5 });
+  async getOperationalStats(tenantId) {
+    const count24h = await this.events.countSince(24, tenantId);
+    const recent = await this.events.listRecent({ limit: 5, tenantId });
     return {
       count_24h: count24h,
       recent: recent.map(formatEvent),

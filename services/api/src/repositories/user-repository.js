@@ -2,7 +2,7 @@ const { hashPassword, verifyPassword: verifyPasswordHash, rehashIfNeeded } = req
 const crypto = require('crypto');
 const { getPool } = require('../db/pool');
 const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
-const { tenantWhereClause } = require('../lib/tenant/tenant-query');
+const { tenantWhereClause, appendTenantFilter } = require('../lib/tenant/tenant-query');
 
 const CLIENT_SORT_SQL = {
   created_desc: 'u.created_at DESC',
@@ -205,14 +205,21 @@ class UserRepository {
     );
   }
 
-  async listAll() {
+  async listAll(tenantId = DEFAULT_TENANT_ID) {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+    idx = appendTenantFilter(conditions, params, idx, tenantId);
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await this.pool.query(
       `SELECT id, email, name, phone, role, active, cpf_cnpj,
               asaas_customer_id, mercadopago_payer_id, tracker_user_id,
               provisioning_status, provisioning_errors,
               last_access_at, last_access_ip, created_at
        FROM users
-       ORDER BY name NULLS LAST, email`
+       ${where}
+       ORDER BY name NULLS LAST, email`,
+      params,
     );
     return rows;
   }
@@ -247,7 +254,7 @@ class UserRepository {
     if (filters.never_accessed === 'true' || filters.never_accessed === true) {
       conditions.push('u.last_access_at IS NULL');
       conditions.push('u.active = true');
-    } else if (filters.access_inactive_days) {
+    } else     if (filters.access_inactive_days) {
       const days = Math.max(parseInt(filters.access_inactive_days, 10), 1);
       conditions.push(`(
         u.last_access_at IS NULL
@@ -256,6 +263,10 @@ class UserRepository {
       params.push(String(days));
       idx += 1;
       conditions.push('u.active = true');
+    }
+
+    if (isMultiTenantEnabled()) {
+      idx = appendTenantFilter(conditions, params, idx, filters.tenantId ?? DEFAULT_TENANT_ID, { alias: 'u' });
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

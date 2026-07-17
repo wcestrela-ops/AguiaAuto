@@ -380,4 +380,38 @@ npm run test:api
 | OpenAPI | Expansão rotas admin/cliente |
 | Carga | k6/Locust para cenários autenticados |
 
+---
+
+## Go-live SaaS — isolamento tenant (Opção A)
+
+### Repositórios
+17 repositórios das tabelas Fase 2 agora filtram por `tenant_id` quando `MULTI_TENANT_ENABLED=true`:
+
+- Helper: `services/api/src/lib/tenant/repository-tenant.js`
+- Admin `listAll` / `findById` recebem `tenantId` (default `1`)
+- Jobs de sistema usam `{ allTenants: true }` onde necessário (cron)
+
+### Rotas admin
+Passam `req.tenantId` para serviços: alertas, emergência, frota, indicações, financeiro, veículos, contratos, usuários.
+
+### Testes
+| Suite | Escopo |
+|-------|--------|
+| `test/tenant/repository-tenant-helpers.test.js` | Helper repository-tenant |
+| `test/tenant/repository-sql-isolation.test.js` | SQL mock — filtro tenant |
+| `test/integration/tenant-cross-tenant.integration.test.js` | DB real (skip sem `DATABASE_URL`) |
+
+Integração com Postgres:
+```bash
+TENANT_INTEGRATION_TEST=true DATABASE_URL=postgresql://... npm run test:api
+```
+
+### Checklist go-live
+1. `./scripts/deploy-check.sh .env`
+2. `npm test` (99+ passando)
+3. Staging: `MULTI_TENANT_ENABLED=true`
+4. Onboarding B2B em `/platform/onboarding`
+5. Validar admin tenant A não vê dados tenant B
+6. Produção: ativar flag após validação
+
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)

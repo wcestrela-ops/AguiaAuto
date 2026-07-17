@@ -430,11 +430,11 @@ class VehicleService {
     return formatVehicle(vehicle);
   }
 
-  async listAll(filters) {
+  async listAll(filters, tenantId) {
     if (filters && Object.keys(filters).some((key) => filters[key])) {
-      return this.listForAdmin(filters);
+      return this.listForAdmin(filters, tenantId);
     }
-    const vehicles = await this.repo.listAll();
+    const vehicles = await this.repo.listAll(tenantId);
     return vehicles.map(v => ({
       ...formatVehicle(v),
       user_id: v.user_id,
@@ -443,13 +443,13 @@ class VehicleService {
     }));
   }
 
-  async listForAdmin(filters = {}) {
-    const vehicles = await this.repo.listForAdmin(filters);
+  async listForAdmin(filters = {}, tenantId) {
+    const vehicles = await this.repo.listForAdmin(filters, tenantId);
     return vehicles.map((v) => this._formatAdminVehicle(v));
   }
 
-  async countForAdmin(filters = {}) {
-    return this.repo.countForAdmin(filters);
+  async countForAdmin(filters = {}, tenantId) {
+    return this.repo.countForAdmin(filters, tenantId);
   }
 
   async assignInstaller(vehicleId, { installer_id: installerId, installation_scheduled_at: scheduledAt }) {

@@ -109,8 +109,8 @@ class VehicleFleetService {
     return vehicle;
   }
 
-  async _requireVehicle(vehicleId) {
-    const vehicle = await this.vehicles.findById(vehicleId);
+  async _requireVehicle(vehicleId, tenantId) {
+    const vehicle = await this.vehicles.findById(vehicleId, tenantId);
     if (!vehicle) throw new Error('Veículo não encontrado.');
     return vehicle;
   }
@@ -269,30 +269,31 @@ class VehicleFleetService {
 
   // ─── Admin ───────────────────────────────────────────────────────────────
 
-  async adminListDocuments() {
-    const rows = await this.documents.listAll();
+  async adminListDocuments(tenantId) {
+    const rows = await this.documents.listAll({ tenantId });
     return rows.map(formatDocument);
   }
 
-  async adminCreateDocument({ vehicle_id, user_id, ...data }, fileMeta = null) {
-    const vehicle = await this._requireVehicle(vehicle_id);
+  async adminCreateDocument({ vehicle_id, user_id, ...data }, fileMeta = null, tenantId) {
+    const vehicle = await this._requireVehicle(vehicle_id, tenantId);
     const ownerId = user_id || vehicle.user_id;
 
     const row = await this.documents.create({
       vehicle_id,
       user_id: ownerId,
+      tenant_id: tenantId,
       doc_type: data.doc_type,
       title: data.title.trim(),
       expiry_date: data.expiry_date || null,
       notes: data.notes || null,
       file_path: fileMeta?.file_path || null,
       original_filename: fileMeta?.original_filename || null,
-    });
+    }, tenantId);
     return formatDocument(row);
   }
 
-  async adminUpdateDocument(documentId, data, fileMeta = null) {
-    const existing = await this.documents.findById(documentId);
+  async adminUpdateDocument(documentId, data, fileMeta = null, tenantId) {
+    const existing = await this.documents.findById(documentId, tenantId);
     if (!existing) throw new Error('Documento não encontrado.');
 
     const row = await this.documents.update(documentId, {
@@ -302,19 +303,19 @@ class VehicleFleetService {
       notes: data.notes,
       file_path: fileMeta?.file_path,
       original_filename: fileMeta?.original_filename,
-    });
+    }, tenantId);
     return formatDocument(row);
   }
 
-  async adminDeleteDocument(documentId) {
-    const existing = await this.documents.findById(documentId);
+  async adminDeleteDocument(documentId, tenantId) {
+    const existing = await this.documents.findById(documentId, tenantId);
     if (!existing) throw new Error('Documento não encontrado.');
-    await this.documents.delete(documentId);
+    await this.documents.delete(documentId, tenantId);
     return formatDocument(existing);
   }
 
-  async adminGetDocumentFile(documentId) {
-    const doc = await this.documents.findById(documentId);
+  async adminGetDocumentFile(documentId, tenantId) {
+    const doc = await this.documents.findById(documentId, tenantId);
     if (!doc?.file_path) throw new Error('Arquivo não disponível.');
     return {
       path: resolveUploadPath(doc.file_path),
@@ -322,18 +323,19 @@ class VehicleFleetService {
     };
   }
 
-  async adminListMaintenance() {
-    const rows = await this.maintenance.listAll();
+  async adminListMaintenance(tenantId) {
+    const rows = await this.maintenance.listAll({ tenantId });
     return rows.map(formatMaintenance);
   }
 
-  async adminCreateMaintenance({ vehicle_id, user_id, ...data }) {
-    const vehicle = await this._requireVehicle(vehicle_id);
+  async adminCreateMaintenance({ vehicle_id, user_id, ...data }, tenantId) {
+    const vehicle = await this._requireVehicle(vehicle_id, tenantId);
     const ownerId = user_id || vehicle.user_id;
 
     const row = await this.maintenance.create({
       vehicle_id,
       user_id: ownerId,
+      tenant_id: tenantId,
       service_type: data.service_type,
       title: data.title.trim(),
       performed_at: data.performed_at,
@@ -342,12 +344,12 @@ class VehicleFleetService {
       next_due_date: data.next_due_date || null,
       next_due_km: data.next_due_km != null ? parseInt(data.next_due_km, 10) : null,
       notes: data.notes || null,
-    });
+    }, tenantId);
     return formatMaintenance(row);
   }
 
-  async adminUpdateMaintenance(recordId, data) {
-    const existing = await this.maintenance.findById(recordId);
+  async adminUpdateMaintenance(recordId, data, tenantId) {
+    const existing = await this.maintenance.findById(recordId, tenantId);
     if (!existing) throw new Error('Registro de manutenção não encontrado.');
 
     const row = await this.maintenance.update(recordId, {
@@ -359,14 +361,14 @@ class VehicleFleetService {
       next_due_date: data.next_due_date,
       next_due_km: data.next_due_km != null ? parseInt(data.next_due_km, 10) : undefined,
       notes: data.notes,
-    });
+    }, tenantId);
     return formatMaintenance(row);
   }
 
-  async adminDeleteMaintenance(recordId) {
-    const existing = await this.maintenance.findById(recordId);
+  async adminDeleteMaintenance(recordId, tenantId) {
+    const existing = await this.maintenance.findById(recordId, tenantId);
     if (!existing) throw new Error('Registro de manutenção não encontrado.');
-    await this.maintenance.delete(recordId);
+    await this.maintenance.delete(recordId, tenantId);
     return formatMaintenance(existing);
   }
 

@@ -25,7 +25,7 @@ router.put('/templates/:slug', async (req, res) => {
 
 router.get('/aceites', async (req, res) => {
   try {
-    const data = await getContractService().listAcceptancesAdmin();
+    const data = await getContractService().listAcceptancesAdmin(req.tenantId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

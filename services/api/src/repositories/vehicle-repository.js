@@ -151,8 +151,8 @@ class VehicleRepository {
     return rows[0] || null;
   }
 
-  async listAll() {
-    return this.listForAdmin({});
+  async listAll(tenantId = DEFAULT_TENANT_ID) {
+    return this.listForAdmin({}, tenantId);
   }
 
   _buildAdminListQuery(filters = {}, tenantId = DEFAULT_TENANT_ID) {
