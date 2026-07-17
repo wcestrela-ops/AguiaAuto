@@ -1,0 +1,96 @@
+# Produção — EasyPanel / VPS
+# Compose file path no EasyPanel: docker-compose.prod.yml
+#
+# 1. Copie .env.production.example → .env e preencha os valores
+# 2. Domínio + HTTPS apenas no serviço web (porta 80)
+# 3. API fica em /api via Nginx (apps/web/nginx.conf)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aguia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aguia}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aguia_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-aguia} -d ${POSTGRES_DB:-aguia}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gpswox-gateway:
+    build:
+      context: .
+      dockerfile: services/gpswox-gateway/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aguia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aguia}
+      GATEWAY_PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aguia_network
+    shm_size: '512mb'
+    security_opt:
+      - seccomp:unconfined
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      API_PORT: 3000
+      GATEWAY_URL: http://gpswox-gateway:3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aguia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aguia}
+      CORS_ORIGIN: ${CORS_ORIGIN:?Defina CORS_ORIGIN no .env (ex.: https://app.seudominio.com)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gpswox-gateway:
+        condition: service_healthy
+    networks:
+      - aguia_network
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - aguia_network
+    # EasyPanel: vincule o domínio público a este serviço na porta 80
+    expose:
+      - '80'
+
+networks:
+  aguia_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
