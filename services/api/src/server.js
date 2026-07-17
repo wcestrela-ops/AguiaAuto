@@ -41,6 +41,8 @@ const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-ch
 const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { migrateSecurityPhase3 } = require('./db/migrate-security-phase3');
+const { migrateTenantsFoundation } = require('./db/migrate-tenants-foundation');
+const { migrateAguiaTenantSeed } = require('./db/migrate-aguia-tenant-seed');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
@@ -92,6 +94,8 @@ const adminLgpdRoutes = require('./modules/admin/lgpd/routes');
 const lgpdRoutes = require('./modules/lgpd/routes');
 const { adminRbac } = require('./lib/security/admin-route-permissions');
 const { csrfProtection } = require('./middleware/csrf');
+const { defaultTenantContext, tenantContext } = require('./middleware/tenant-context');
+const { tenantGuardHandler } = require('./lib/tenant/tenant-guard');
 const cookieParser = require('cookie-parser');
 const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
@@ -108,6 +112,7 @@ app.use(requestIdMiddleware);
 app.use(securityHeaders);
 app.use(cookieParser());
 app.use(cors);
+app.use(defaultTenantContext);
 app.use(express.json({
   limit: process.env.API_JSON_LIMIT || '1mb',
   verify: (req, res, buf) => {
@@ -150,7 +155,7 @@ app.use('/v1/indicacoes', indicacoesPublicRoutes);
 app.use(csrfProtection);
 
 // LGPD cliente autenticado
-app.use('/v1/lgpd', jwtAuth, lgpdRoutes);
+app.use('/v1/lgpd', jwtAuth, tenantContext, lgpdRoutes);
 
 // Auth público
 app.use('/v1/auth', authRoutes);
@@ -166,25 +171,25 @@ app.use('/v1/sms/gateway', gpswoxGatewayRoutes);
 app.use('/v1/onboarding', onboardingRoutes);
 
 // Rotas do cliente — requer JWT (+ contrato de serviço aceito, exceto /contratos)
-app.use('/v1/dashboard', jwtAuth, requireServiceContract, dashboardRoutes);
-app.use('/v1/veiculos', jwtAuth, requireServiceContract, veiculosRoutes);
-app.use('/v1/financeiro', jwtAuth, requireServiceContract, financeiroRoutes);
-app.use('/v1/alertas', jwtAuth, requireServiceContract, alertasRoutes);
-app.use('/v1/emergencia', jwtAuth, requireServiceContract, emergenciaRoutes);
-app.use('/v1/perfil', jwtAuth, requireServiceContract, perfilRoutes);
-app.use('/v1/notificacoes', jwtAuth, requireServiceContract, notificacoesRoutes);
-app.use('/v1/indicacoes', jwtAuth, requireServiceContract, indicacoesRoutes);
-app.use('/v1/frota', jwtAuth, requireServiceContract, frotaRoutes);
-app.use('/v1/contratos', jwtAuth, contratosRoutes);
+app.use('/v1/dashboard', jwtAuth, tenantContext, requireServiceContract, dashboardRoutes);
+app.use('/v1/veiculos', jwtAuth, tenantContext, requireServiceContract, veiculosRoutes);
+app.use('/v1/financeiro', jwtAuth, tenantContext, requireServiceContract, financeiroRoutes);
+app.use('/v1/alertas', jwtAuth, tenantContext, requireServiceContract, alertasRoutes);
+app.use('/v1/emergencia', jwtAuth, tenantContext, requireServiceContract, emergenciaRoutes);
+app.use('/v1/perfil', jwtAuth, tenantContext, requireServiceContract, perfilRoutes);
+app.use('/v1/notificacoes', jwtAuth, tenantContext, requireServiceContract, notificacoesRoutes);
+app.use('/v1/indicacoes', jwtAuth, tenantContext, requireServiceContract, indicacoesRoutes);
+app.use('/v1/frota', jwtAuth, tenantContext, requireServiceContract, frotaRoutes);
+app.use('/v1/contratos', jwtAuth, tenantContext, contratosRoutes);
 
 // Área do instalador — JWT + role
-app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
+app.use('/v1/instalador', jwtAuth, tenantContext, requireRole('installer', 'admin'), instaladorRoutes);
 
 // Auth admin (público: login/refresh)
 app.use('/v1/admin/auth', adminAuthRoutes);
 
-// Painel admin — autenticação individual + RBAC
-const adminProtected = [adminAuth, adminRbac];
+// Painel admin — autenticação individual + tenant + RBAC
+const adminProtected = [adminAuth, tenantContext, adminRbac];
 
 app.use('/v1/admin/security', adminSecurityRoutes);
 app.use('/v1/admin/lgpd', adminLgpdRoutes);
@@ -216,6 +221,7 @@ app.use((req, res) => {
   });
 });
 
+app.use(tenantGuardHandler);
 app.use(errorHandler);
 
 async function bootstrap() {
@@ -271,6 +277,12 @@ async function bootstrap() {
 
     await migrateSecurityPhase3();
     logger.info('Segurança Fase 3 (RBAC, sessões, auditoria estendida) inicializada.');
+
+    await migrateTenantsFoundation();
+    logger.info('Fundação multi-tenant (tenant_id em tabelas core) inicializada.');
+
+    const aguiaSeed = await migrateAguiaTenantSeed();
+    logger.info(`Tenant Águia seed aplicado: ${JSON.stringify(aguiaSeed.counts)}`);
 
     await getRbacRepository().seedDefaults();
     logger.info('RBAC padrão (funções e permissões) inicializado.');

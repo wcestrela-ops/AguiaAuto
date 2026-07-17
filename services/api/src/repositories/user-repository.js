@@ -1,6 +1,8 @@
 const { hashPassword, verifyPassword: verifyPasswordHash, rehashIfNeeded } = require('../lib/security/password-hash');
 const crypto = require('crypto');
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantWhereClause } = require('../lib/tenant/tenant-query');
 
 const CLIENT_SORT_SQL = {
   created_desc: 'u.created_at DESC',
@@ -20,11 +22,15 @@ class UserRepository {
     this.pool = getPool();
   }
 
-  async findByEmail(email) {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
-    );
+  async findByEmail(email, tenantId = DEFAULT_TENANT_ID) {
+    const params = [email.toLowerCase().trim()];
+    let sql = 'SELECT * FROM users WHERE email = $1';
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -53,13 +59,17 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async findById(id) {
-    const { rows } = await this.pool.query(
-      `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,
-              last_access_at, last_access_ip, created_at, updated_at
-       FROM users WHERE id = $1`,
-      [id]
-    );
+  async findById(id, tenantId = DEFAULT_TENANT_ID) {
+    const params = [id];
+    let sql = `SELECT id, email, name, phone, cpf_cnpj, role, active, email_verified,
+              tenant_id, last_access_at, last_access_ip, created_at, updated_at
+       FROM users WHERE id = $1`;
+    if (isMultiTenantEnabled()) {
+      const filter = tenantWhereClause(tenantId, { paramIndex: 2 });
+      sql += filter.clause;
+      params.push(...filter.params);
+    }
+    const { rows } = await this.pool.query(sql, params);
     return rows[0] || null;
   }
 
@@ -88,13 +98,13 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async create({ email, password, name, phone, cpf_cnpj, role = 'client' }) {
+  async create({ email, password, name, phone, cpf_cnpj, role = 'client', tenant_id = DEFAULT_TENANT_ID }) {
     const passwordHash = await hashPassword(password);
     const { rows } = await this.pool.query(
-      `INSERT INTO users (email, password_hash, name, phone, cpf_cnpj, role)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, email, name, phone, cpf_cnpj, role, active, email_verified, created_at`,
-      [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role]
+      `INSERT INTO users (email, password_hash, name, phone, cpf_cnpj, role, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, name, phone, cpf_cnpj, role, tenant_id, active, email_verified, created_at`,
+      [email.toLowerCase().trim(), passwordHash, name, phone, cpf_cnpj, role, tenant_id]
     );
     return rows[0];
   }

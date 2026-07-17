@@ -29,7 +29,7 @@ async function scheduleTrackingRefresh() {
 
   for (const vehicle of rows) {
     const viewers = await countVehicleViewers(String(vehicle.id));
-    const cached = await getLastPosition(String(vehicle.id));
+    const cached = await getLastPosition(String(vehicle.id), vehicle.tenant_id);
     const online = cached?.online ?? null;
     const intervalMs = resolvePollIntervalMs({ viewers, online });
     const lastUpdate = cached?.updated_at ? new Date(cached.updated_at).getTime() : 0;
@@ -38,7 +38,7 @@ async function scheduleTrackingRefresh() {
     await enqueue(
       QUEUE_NAMES.TRACKING_POSITION,
       'refresh',
-      { vehicleDbId: vehicle.id, provider: vehicle.tracking_provider },
+      { vehicleDbId: vehicle.id, provider: vehicle.tracking_provider, tenantId: vehicle.tenant_id ?? 1 },
       { jobId: `pos-${vehicle.id}-${Math.floor(Date.now() / intervalMs)}`, removeOnComplete: true },
     );
   }

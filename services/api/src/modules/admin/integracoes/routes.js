@@ -4,6 +4,10 @@ const { getAuditService } = require('../../../services/audit-service');
 
 const router = Router();
 
+function tenantOpts(req) {
+  return { tenantId: req.tenantId || 1 };
+}
+
 const SECRET_FIELDS = ['api_key', 'pass', 'secret', 'private_key', 'web_api_key', 'vapid_key', 'access_token', 'app_secret', 'verify_token', 'api_token', 'api_hash', 'password'];
 
 function stripMaskedSecrets(body, currentSettings) {
@@ -22,7 +26,7 @@ function stripMaskedSecrets(body, currentSettings) {
 router.get('/', async (req, res) => {
   try {
     const store = getStore();
-    const integracoes = await store.list({ masked: true });
+    const integracoes = await store.list({ masked: true, ...tenantOpts(req) });
     res.json({ success: true, data: integracoes });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -32,7 +36,7 @@ router.get('/', async (req, res) => {
 router.get('/:key', async (req, res) => {
   try {
     const store = getStore();
-    const config = await store.get(req.params.key);
+    const config = await store.get(req.params.key, tenantOpts(req));
     res.json({
       success: true,
       data: {
@@ -49,12 +53,12 @@ router.get('/:key', async (req, res) => {
 router.put('/:key', async (req, res) => {
   try {
     const store = getStore();
-    const current = await store.get(req.params.key, { useCache: false });
+    const current = await store.get(req.params.key, { useCache: false, ...tenantOpts(req) });
     const { settings = {}, enabled } = req.body;
     const cleaned = stripMaskedSecrets(settings, current.settings);
 
     if (req.params.key === 'rastreamento' && cleaned.provider === 'traccar') {
-      const traccar = await store.get('traccar', { useCache: false });
+      const traccar = await store.get('traccar', { useCache: false, ...tenantOpts(req) });
       const ts = traccar.settings || {};
       const hasAuth = Boolean(ts.api_token || (ts.email && ts.password));
       if (!ts.url || !hasAuth) {
@@ -68,6 +72,7 @@ router.put('/:key', async (req, res) => {
     const updated = await store.update(req.params.key, cleaned, {
       enabled,
       updatedBy: req.headers['x-admin-user'] || 'admin',
+      ...tenantOpts(req),
     });
     await getAuditService().adminAction('integration.update', {
       resourceType: 'integration',
@@ -84,7 +89,7 @@ router.put('/:key', async (req, res) => {
 router.post('/reload', async (req, res) => {
   try {
     const store = getStore();
-    const integracoes = await store.reload();
+    const integracoes = await store.reload(tenantOpts(req));
     await getAuditService().adminAction('integration.reload', {
       resourceType: 'integration',
       metadata: { count: integracoes?.length },

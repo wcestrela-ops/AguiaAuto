@@ -1,5 +1,6 @@
 const { Queue, Worker } = require('bullmq');
 const { isRedisEnabled } = require('./redis');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 
 const QUEUE_NAMES = {
   TRACKING_POSITION: 'tracking-position',
@@ -45,7 +46,11 @@ function createWorker(name, processor, options = {}) {
 async function enqueue(name, jobName, data, options = {}) {
   const queue = getQueue(name);
   if (!queue) return null;
-  return queue.add(jobName, data, options);
+  const payload = {
+    tenantId: data?.tenantId ?? data?.tenant_id ?? DEFAULT_TENANT_ID,
+    ...data,
+  };
+  return queue.add(jobName, payload, options);
 }
 
 async function getQueueStats(name) {

@@ -9,6 +9,7 @@ const {
   buildPasswordResetMessage,
 } = require('../lib/notification-policy');
 const logger = require('../logger');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || '1h';
@@ -38,7 +39,12 @@ function generateRefreshToken() {
 function signAccessToken(user) {
   ensureJwtSecret();
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role },
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: user.tenant_id || DEFAULT_TENANT_ID,
+    },
     JWT_SECRET,
     { expiresIn: ACCESS_EXPIRES }
   );
@@ -70,6 +76,7 @@ function sanitizeUser(user) {
     phone: user.phone,
     cpf_cnpj: user.cpf_cnpj,
     role: user.role,
+    tenant_id: user.tenant_id || DEFAULT_TENANT_ID,
     active: user.active,
     email_verified: user.email_verified,
     last_access_at: user.last_access_at || null,

@@ -1,10 +1,12 @@
 const { getRedis, isRedisEnabled } = require('./redis');
+const { tenantCachePrefix } = require('../lib/tenant/tenant-query');
+const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
 
 const KEY_PREFIX = 'tracking:last-position:';
 const DEFAULT_TTL_SECONDS = parseInt(process.env.TRACKING_CACHE_TTL_SECONDS || '86400', 10);
 
-function cacheKey(vehicleId) {
-  return `${KEY_PREFIX}${vehicleId}`;
+function cacheKey(vehicleId, tenantId = DEFAULT_TENANT_ID) {
+  return `${tenantCachePrefix(tenantId)}${KEY_PREFIX}${vehicleId}`;
 }
 
 function normalizeLocation(location = {}, vehicle = {}) {
@@ -28,15 +30,16 @@ function normalizeLocation(location = {}, vehicle = {}) {
 async function setLastPosition(vehicleId, location, vehicle = {}) {
   if (!isRedisEnabled()) return null;
   const redis = await getRedis();
+  const tenantId = vehicle.tenant_id ?? DEFAULT_TENANT_ID;
   const payload = normalizeLocation(location, { ...vehicle, id: vehicleId });
-  await redis.set(cacheKey(vehicleId), JSON.stringify(payload), 'EX', DEFAULT_TTL_SECONDS);
+  await redis.set(cacheKey(vehicleId, tenantId), JSON.stringify(payload), 'EX', DEFAULT_TTL_SECONDS);
   return payload;
 }
 
-async function getLastPosition(vehicleId) {
+async function getLastPosition(vehicleId, tenantId = DEFAULT_TENANT_ID) {
   if (!isRedisEnabled()) return null;
   const redis = await getRedis();
-  const raw = await redis.get(cacheKey(vehicleId));
+  const raw = await redis.get(cacheKey(vehicleId, tenantId));
   if (!raw) return null;
   try {
     return JSON.parse(raw);

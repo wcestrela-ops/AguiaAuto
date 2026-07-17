@@ -3,12 +3,14 @@ const jwt = require('jsonwebtoken');
 const { sanitizeForLog } = require('./sanitize-log');
 const { touchVehicleViewer, removeVehicleViewer } = require('./presence');
 const { getVehicleRepository } = require('../repositories/vehicle-repository');
+const { normalizeTenantId, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { tenantRoomPrefix } = require('../lib/tenant/tenant-query');
 
 let wss = null;
 const clients = new Map();
 
-async function userOwnsVehicle(userId, vehicleId) {
-  const vehicle = await getVehicleRepository().findByIdForUser(vehicleId, userId);
+async function userOwnsVehicle(userId, vehicleId, tenantId = DEFAULT_TENANT_ID) {
+  const vehicle = await getVehicleRepository().findByIdForUser(vehicleId, userId, tenantId);
   return Boolean(vehicle);
 }
 
@@ -40,8 +42,15 @@ function attachWebSocket(server) {
     }
 
     const clientId = `${payload.sub || payload.id || 'anon'}-${Date.now()}`;
-    clients.set(ws, { clientId, userId: payload.sub || payload.id, vehicles: new Set() });
-    ws.send(JSON.stringify({ event: 'connected', data: { clientId } }));
+    const tenantId = normalizeTenantId(payload.tenant_id);
+    clients.set(ws, {
+      clientId,
+      userId: payload.sub || payload.id,
+      tenantId,
+      tenantRoom: tenantRoomPrefix(tenantId),
+      vehicles: new Set(),
+    });
+    ws.send(JSON.stringify({ event: 'connected', data: { clientId, tenantId } }));
 
     ws.on('message', async (raw) => {
       try {
@@ -49,7 +58,7 @@ function attachWebSocket(server) {
         if (msg.event === 'vehicle.subscribe' && msg.data?.vehicleId) {
           const meta = clients.get(ws);
           const vehicleId = String(msg.data.vehicleId);
-          const allowed = await userOwnsVehicle(meta.userId, vehicleId);
+          const allowed = await userOwnsVehicle(meta.userId, vehicleId, meta.tenantId);
           if (!allowed) {
             ws.send(JSON.stringify({ event: 'error', data: { code: 'ACCESS_DENIED', message: 'Veículo não autorizado.' } }));
             return;

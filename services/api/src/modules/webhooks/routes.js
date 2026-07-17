@@ -3,6 +3,7 @@ const asaas = require('../../integrations/asaas');
 const mercadopago = require('../../integrations/mercadopago');
 const { getFinanceiroService } = require('../../services/financeiro-service');
 const { enqueue, QUEUE_NAMES } = require('../../infrastructure/queues');
+const { isRedisEnabled } = require('../../infrastructure/redis');
 const { getWebhookEventRepository } = require('../../repositories/webhook-event-repository');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 const {

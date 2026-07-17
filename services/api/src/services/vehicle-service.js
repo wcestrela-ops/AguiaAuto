@@ -132,8 +132,7 @@ class VehicleService {
       throw new Error('Veículo aguardando instalação do rastreador.');
     }
 
-    const cacheKey = String(vehicle.id);
-    const cached = await getLastPosition(cacheKey);
+    const cached = await getLastPosition(String(vehicle.id), vehicle.tenant_id);
     await enqueuePositionRefresh(vehicle, userId);
 
     if (cached) {
