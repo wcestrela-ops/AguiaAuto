@@ -17,20 +17,37 @@ function decodeJwtPayload(token) {
 
 class ApiClient {
   constructor() {
-    this.adminToken = localStorage.getItem('admin_token') || '';
+    this.adminToken = localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token') || '';
+    this.adminRefreshToken = localStorage.getItem('admin_refresh_token') || '';
     this.accessToken = localStorage.getItem('access_token') || '';
     this.refreshToken = localStorage.getItem('refresh_token') || '';
   }
 
   // ─── Admin ───────────────────────────────────────────────────────────────
+  setAdminTokens({ access_token, refresh_token }) {
+    this.adminToken = access_token;
+    this.adminRefreshToken = refresh_token || '';
+    localStorage.setItem('admin_access_token', access_token);
+    if (refresh_token) localStorage.setItem('admin_refresh_token', refresh_token);
+    localStorage.removeItem('admin_token');
+  }
+
   setAdminToken(token) {
     this.adminToken = token;
     localStorage.setItem('admin_token', token);
   }
 
-  clearAdminToken() {
+  clearAdminSession() {
     this.adminToken = '';
+    this.adminRefreshToken = '';
+    localStorage.removeItem('admin_access_token');
+    localStorage.removeItem('admin_refresh_token');
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+  }
+
+  clearAdminToken() {
+    this.clearAdminSession();
   }
 
   get token() {
@@ -42,7 +59,54 @@ class ApiClient {
   }
 
   clearToken() {
-    this.clearAdminToken();
+    this.clearAdminSession();
+  }
+
+  hasAdminSession() {
+    return Boolean(
+      this.adminToken
+      || localStorage.getItem('admin_access_token')
+      || localStorage.getItem('admin_token'),
+    );
+  }
+
+  async adminLogin({ email, password, totp_code, recovery_code }) {
+    const response = await fetch(`${BASE}/v1/admin/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, totpCode: totp_code, recoveryCode: recovery_code }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error?.message || data?.error || 'Falha no login.');
+    }
+    const payload = data.data;
+    if (payload?.access_token) {
+      this.setAdminTokens({
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token,
+      });
+      if (payload.user) localStorage.setItem('admin_user', JSON.stringify(payload.user));
+    }
+    return payload;
+  }
+
+  async refreshAdminAccessToken() {
+    const refreshToken = this.adminRefreshToken || localStorage.getItem('admin_refresh_token');
+    if (!refreshToken) throw new Error('Sessão administrativa expirada.');
+    const response = await fetch(`${BASE}/v1/admin/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.error?.message || 'Sessão expirada.');
+    this.setAdminTokens({
+      access_token: data.data.access_token,
+      refresh_token: data.data.refresh_token,
+    });
+    if (data.data.user) localStorage.setItem('admin_user', JSON.stringify(data.data.user));
+    return data.data;
   }
 
   // ─── Cliente JWT ─────────────────────────────────────────────────────────
@@ -191,7 +255,11 @@ class ApiClient {
   }
 
   async request(path, options = {}, { useAdmin = false, useClient = false, retry = true } = {}) {
-    const token = useAdmin ? this.adminToken : useClient ? this.accessToken : this.adminToken;
+    const token = useAdmin
+      ? (this.adminToken || localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token'))
+      : useClient
+        ? this.accessToken
+        : this.adminToken;
 
     const headers = {
       'Content-Type': 'application/json',
@@ -204,6 +272,11 @@ class ApiClient {
 
     if (response.status === 401 && useClient && retry && this.refreshToken) {
       await this.refreshAccessToken();
+      return this.request(path, options, { useAdmin, useClient, retry: false });
+    }
+
+    if (response.status === 401 && useAdmin && retry && (this.adminRefreshToken || localStorage.getItem('admin_refresh_token'))) {
+      await this.refreshAdminAccessToken();
       return this.request(path, options, { useAdmin, useClient, retry: false });
     }
 

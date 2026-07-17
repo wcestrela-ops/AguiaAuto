@@ -8,8 +8,10 @@ class AuditRepository {
   async create(entry) {
     const { rows } = await this.pool.query(
       `INSERT INTO audit_logs
-        (actor_type, actor_id, action, resource_type, resource_id, metadata, ip_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (actor_type, actor_id, action, resource_type, resource_id, metadata,
+         ip_address, user_agent, tenant_id, user_role, old_values, new_values,
+         device_id, request_id, severity)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         entry.actor_type,
@@ -19,6 +21,14 @@ class AuditRepository {
         entry.resource_id || null,
         entry.metadata ? JSON.stringify(entry.metadata) : null,
         entry.ip_address || null,
+        entry.user_agent || null,
+        entry.tenant_id || 1,
+        entry.user_role || null,
+        entry.old_values ? JSON.stringify(entry.old_values) : null,
+        entry.new_values ? JSON.stringify(entry.new_values) : null,
+        entry.device_id || null,
+        entry.request_id || null,
+        entry.severity || 'info',
       ],
     );
     return rows[0];

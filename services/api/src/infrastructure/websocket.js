@@ -2,9 +2,15 @@ const { WebSocketServer } = require('ws');
 const jwt = require('jsonwebtoken');
 const { sanitizeForLog } = require('./sanitize-log');
 const { touchVehicleViewer, removeVehicleViewer } = require('./presence');
+const { getVehicleRepository } = require('../repositories/vehicle-repository');
 
 let wss = null;
 const clients = new Map();
+
+async function userOwnsVehicle(userId, vehicleId) {
+  const vehicle = await getVehicleRepository().findByIdForUser(vehicleId, userId);
+  return Boolean(vehicle);
+}
 
 function parseToken(req) {
   const url = new URL(req.url, 'http://localhost');
@@ -37,16 +43,22 @@ function attachWebSocket(server) {
     clients.set(ws, { clientId, userId: payload.sub || payload.id, vehicles: new Set() });
     ws.send(JSON.stringify({ event: 'connected', data: { clientId } }));
 
-    ws.on('message', (raw) => {
+    ws.on('message', async (raw) => {
       try {
         const msg = JSON.parse(String(raw));
         if (msg.event === 'vehicle.subscribe' && msg.data?.vehicleId) {
           const meta = clients.get(ws);
-          if (meta) {
-            meta.vehicles.add(String(msg.data.vehicleId));
-            touchVehicleViewer(String(msg.data.vehicleId), meta.clientId);
+          const vehicleId = String(msg.data.vehicleId);
+          const allowed = await userOwnsVehicle(meta.userId, vehicleId);
+          if (!allowed) {
+            ws.send(JSON.stringify({ event: 'error', data: { code: 'ACCESS_DENIED', message: 'Veículo não autorizado.' } }));
+            return;
           }
-          ws.send(JSON.stringify({ event: 'vehicle.subscribed', data: { vehicleId: msg.data.vehicleId } }));
+          if (meta) {
+            meta.vehicles.add(vehicleId);
+            touchVehicleViewer(vehicleId, meta.clientId);
+          }
+          ws.send(JSON.stringify({ event: 'vehicle.subscribed', data: { vehicleId } }));
         }
         if (msg.event === 'vehicle.unsubscribe' && msg.data?.vehicleId) {
           const meta = clients.get(ws);

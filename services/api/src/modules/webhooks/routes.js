@@ -3,7 +3,7 @@ const asaas = require('../../integrations/asaas');
 const mercadopago = require('../../integrations/mercadopago');
 const { getFinanceiroService } = require('../../services/financeiro-service');
 const { enqueue, QUEUE_NAMES } = require('../../infrastructure/queues');
-const { isRedisEnabled } = require('../../infrastructure/redis');
+const { getWebhookEventRepository } = require('../../repositories/webhook-event-repository');
 const { verifyMetaWebhook, receiveMetaWebhook } = require('./whatsapp');
 const {
   verifyAsaasWebhook,
@@ -14,17 +14,28 @@ const {
 
 const router = Router();
 
-async function processBillingWebhookAsync(provider, event, payment) {
+async function processBillingWebhookAsync(provider, event, payment, payload) {
+  const registration = await getWebhookEventRepository().registerEvent({
+    provider,
+    eventId: payment?.id || event,
+    payload: payload || { provider, event, payment },
+  });
+  if (registration.duplicate) {
+    return { duplicate: true, event_uuid: registration.eventUuid };
+  }
+
   if (isRedisEnabled()) {
     await enqueue(QUEUE_NAMES.BILLING_WEBHOOK, `${provider}:${event}`, {
       provider,
       event,
       payment,
     });
-    return { queued: true, provider, event };
+    return { queued: true, provider, event, event_uuid: registration.eventUuid };
   }
 
-  return getFinanceiroService().processWebhookEvent({ provider, event, payment });
+  const result = await getFinanceiroService().processWebhookEvent({ provider, event, payment });
+  await getWebhookEventRepository().markProcessed(registration.id);
+  return result;
 }
 
 router.post('/asaas', async (req, res) => {

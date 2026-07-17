@@ -43,8 +43,7 @@ import SmsPage from './pages/admin/SmsPage';
 import ClientSessionGate from './components/ClientSessionGate';
 
 function AdminRoute({ children }) {
-  const token = api.adminToken || localStorage.getItem('admin_token');
-  if (!token) return <Navigate to="/admin/login" replace />;
+  if (!api.hasAdminSession()) return <Navigate to="/admin/login" replace />;
   return children;
 }
 

@@ -40,10 +40,16 @@ const { migrateVehicleInstallerAssignment } = require('./db/migrate-vehicle-inst
 const { migrateFleetReminderChannels } = require('./db/migrate-fleet-reminder-channels');
 const { migrateSiteContent } = require('./db/migrate-site-content');
 const { getRepository: getSmsRepository } = require('@aguia/sms');
+const { migrateSecurityPhase3 } = require('./db/migrate-security-phase3');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
 const { isRedisEnabled } = require('./infrastructure/redis');
+const { getRbacRepository } = require('./repositories/rbac-repository');
+const { getAdminAuthService } = require('./services/admin-auth-service');
+const { requestIdMiddleware } = require('./middleware/request-id');
+const { securityHeaders } = require('./middleware/security-headers');
+const { errorHandler } = require('./middleware/error-handler');
 const http = require('http');
 
 const PROCESS_ROLE = process.env.PROCESS_ROLE || 'api';
@@ -80,7 +86,8 @@ const adminEmergenciaRoutes = require('./modules/admin/emergencia/routes');
 const adminSiteRoutes = require('./modules/admin/site/routes');
 const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
-const adminExportRoutes = require('./modules/admin/export/routes');
+const adminAuthRoutes = require('./modules/admin/auth/routes');
+const adminSecurityRoutes = require('./modules/admin/security/routes');
 const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
 const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
@@ -91,8 +98,16 @@ const configRoutes = require('./modules/config/routes');
 const app = express();
 const PORT = process.env.API_PORT || process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+app.use(requestIdMiddleware);
+app.use(securityHeaders);
 app.use(cors);
-app.use(express.json());
+app.use(express.json({
+  limit: process.env.API_JSON_LIMIT || '1mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  },
+}));
 
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`);
@@ -156,7 +171,11 @@ app.use('/v1/contratos', jwtAuth, contratosRoutes);
 // Área do instalador — JWT + role
 app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instaladorRoutes);
 
-// Painel admin — ADMIN_SECRET
+// Auth admin (público: login/refresh)
+app.use('/v1/admin/auth', adminAuthRoutes);
+
+// Painel admin — autenticação individual (ADMIN_SECRET legado ainda aceito temporariamente)
+app.use('/v1/admin/security', adminSecurityRoutes);
 app.use('/v1/admin/export', adminAuth, adminExportRoutes);
 app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
@@ -179,8 +198,13 @@ app.use('/v1/admin/site', adminAuth, adminSiteRoutes);
 app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
 
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Rota não encontrada.' });
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Rota não encontrada.', requestId: req.requestId },
+  });
 });
+
+app.use(errorHandler);
 
 async function bootstrap() {
   if (process.env.DATABASE_URL) {
@@ -232,6 +256,15 @@ async function bootstrap() {
 
     await migrateCommandStates();
     logger.info('Estados de comando (máquina de estados) inicializados.');
+
+    await migrateSecurityPhase3();
+    logger.info('Segurança Fase 3 (RBAC, sessões, auditoria estendida) inicializada.');
+
+    await getRbacRepository().seedDefaults();
+    logger.info('RBAC padrão (funções e permissões) inicializado.');
+
+    await getAdminAuthService().bootstrapSuperAdmin();
+    logger.info('Bootstrap de superadmin verificado.');
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');

@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 
 export default function LoginPage() {
-  const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [requires2fa, setRequires2fa] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -14,12 +17,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      api.setToken(token);
-      await api.getIntegrations();
+      const result = await api.adminLogin({
+        email,
+        password,
+        totp_code: totpCode || undefined,
+      });
+
+      if (result.requires_2fa) {
+        setRequires2fa(true);
+        setError(result.message || 'Informe o código 2FA.');
+        return;
+      }
+
+      if (result.requires_2fa_setup) {
+        setError(result.message || 'Configure 2FA antes de continuar.');
+        return;
+      }
+
       navigate('/admin');
-    } catch {
-      api.clearToken();
-      setError('Token inválido. Use o ADMIN_SECRET configurado no servidor.');
+    } catch (err) {
+      api.clearAdminSession();
+      setError(err.message || 'Falha no login administrativo.');
     } finally {
       setLoading(false);
     }
@@ -35,21 +53,52 @@ export default function LoginPage() {
         </div>
 
         <label>
-          Token de acesso
+          E-mail
           <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="ADMIN_SECRET"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@empresa.com"
             required
+            autoComplete="username"
           />
         </label>
+
+        <label>
+          Senha
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Sua senha"
+            required
+            autoComplete="current-password"
+          />
+        </label>
+
+        {requires2fa && (
+          <label>
+            Código 2FA
+            <input
+              type="text"
+              inputMode="numeric"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              placeholder="000000"
+              autoComplete="one-time-code"
+            />
+          </label>
+        )}
 
         {error && <div className="alert error">{error}</div>}
 
         <button type="submit" disabled={loading}>
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
+
+        <p className="hint" style={{ marginTop: '1rem', fontSize: '0.85rem', opacity: 0.7 }}>
+          Use sua conta administrativa individual. O token ADMIN_SECRET legado será descontinuado.
+        </p>
       </form>
     </div>
   );
