@@ -74,6 +74,14 @@ test('tenantContext rejeita tenant_id spoofed via HTTP', async () => {
   assert.equal(spoofed.body.error.code, 'TENANT_SCOPE_MISMATCH');
 });
 
+test('POST /v1/tenant/leads exige nome', async () => {
+  const app = createApp();
+  const res = await request(app)
+    .post('/v1/tenant/leads')
+    .send({ email: 'a@test.com' });
+  assert.equal(res.status, 400);
+});
+
 test('createApp exporta instância Express reutilizável', () => {
   const a = createApp();
   const b = createApp();

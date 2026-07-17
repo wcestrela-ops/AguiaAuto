@@ -6,6 +6,8 @@ const ROUTE_MODULE_MAP = [
   { prefix: '/v1/emergencia', module: 'NOTIFICATIONS' },
   { prefix: '/v1/frota', module: 'CORE_VEHICLES' },
   { prefix: '/v1/indicacoes', module: 'CORE_CUSTOMERS' },
+  { prefix: '/v1/admin/crm', module: 'CRM' },
+  { prefix: '/v1/tenant/leads', module: 'CRM' },
   { prefix: '/v1/instalador', module: 'INSTALLATIONS' },
   { prefix: '/v1/admin/whatsapp', module: 'WHATSAPP' },
   { prefix: '/v1/admin/sms', module: 'SMS' },

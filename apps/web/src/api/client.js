@@ -1563,6 +1563,32 @@ class ApiClient {
       body: JSON.stringify(payload),
     }, { useAdmin: true });
   }
+
+  getAdminCrmLeads(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/v1/admin/crm/leads${qs ? `?${qs}` : ''}`, {}, { useAdmin: true });
+  }
+
+  createAdminCrmLead(payload) {
+    return this.request('/v1/admin/crm/leads', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  updateAdminCrmLead(id, payload) {
+    return this.request(`/v1/admin/crm/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }, { useAdmin: true });
+  }
+
+  submitTenantLead(payload) {
+    return this.request('/v1/tenant/leads', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const api = new ApiClient();

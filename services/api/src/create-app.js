@@ -47,6 +47,7 @@ const adminSecurityRoutes = require('./modules/admin/security/routes');
 const adminLgpdRoutes = require('./modules/admin/lgpd/routes');
 const adminModulesRoutes = require('./modules/admin/modules/routes');
 const adminBrandingRoutes = require('./modules/admin/branding/routes');
+const adminCrmRoutes = require('./modules/admin/crm/routes');
 const adminSaasAccountRoutes = require('./modules/admin/saas-account/routes');
 const adminExportRoutes = require('./modules/admin/export/routes');
 const platformRoutes = require('./modules/platform/routes');
@@ -57,6 +58,7 @@ const { adminRbac } = require('./lib/security/admin-route-permissions');
 const { csrfProtection } = require('./middleware/csrf');
 const { defaultTenantContext, tenantContext } = require('./middleware/tenant-context');
 const { tenantGuardHandler } = require('./lib/tenant/tenant-guard');
+const { sentryErrorHandler } = require('./infrastructure/sentry');
 const cookieParser = require('cookie-parser');
 const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
@@ -184,6 +186,7 @@ function createApp() {
   app.use('/v1/admin/lgpd', adminLgpdRoutes);
   app.use('/v1/admin/modules', ...adminProtected, adminModulesRoutes);
   app.use('/v1/admin/branding', ...adminProtected, adminBrandingRoutes);
+  app.use('/v1/admin/crm', ...adminProtected, adminCrmRoutes);
   app.use('/v1/admin', ...adminProtected, adminSaasAccountRoutes);
   app.use('/v1/admin/export', ...adminProtected, adminExportRoutes);
   app.use('/v1/admin/integracoes', ...adminProtected, adminIntegracoesRoutes);
@@ -214,6 +217,7 @@ function createApp() {
   });
 
   app.use(tenantGuardHandler);
+  app.use(sentryErrorHandler());
   app.use(errorHandler);
 
   return app;

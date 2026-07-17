@@ -1,4 +1,5 @@
 const logger = require('../logger');
+const { captureException } = require('../infrastructure/sentry');
 
 function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
@@ -14,6 +15,11 @@ function errorHandler(err, req, res, next) {
       requestId: req.requestId,
       err: err.message,
       path: req.path,
+    });
+    captureException(err, {
+      requestId: req.requestId,
+      path: req.path,
+      tenantId: req.tenantId,
     });
   }
 

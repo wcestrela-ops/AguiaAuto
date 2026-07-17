@@ -30,6 +30,8 @@ const PERMISSIONS = [
   { slug: 'tenant.manage', category: 'tenant', description: 'Gerenciar configurações da empresa' },
   { slug: 'modules.view', category: 'modules', description: 'Visualizar módulos contratados' },
   { slug: 'modules.manage', category: 'modules', description: 'Gerenciar módulos da empresa' },
+  { slug: 'crm.view', category: 'crm', description: 'Visualizar leads CRM' },
+  { slug: 'crm.manage', category: 'crm', description: 'Gerenciar leads CRM' },
 ];
 
 const PLATFORM_PERMISSIONS = [
@@ -76,10 +78,11 @@ const ROLE_PERMISSIONS = {
     'customers.view', 'customers.update', 'vehicles.view', 'vehicles.update',
     'tracking.view', 'tracking.history', 'billing.view', 'contracts.view',
     'integrations.view', 'audit.view', 'support.manage', 'security.view',
+    'crm.view', 'crm.manage',
   ],
   support: [
     'customers.view', 'customers.update', 'vehicles.view', 'tracking.view',
-    'support.manage', 'audit.view',
+    'support.manage', 'audit.view', 'crm.view',
   ],
   operator: [
     'vehicles.view', 'vehicles.update', 'tracking.view', 'tracking.history',

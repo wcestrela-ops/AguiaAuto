@@ -16,6 +16,7 @@ const PREFIX_RULES = [
   { prefix: '/v1/admin/audit', get: 'audit.view' },
   { prefix: '/v1/admin/frota', get: 'vehicles.view', mutate: 'vehicles.update' },
   { prefix: '/v1/admin/indicacoes', get: 'customers.view', mutate: 'customers.update' },
+  { prefix: '/v1/admin/crm', get: 'crm.view', mutate: 'crm.manage' },
   { prefix: '/v1/admin/emergencia', get: 'support.manage' },
   { prefix: '/v1/admin/site', get: 'settings.manage', mutate: 'settings.manage' },
   { prefix: '/v1/admin/dashboard', get: 'settings.manage' },
