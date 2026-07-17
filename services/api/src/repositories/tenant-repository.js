@@ -41,6 +41,85 @@ class TenantRepository {
     const existing = await this.findById(DEFAULT_TENANT_ID);
     return existing;
   }
+
+  async listAll(limit = 50) {
+    const { rows } = await this.pool.query(
+      `SELECT id, name, legal_name, trade_name, slug, email, phone, status, active,
+              timezone, locale, currency, created_at, updated_at
+       FROM tenants
+       WHERE deleted_at IS NULL
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [Math.min(Math.max(limit, 1), 200)],
+    );
+    return rows;
+  }
+
+  async create(data) {
+    const slug = String(data.slug || data.trade_name || data.name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || `tenant-${Date.now()}`;
+
+    const { rows } = await this.pool.query(
+      `INSERT INTO tenants (
+        name, legal_name, trade_name, slug, document_type, document_number,
+        email, phone, status, timezone, locale, currency, active
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true)
+      RETURNING *`,
+      [
+        data.name || data.trade_name || slug,
+        data.legal_name || null,
+        data.trade_name || data.name || slug,
+        slug,
+        data.document_type || null,
+        data.document_number || null,
+        data.email || null,
+        data.phone || null,
+        data.status || 'TRIAL',
+        data.timezone || 'America/Sao_Paulo',
+        data.locale || 'pt-BR',
+        data.currency || 'BRL',
+      ],
+    );
+    return rows[0];
+  }
+
+  async update(id, data) {
+    const { rows } = await this.pool.query(
+      `UPDATE tenants SET
+        name = COALESCE($2, name),
+        legal_name = COALESCE($3, legal_name),
+        trade_name = COALESCE($4, trade_name),
+        slug = COALESCE($5, slug),
+        email = COALESCE($6, email),
+        phone = COALESCE($7, phone),
+        status = COALESCE($8, status),
+        active = COALESCE($9, active),
+        timezone = COALESCE($10, timezone),
+        locale = COALESCE($11, locale),
+        currency = COALESCE($12, currency),
+        updated_at = NOW()
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        normalizeTenantId(id),
+        data.name,
+        data.legal_name,
+        data.trade_name,
+        data.slug,
+        data.email,
+        data.phone,
+        data.status,
+        data.active,
+        data.timezone,
+        data.locale,
+        data.currency,
+      ],
+    );
+    return rows[0] || null;
+  }
 }
 
 let instance = null;

@@ -26,9 +26,42 @@ const PERMISSIONS = [
   { slug: 'settings.manage', category: 'settings', description: 'Configurações gerais' },
   { slug: 'security.view', category: 'security', description: 'Dashboard de segurança' },
   { slug: 'security.manage', category: 'security', description: 'Gerenciar sessões e 2FA' },
+  // Tenant management
+  { slug: 'tenant.manage', category: 'tenant', description: 'Gerenciar configurações da empresa' },
+  { slug: 'modules.view', category: 'modules', description: 'Visualizar módulos contratados' },
+  { slug: 'modules.manage', category: 'modules', description: 'Gerenciar módulos da empresa' },
 ];
 
+const PLATFORM_PERMISSIONS = [
+  { slug: 'platform.tenants.view', category: 'platform', description: 'Visualizar empresas' },
+  { slug: 'platform.tenants.create', category: 'platform', description: 'Criar empresas' },
+  { slug: 'platform.tenants.update', category: 'platform', description: 'Editar empresas' },
+  { slug: 'platform.tenants.suspend', category: 'platform', description: 'Suspender empresas' },
+  { slug: 'platform.modules.view', category: 'platform', description: 'Visualizar catálogo de módulos' },
+  { slug: 'platform.modules.manage', category: 'platform', description: 'Gerenciar módulos globais' },
+  { slug: 'platform.health.view', category: 'platform', description: 'Saúde operacional da plataforma' },
+  { slug: 'platform.audit.view', category: 'platform', description: 'Auditoria cross-tenant' },
+  { slug: 'platform.support.impersonate', category: 'platform', description: 'Modo suporte controlado' },
+];
+
+const ALL_PERMISSIONS = [...PERMISSIONS, ...PLATFORM_PERMISSIONS];
+
 const ADMIN_ROLES = ['superadmin', 'admin', 'operator', 'support', 'financeiro', 'supervisor'];
+
+const TENANT_ROLE_ALIASES = {
+  TENANT_OWNER: 'superadmin',
+  TENANT_ADMIN: 'admin',
+  MANAGER: 'supervisor',
+  FINANCE: 'financeiro',
+  SALES: 'operator',
+  SUPPORT: 'support',
+  OPERATOR: 'operator',
+  INSTALLER: 'installer',
+  CUSTOMER: 'client',
+  READ_ONLY: 'operator',
+};
+
+const PLATFORM_ROLES = ['platform_super_admin', 'platform_admin', 'platform_support', 'platform_finance'];
 
 const ROLE_PERMISSIONS = {
   superadmin: PERMISSIONS.map((p) => p.slug),
@@ -52,18 +85,45 @@ const ROLE_PERMISSIONS = {
   ],
 };
 
+const PLATFORM_ROLE_PERMISSIONS = {
+  platform_super_admin: PLATFORM_PERMISSIONS.map((p) => p.slug),
+  platform_admin: PLATFORM_PERMISSIONS.filter((p) => p.slug !== 'platform.support.impersonate').map((p) => p.slug),
+  platform_support: [
+    'platform.tenants.view', 'platform.health.view', 'platform.audit.view',
+    'platform.support.impersonate', 'platform.modules.view',
+  ],
+  platform_finance: [
+    'platform.tenants.view', 'platform.modules.view', 'platform.health.view',
+  ],
+};
+
 function isAdminRole(role) {
   return ADMIN_ROLES.includes(role);
 }
 
+function isPlatformRole(role) {
+  return PLATFORM_ROLES.includes(role);
+}
+
+function isPlatformOrAdminRole(role) {
+  return isAdminRole(role) || isPlatformRole(role);
+}
+
 function roleRequires2FA(role) {
-  return ['superadmin', 'admin', 'financeiro'].includes(role);
+  return ['superadmin', 'admin', 'financeiro', 'platform_super_admin', 'platform_admin'].includes(role);
 }
 
 module.exports = {
   PERMISSIONS,
+  PLATFORM_PERMISSIONS,
+  ALL_PERMISSIONS,
   ADMIN_ROLES,
+  PLATFORM_ROLES,
+  TENANT_ROLE_ALIASES,
   ROLE_PERMISSIONS,
+  PLATFORM_ROLE_PERMISSIONS,
   isAdminRole,
+  isPlatformRole,
+  isPlatformOrAdminRole,
   roleRequires2FA,
 };

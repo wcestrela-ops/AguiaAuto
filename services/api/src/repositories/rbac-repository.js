@@ -1,5 +1,10 @@
 const { getPool } = require('../db/pool');
-const { PERMISSIONS, ROLE_PERMISSIONS } = require('../lib/security/permissions');
+const {
+  ALL_PERMISSIONS,
+  ROLE_PERMISSIONS,
+  PLATFORM_ROLE_PERMISSIONS,
+  isPlatformRole,
+} = require('../lib/security/permissions');
 
 class RbacRepository {
   constructor() {
@@ -7,7 +12,7 @@ class RbacRepository {
   }
 
   async seedDefaults() {
-    for (const permission of PERMISSIONS) {
+    for (const permission of ALL_PERMISSIONS) {
       await this.pool.query(
         `INSERT INTO permissions (slug, description, category)
          VALUES ($1, $2, $3)
@@ -16,7 +21,9 @@ class RbacRepository {
       );
     }
 
-    for (const [roleSlug, permissionSlugs] of Object.entries(ROLE_PERMISSIONS)) {
+    const allRoleMaps = { ...ROLE_PERMISSIONS, ...PLATFORM_ROLE_PERMISSIONS };
+
+    for (const [roleSlug, permissionSlugs] of Object.entries(allRoleMaps)) {
       const { rows: roleRows } = await this.pool.query(
         `INSERT INTO roles (slug, name, is_system)
          VALUES ($1, $2, true)
@@ -49,6 +56,16 @@ class RbacRepository {
   }
 
   async getUserPermissions(userId) {
+    const { rows: userRows } = await this.pool.query(
+      'SELECT role FROM users WHERE id = $1',
+      [userId],
+    );
+    const role = userRows[0]?.role;
+
+    if (role && isPlatformRole(role) && PLATFORM_ROLE_PERMISSIONS[role]) {
+      return PLATFORM_ROLE_PERMISSIONS[role];
+    }
+
     const { rows } = await this.pool.query(
       `SELECT DISTINCT p.slug
        FROM user_roles ur

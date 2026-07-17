@@ -48,8 +48,8 @@ router.get('/', async (req, res) => {
 
     const repo = getAuditRepository();
     const [logs, total] = await Promise.all([
-      repo.list(filters),
-      repo.count(filters),
+      repo.list(filters, req.tenantId),
+      repo.count(filters, req.tenantId),
     ]);
 
     res.json({

@@ -43,6 +43,8 @@ const { getRepository: getSmsRepository } = require('@aguia/sms');
 const { migrateSecurityPhase3 } = require('./db/migrate-security-phase3');
 const { migrateTenantsFoundation } = require('./db/migrate-tenants-foundation');
 const { migrateAguiaTenantSeed } = require('./db/migrate-aguia-tenant-seed');
+const { migratePhase2TenantTables } = require('./db/migrate-phase2-tenant-tables');
+const { migratePhase3Modules } = require('./db/migrate-phase3-modules');
 const { migrateCommandStates } = require('./db/migrate-command-states');
 const { getHealthReport } = require('./infrastructure/health-service');
 const { attachWebSocket } = require('./infrastructure/websocket');
@@ -91,7 +93,10 @@ const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminAuthRoutes = require('./modules/admin/auth/routes');
 const adminSecurityRoutes = require('./modules/admin/security/routes');
 const adminLgpdRoutes = require('./modules/admin/lgpd/routes');
+const adminModulesRoutes = require('./modules/admin/modules/routes');
+const platformRoutes = require('./modules/platform/routes');
 const lgpdRoutes = require('./modules/lgpd/routes');
+const { requireModule } = require('./middleware/require-module');
 const { adminRbac } = require('./lib/security/admin-route-permissions');
 const { csrfProtection } = require('./middleware/csrf');
 const { defaultTenantContext, tenantContext } = require('./middleware/tenant-context');
@@ -154,6 +159,9 @@ app.use('/v1/indicacoes', indicacoesPublicRoutes);
 
 app.use(csrfProtection);
 
+// Verificação de módulos contratados (no-op quando MULTI_TENANT_ENABLED=false)
+app.use('/v1', (req, res, next) => requireModule()(req, res, next));
+
 // LGPD cliente autenticado
 app.use('/v1/lgpd', jwtAuth, tenantContext, lgpdRoutes);
 
@@ -185,6 +193,9 @@ app.use('/v1/contratos', jwtAuth, tenantContext, contratosRoutes);
 // Área do instalador — JWT + role
 app.use('/v1/instalador', jwtAuth, tenantContext, requireRole('installer', 'admin'), instaladorRoutes);
 
+// Painel master da plataforma
+app.use('/v1/platform', platformRoutes);
+
 // Auth admin (público: login/refresh)
 app.use('/v1/admin/auth', adminAuthRoutes);
 
@@ -193,6 +204,7 @@ const adminProtected = [adminAuth, tenantContext, adminRbac];
 
 app.use('/v1/admin/security', adminSecurityRoutes);
 app.use('/v1/admin/lgpd', adminLgpdRoutes);
+app.use('/v1/admin/modules', ...adminProtected, adminModulesRoutes);
 app.use('/v1/admin/export', ...adminProtected, adminExportRoutes);
 app.use('/v1/admin/integracoes', ...adminProtected, adminIntegracoesRoutes);
 app.use('/v1/admin/whatsapp', ...adminProtected, adminWhatsappRoutes);
@@ -283,6 +295,12 @@ async function bootstrap() {
 
     const aguiaSeed = await migrateAguiaTenantSeed();
     logger.info(`Tenant Águia seed aplicado: ${JSON.stringify(aguiaSeed.counts)}`);
+
+    await migratePhase2TenantTables();
+    logger.info('Fase 2 — tenant_id em tabelas operacionais aplicado.');
+
+    const moduleSeed = await migratePhase3Modules();
+    logger.info(`Fase 3 — catálogo de módulos: ${moduleSeed.modules} módulos, tenant Águia ativado.`);
 
     await getRbacRepository().seedDefaults();
     logger.info('RBAC padrão (funções e permissões) inicializado.');

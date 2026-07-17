@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { appendTenantFilter } = require('../lib/tenant/tenant-query');
 
 class AlertRepository {
   constructor() {
@@ -8,11 +10,12 @@ class AlertRepository {
   async create(data) {
     const { rows } = await this.pool.query(
       `INSERT INTO alert_events (
-        user_id, vehicle_id, alert_type, title, message, source,
+        user_id, tenant_id, vehicle_id, alert_type, title, message, source,
         source_event_id, device_id, payload, channels_sent, delivery_status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
         data.user_id,
+        data.tenant_id ?? DEFAULT_TENANT_ID,
         data.vehicle_id || null,
         data.alert_type,
         data.title,
@@ -54,16 +57,23 @@ class AlertRepository {
     return rows;
   }
 
-  async listAll({ limit = 100 } = {}) {
+  async listAll({ limit = 100, tenantId = DEFAULT_TENANT_ID } = {}) {
+    const params = [limit];
+    const conditions = [];
+    let idx = 2;
+    idx = appendTenantFilter(conditions, params, idx, tenantId, { alias: 'ae' });
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await this.pool.query(
       `SELECT ae.*, u.email AS user_email, u.name AS user_name,
               v.plate AS vehicle_plate
        FROM alert_events ae
        JOIN users u ON u.id = ae.user_id
        LEFT JOIN vehicles v ON v.id = ae.vehicle_id
+       ${where}
        ORDER BY ae.created_at DESC
        LIMIT $1`,
-      [limit]
+      params,
     );
     return rows;
   }

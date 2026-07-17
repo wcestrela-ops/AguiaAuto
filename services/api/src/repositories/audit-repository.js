@@ -1,4 +1,6 @@
 const { getPool } = require('../db/pool');
+const { isMultiTenantEnabled, DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { appendTenantFilter } = require('../lib/tenant/tenant-query');
 
 class AuditRepository {
   constructor() {
@@ -34,10 +36,12 @@ class AuditRepository {
     return rows[0];
   }
 
-  _buildListQuery(filters = {}) {
+  _buildListQuery(filters = {}, tenantId = DEFAULT_TENANT_ID) {
     const params = [];
     const conditions = [];
     let idx = 1;
+
+    idx = appendTenantFilter(conditions, params, idx, tenantId);
 
     if (filters.action) {
       conditions.push(`action = $${idx++}`);
@@ -83,10 +87,10 @@ class AuditRepository {
     return { where, params, nextIdx: idx };
   }
 
-  async list(filters = {}) {
+  async list(filters = {}, tenantId = DEFAULT_TENANT_ID) {
     const limit = Math.min(Math.max(parseInt(filters.limit || '50', 10), 1), 200);
     const offset = Math.max(parseInt(filters.offset || '0', 10), 0);
-    const { where, params, nextIdx } = this._buildListQuery(filters);
+    const { where, params, nextIdx } = this._buildListQuery(filters, tenantId);
 
     params.push(limit, offset);
     const { rows } = await this.pool.query(
@@ -99,8 +103,8 @@ class AuditRepository {
     return rows;
   }
 
-  async count(filters = {}) {
-    const { where, params } = this._buildListQuery(filters);
+  async count(filters = {}, tenantId = DEFAULT_TENANT_ID) {
+    const { where, params } = this._buildListQuery(filters, tenantId);
     const { rows } = await this.pool.query(
       `SELECT COUNT(*)::int AS count FROM audit_logs ${where}`,
       params,
