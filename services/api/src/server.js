@@ -44,7 +44,10 @@ const { migratePhase4SaasBilling } = require('./db/migrate-phase4-saas-billing')
 const { migratePhase6TrackingProvider } = require('./db/migrate-phase6-tracking-provider');
 const { migratePhase7TenantIntegrations } = require('./db/migrate-phase7-tenant-integrations');
 const { migratePhase11TenantBranding } = require('./db/migrate-phase11-tenant-branding');
+const { migratePhase14CustomDomain } = require('./db/migrate-phase14-custom-domain');
+const { migratePhase15CrmLeads } = require('./db/migrate-phase15-crm-leads');
 const { migrateCommandStates } = require('./db/migrate-command-states');
+const { initSentry } = require('./infrastructure/sentry');
 const { attachWebSocket } = require('./infrastructure/websocket');
 const { isRedisEnabled } = require('./infrastructure/redis');
 const { getRbacRepository } = require('./repositories/rbac-repository');
@@ -56,6 +59,8 @@ const PROCESS_ROLE = process.env.PROCESS_ROLE || 'api';
 const PORT = process.env.API_PORT || process.env.PORT || 3000;
 
 async function bootstrap() {
+  initSentry();
+
   if (process.env.DATABASE_URL) {
     const store = getStore();
     await store.migrate();
@@ -132,6 +137,12 @@ async function bootstrap() {
 
     await migratePhase11TenantBranding();
     logger.info('Fase 11 — branding por tenant (nome, logo, cor, domínio) inicializado.');
+
+    await migratePhase14CustomDomain();
+    logger.info('Fase 14 — índice domínio custom white-label aplicado.');
+
+    await migratePhase15CrmLeads();
+    logger.info('Fase 15 — CRM/leads multi-tenant inicializado.');
 
     await getRbacRepository().seedDefaults();
     logger.info('RBAC padrão (funções e permissões) inicializado.');

@@ -15,6 +15,7 @@ export const ADMIN_NAV = [
   { to: '/admin/contratos', label: 'Contratos', module: 'CONTRACTS' },
   { to: '/admin/frota', label: 'Documentos', module: 'CORE_VEHICLES' },
   { to: '/admin/indicacoes', label: 'Indicações', module: 'CORE_CUSTOMERS' },
+  { to: '/admin/crm', label: 'CRM / Leads', module: 'CRM' },
   { to: '/admin/seguranca', label: 'Segurança', module: null },
   { to: '/admin/auditoria', label: 'Auditoria', module: 'REPORTS' },
 ];

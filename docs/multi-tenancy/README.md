@@ -480,3 +480,36 @@ Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architect
 ### Testes
 - `test/infrastructure/openapi-docs.test.js` — flag de habilitação
 - E2E: `GET /v1/docs/` retorna HTML Swagger
+
+---
+
+## Fase 14 — Domínio custom white-label
+
+- Índice único em `tenants.custom_domain`
+- `tenant-host-resolver.js` — resolve tenant por domínio ou subdomínio
+- `defaultTenantContext` prioriza `custom_domain` no header Host
+- Guia: [`docs/deploy/custom-domain.md`](../deploy/custom-domain.md)
+
+---
+
+## Fase 15 — CRM / Leads multi-tenant
+
+- Tabela `crm_leads` — status: NEW, CONTACTED, QUALIFIED, WON, LOST
+- Admin: `GET/POST/PATCH/DELETE /v1/admin/crm/leads` (`crm.view`, `crm.manage`)
+- Público: `POST /v1/tenant/leads` (captura landing, tenant via Host)
+
+---
+
+## Fase 16 — Observabilidade (Sentry + Grafana)
+
+- `@sentry/node` via `SENTRY_DSN` (opcional)
+- Dashboard: `docs/operations/grafana/aguia-api-dashboard.json`
+- Guia: [`docs/operations/observability.md`](../operations/observability.md)
+
+---
+
+## Fase 17 — Load test autenticado (k6)
+
+- `scripts/k6/auth-smoke.js` — login JWT + dashboard/veículos
+- `npm run load-test:k6`
+- Guia: [`docs/operations/k6-load-testing.md`](../operations/k6-load-testing.md)

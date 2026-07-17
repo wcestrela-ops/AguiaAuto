@@ -31,6 +31,19 @@ class TenantRepository {
     return rows[0] || null;
   }
 
+  async findByCustomDomain(domain) {
+    if (!domain) return null;
+    const normalized = String(domain).toLowerCase().split(':')[0].trim();
+    const { rows } = await this.pool.query(
+      `SELECT id, name, legal_name, trade_name, slug, status, active, timezone, locale, currency,
+              brand_name, logo_url, primary_color, favicon_url, custom_domain
+       FROM tenants
+       WHERE LOWER(custom_domain) = $1 AND deleted_at IS NULL`,
+      [normalized],
+    );
+    return rows[0] || null;
+  }
+
   async isActive(id) {
     const tenant = await this.findById(id);
     if (!tenant) return false;

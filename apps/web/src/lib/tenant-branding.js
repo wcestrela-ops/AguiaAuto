@@ -73,6 +73,18 @@ export async function loadTenantBranding(apiClient) {
     }
     return data;
   } catch {
+    if (!slug) {
+      try {
+        const fallback = await apiClient.getTenantBranding();
+        if (fallback.data) {
+          cacheBranding(fallback.data);
+          applyTenantBranding(fallback.data);
+          return fallback.data;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     return cached;
   }
 }

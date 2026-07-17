@@ -1,5 +1,6 @@
 const { getTenantRepository } = require('../repositories/tenant-repository');
 const { DEFAULT_TENANT_ID } = require('../lib/tenant/tenant-config');
+const { resolveTenantFromHostHeader } = require('../lib/tenant/tenant-host-resolver');
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
@@ -26,6 +27,12 @@ class TenantBrandingService {
   async getBySlug(slug) {
     const tenant = await this.tenants.findBySlug(slug);
     return this.formatBranding(tenant);
+  }
+
+  async getByHost(hostHeader) {
+    const resolved = await resolveTenantFromHostHeader(hostHeader, this.tenants);
+    if (resolved?.tenant) return this.formatBranding(resolved.tenant);
+    return this.getById(DEFAULT_TENANT_ID);
   }
 
   async getById(tenantId = DEFAULT_TENANT_ID) {
