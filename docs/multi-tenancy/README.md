@@ -441,3 +441,26 @@ TENANT_INTEGRATION_TEST=true DATABASE_URL=postgresql://... npm run test:api
 - Cobre: `/health/live`, `/v1/openapi.json`, `/v1/tenant/branding`, rejeição tenant spoofed
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)
+
+---
+
+## Fase 12 — Menu cliente PWA dinâmico
+
+### API
+- `GET /v1/client/modules` — módulos ativos do tenant (JWT cliente + tenantContext)
+
+### Frontend
+- `apps/web/src/lib/client-modules.js` — `CLIENT_NAV` filtrado por módulos contratados
+- `ClientLayout.jsx` — busca módulos quando `VITE_MULTI_TENANT_ENABLED=true`
+- Contrato pendente: `CONTRACT_ONLY_NAV` (só Contratos) permanece inalterado
+- Branding do tenant na sidebar (logo + nome)
+
+### Mapeamento rota → módulo (cliente)
+| Rota PWA | Módulo |
+|----------|--------|
+| `/app/veiculos` | TRACKING |
+| `/app/financeiro` | FINANCE |
+| `/app/contratos` | CONTRACTS |
+| `/app/frota` | CORE_VEHICLES |
+| `/app/emergencia`, `/app/alertas` | NOTIFICATIONS |
+| `/app`, `/app/perfil` | sempre visível |
