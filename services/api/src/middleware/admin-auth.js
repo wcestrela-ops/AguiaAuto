@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { timingSafeEqual } = require('crypto');
 const { verifyAdminAccessToken } = require('../services/admin-auth-service');
 const { getRbacRepository } = require('../repositories/rbac-repository');
+const { getAdminTokensFromRequest } = require('../lib/security/cookie-auth');
 const logger = require('../logger');
 
 function safeEqual(a, b) {
@@ -12,24 +13,29 @@ function safeEqual(a, b) {
   return timingSafeEqual(bufA, bufB);
 }
 
+async function attachAdminFromToken(token, req) {
+  const payload = verifyAdminAccessToken(token);
+  const permissions = payload.permissions || await getRbacRepository().getUserPermissions(payload.sub);
+  req.admin = {
+    id: payload.sub,
+    email: payload.email,
+    role: payload.role,
+    tenant_id: payload.tenant_id || 1,
+    permissions,
+    legacy: false,
+  };
+}
+
 async function adminAuth(req, res, next) {
   const auth = req.headers.authorization || '';
+  const { accessToken: cookieAccess } = getAdminTokensFromRequest(req);
 
-  if (auth.startsWith('Bearer ')) {
-    const token = auth.slice(7);
+  const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const token = bearerToken || cookieAccess;
 
+  if (token) {
     try {
-      const payload = verifyAdminAccessToken(token);
-      const permissions = payload.permissions || await getRbacRepository().getUserPermissions(payload.sub);
-
-      req.admin = {
-        id: payload.sub,
-        email: payload.email,
-        role: payload.role,
-        tenant_id: payload.tenant_id || 1,
-        permissions,
-        legacy: false,
-      };
+      await attachAdminFromToken(token, req);
       return next();
     } catch (err) {
       if (err.name !== 'TokenExpiredError') {

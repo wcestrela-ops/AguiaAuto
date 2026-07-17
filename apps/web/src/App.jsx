@@ -1,11 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { api } from './api/client';
 import LoginPage from './pages/admin/LoginPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import IntegrationsPage from './pages/admin/IntegrationsPage';
 import IntegrationEditPage from './pages/admin/IntegrationEditPage';
 import WhatsAppPage from './pages/admin/WhatsAppPage';
+import SmsPage from './pages/admin/SmsPage';
 import AdminVehiclesPage from './pages/admin/AdminVehiclesPage';
 import AdminFinanceiroPage from './pages/admin/AdminFinanceiroPage';
 import AdminAlertsPage from './pages/admin/AdminAlertsPage';
@@ -39,12 +39,12 @@ import AdminEmergenciaPage from './pages/admin/AdminEmergenciaPage';
 import AdminPlansPage from './pages/admin/AdminPlansPage';
 import AdminLandingPage from './pages/admin/AdminLandingPage';
 import LandingPage from './pages/LandingPage';
-import SmsPage from './pages/admin/SmsPage';
+import AdminSecurityPage from './pages/admin/AdminSecurityPage';
 import ClientSessionGate from './components/ClientSessionGate';
+import AdminSessionGate from './components/AdminSessionGate';
 
 function AdminRoute({ children }) {
-  if (!api.hasAdminSession()) return <Navigate to="/admin/login" replace />;
-  return children;
+  return <AdminSessionGate>{children}</AdminSessionGate>;
 }
 
 function ClientRoute({ children }) {
@@ -124,6 +124,7 @@ export default function App() {
         <Route path="frota" element={<AdminFrotaPage />} />
         <Route path="indicacoes" element={<AdminIndicacoesPage />} />
         <Route path="auditoria" element={<AdminAuditPage />} />
+        <Route path="seguranca" element={<AdminSecurityPage />} />
         <Route path="clientes" element={<AdminClientesPage />} />
         <Route path="clientes/:id" element={<AdminClienteDetailPage />} />
         <Route path="emergencia" element={<AdminEmergenciaPage />} />

@@ -88,6 +88,11 @@ const adminSmsRoutes = require('./modules/admin/sms/routes');
 const adminSmsModelsRoutes = require('./modules/admin/sms/models-routes');
 const adminAuthRoutes = require('./modules/admin/auth/routes');
 const adminSecurityRoutes = require('./modules/admin/security/routes');
+const adminLgpdRoutes = require('./modules/admin/lgpd/routes');
+const lgpdRoutes = require('./modules/lgpd/routes');
+const { adminRbac } = require('./lib/security/admin-route-permissions');
+const { csrfProtection } = require('./middleware/csrf');
+const cookieParser = require('cookie-parser');
 const adminDashboardRoutes = require('./modules/admin/dashboard/routes');
 const adminSmsGpswoxTemplatesRoutes = require('./modules/admin/sms/gpswox-templates-routes');
 const gpswoxGatewayRoutes = require('./modules/sms/gpswox-gateway-routes');
@@ -101,6 +106,7 @@ const PORT = process.env.API_PORT || process.env.PORT || 3000;
 app.set('trust proxy', 1);
 app.use(requestIdMiddleware);
 app.use(securityHeaders);
+app.use(cookieParser());
 app.use(cors);
 app.use(express.json({
   limit: process.env.API_JSON_LIMIT || '1mb',
@@ -141,13 +147,16 @@ app.use('/v1/site', siteRoutes);
 // Indicações — validação pública do código (cadastro)
 app.use('/v1/indicacoes', indicacoesPublicRoutes);
 
+app.use(csrfProtection);
+
+// LGPD cliente autenticado
+app.use('/v1/lgpd', jwtAuth, lgpdRoutes);
+
 // Auth público
 app.use('/v1/auth', authRoutes);
 
 // Config pública (Firebase web config)
 app.use('/v1/config', configRoutes);
-
-// Webhooks públicos
 app.use('/webhooks', webhooksRoutes);
 
 // Gateway SMS GPSWOX (entrada HTTP — padrão %NUMBER% / %MESSAGE%)
@@ -174,28 +183,31 @@ app.use('/v1/instalador', jwtAuth, requireRole('installer', 'admin'), instalador
 // Auth admin (público: login/refresh)
 app.use('/v1/admin/auth', adminAuthRoutes);
 
-// Painel admin — autenticação individual (ADMIN_SECRET legado ainda aceito temporariamente)
+// Painel admin — autenticação individual + RBAC
+const adminProtected = [adminAuth, adminRbac];
+
 app.use('/v1/admin/security', adminSecurityRoutes);
-app.use('/v1/admin/export', adminAuth, adminExportRoutes);
-app.use('/v1/admin/integracoes', adminAuth, adminIntegracoesRoutes);
-app.use('/v1/admin/whatsapp', adminAuth, adminWhatsappRoutes);
-app.use('/v1/admin/sms/models', adminAuth, adminSmsModelsRoutes);
-app.use('/v1/admin/sms/gpswox-templates', adminAuth, adminSmsGpswoxTemplatesRoutes);
-app.use('/v1/admin/sms', adminAuth, adminSmsRoutes);
-app.use('/v1/admin/veiculos', adminAuth, adminVeiculosRoutes);
-app.use('/v1/admin/usuarios', adminAuth, adminUsuariosRoutes);
-app.use('/v1/admin/financeiro', adminAuth, adminFinanceiroRoutes);
-app.use('/v1/admin/plans', adminAuth, adminPlansRoutes);
-app.use('/v1/admin/alertas', adminAuth, adminAlertasRoutes);
-app.use('/v1/admin/comunicacao', adminAuth, adminComunicacaoRoutes);
-app.use('/v1/admin/instaladores', adminAuth, adminInstaladoresRoutes);
-app.use('/v1/admin/contratos', adminAuth, adminContratosRoutes);
-app.use('/v1/admin/audit', adminAuth, adminAuditRoutes);
-app.use('/v1/admin/frota', adminAuth, adminFrotaRoutes);
-app.use('/v1/admin/indicacoes', adminAuth, adminIndicacoesRoutes);
-app.use('/v1/admin/emergencia', adminAuth, adminEmergenciaRoutes);
-app.use('/v1/admin/site', adminAuth, adminSiteRoutes);
-app.use('/v1/admin/dashboard', adminAuth, adminDashboardRoutes);
+app.use('/v1/admin/lgpd', adminLgpdRoutes);
+app.use('/v1/admin/export', ...adminProtected, adminExportRoutes);
+app.use('/v1/admin/integracoes', ...adminProtected, adminIntegracoesRoutes);
+app.use('/v1/admin/whatsapp', ...adminProtected, adminWhatsappRoutes);
+app.use('/v1/admin/sms/models', ...adminProtected, adminSmsModelsRoutes);
+app.use('/v1/admin/sms/gpswox-templates', ...adminProtected, adminSmsGpswoxTemplatesRoutes);
+app.use('/v1/admin/sms', ...adminProtected, adminSmsRoutes);
+app.use('/v1/admin/veiculos', ...adminProtected, adminVeiculosRoutes);
+app.use('/v1/admin/usuarios', ...adminProtected, adminUsuariosRoutes);
+app.use('/v1/admin/financeiro', ...adminProtected, adminFinanceiroRoutes);
+app.use('/v1/admin/plans', ...adminProtected, adminPlansRoutes);
+app.use('/v1/admin/alertas', ...adminProtected, adminAlertasRoutes);
+app.use('/v1/admin/comunicacao', ...adminProtected, adminComunicacaoRoutes);
+app.use('/v1/admin/instaladores', ...adminProtected, adminInstaladoresRoutes);
+app.use('/v1/admin/contratos', ...adminProtected, adminContratosRoutes);
+app.use('/v1/admin/audit', ...adminProtected, adminAuditRoutes);
+app.use('/v1/admin/frota', ...adminProtected, adminFrotaRoutes);
+app.use('/v1/admin/indicacoes', ...adminProtected, adminIndicacoesRoutes);
+app.use('/v1/admin/emergencia', ...adminProtected, adminEmergenciaRoutes);
+app.use('/v1/admin/site', ...adminProtected, adminSiteRoutes);
+app.use('/v1/admin/dashboard', ...adminProtected, adminDashboardRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -265,6 +277,11 @@ async function bootstrap() {
 
     await getAdminAuthService().bootstrapSuperAdmin();
     logger.info('Bootstrap de superadmin verificado.');
+
+    const encryptionMigration = await getStore().migrateEncryptedSettings?.();
+    if (encryptionMigration?.migrated) {
+      logger.info(`Credenciais migradas para settings_encrypted: ${encryptionMigration.migrated}.`);
+    }
 
     await migrateVehicleTracker();
     logger.info('Veículos — campos de rastreador/SMS (modelo, IMEI, sync GPSWOX) inicializados.');

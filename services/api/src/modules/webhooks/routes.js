@@ -50,7 +50,7 @@ router.post('/asaas', async (req, res) => {
       return res.json({ success: true, data: parsed });
     }
 
-    const result = await processBillingWebhookAsync('asaas', parsed.event, parsed.payment);
+    const result = await processBillingWebhookAsync('asaas', parsed.event, parsed.payment, req.body);
 
     res.json({ success: true, data: result });
   } catch (err) {
@@ -71,7 +71,7 @@ router.post('/mercadopago', async (req, res) => {
     }
 
     if (parsed.payment) {
-      const result = await processBillingWebhookAsync('mercadopago', parsed.event, parsed.payment);
+      const result = await processBillingWebhookAsync('mercadopago', parsed.event, parsed.payment, req.body);
       return res.json({ success: true, data: result });
     }
 

@@ -18,6 +18,7 @@ const NAV = [
   { to: '/admin/contratos', label: 'Contratos' },
   { to: '/admin/frota', label: 'Documentos' },
   { to: '/admin/indicacoes', label: 'Indicações' },
+  { to: '/admin/seguranca', label: 'Segurança' },
   { to: '/admin/auditoria', label: 'Auditoria' },
 ];
 
@@ -53,8 +54,8 @@ export default function AdminLayout() {
     };
   }, [navOpen]);
 
-  function logout() {
-    api.clearToken();
+  async function logout() {
+    await api.adminLogout();
     navigate('/admin/login');
   }
 

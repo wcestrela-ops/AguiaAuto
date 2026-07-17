@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const { getSchema, getDefaults, maskSettings, listSchemas } = require('./schemas');
+const { encryptJson, decryptJson, isEncryptionEnabled } = require('./encryption');
 
 const CACHE_TTL_MS = 60_000;
 
@@ -33,10 +34,70 @@ class IntegrationStore {
 
   async _loadRow(key) {
     const { rows } = await this.pool.query(
-      'SELECT integration_key, settings, enabled, updated_at, updated_by FROM integration_configs WHERE integration_key = $1',
+      'SELECT integration_key, settings, settings_encrypted, enabled, updated_at, updated_by FROM integration_configs WHERE integration_key = $1',
       [key]
     );
     return rows[0] || null;
+  }
+
+  _resolveSettings(row, defaults) {
+    if (row?.settings_encrypted && isEncryptionEnabled()) {
+      const decrypted = decryptJson(row.settings_encrypted);
+      if (decrypted && typeof decrypted === 'object') {
+        return { ...defaults, ...decrypted };
+      }
+    }
+    return { ...defaults, ...(row?.settings || {}) };
+  }
+
+  _splitSecretSettings(key, settings) {
+    const schema = getSchema(key);
+    if (!schema || !isEncryptionEnabled()) {
+      return { publicSettings: settings, encryptedBlob: null };
+    }
+
+    const secretKeys = new Set(schema.fields.filter((f) => f.secret).map((f) => f.key));
+    const secrets = {};
+    const publicSettings = { ...settings };
+
+    for (const secretKey of secretKeys) {
+      if (publicSettings[secretKey] != null && publicSettings[secretKey] !== '') {
+        secrets[secretKey] = publicSettings[secretKey];
+      }
+      delete publicSettings[secretKey];
+    }
+
+    const encryptedBlob = Object.keys(secrets).length ? encryptJson(secrets) : null;
+    return { publicSettings, encryptedBlob };
+  }
+
+  async migrateEncryptedSettings() {
+    if (!isEncryptionEnabled()) return { migrated: 0 };
+
+    const { rows } = await this.pool.query(
+      `SELECT integration_key, settings, settings_encrypted
+       FROM integration_configs
+       WHERE settings_encrypted IS NULL AND settings <> '{}'::jsonb`,
+    );
+
+    let migrated = 0;
+    for (const row of rows) {
+      const schema = getSchema(row.integration_key);
+      if (!schema) continue;
+      const { publicSettings, encryptedBlob } = this._splitSecretSettings(row.integration_key, row.settings);
+      if (!encryptedBlob) continue;
+
+      await this.pool.query(
+        `UPDATE integration_configs
+         SET settings = $2, settings_encrypted = $3, updated_at = NOW()
+         WHERE integration_key = $1`,
+        [row.integration_key, JSON.stringify(publicSettings), encryptedBlob],
+      );
+      migrated += 1;
+    }
+
+    this._invalidateCache();
+    return { migrated };
   }
 
   async get(key, { useCache = true } = {}) {
@@ -51,7 +112,7 @@ class IntegrationStore {
 
     const row = await this._loadRow(key);
     const defaults = getDefaults(key);
-    const settings = { ...defaults, ...(row?.settings || {}) };
+    const settings = this._resolveSettings(row, defaults);
 
     const config = {
       key,
@@ -126,13 +187,15 @@ class IntegrationStore {
     }
 
     const enabledValue = enabled !== undefined ? enabled : current.enabled;
+    const { publicSettings, encryptedBlob } = this._splitSecretSettings(key, merged);
 
     await this.pool.query(
-      `INSERT INTO integration_configs (integration_key, settings, enabled, updated_at, updated_by)
-       VALUES ($1, $2, $3, NOW(), $4)
+      `INSERT INTO integration_configs (integration_key, settings, settings_encrypted, enabled, updated_at, updated_by)
+       VALUES ($1, $2, $3, $4, NOW(), $5)
        ON CONFLICT (integration_key)
-       DO UPDATE SET settings = $2, enabled = $3, updated_at = NOW(), updated_by = $4`,
-      [key, JSON.stringify(merged), enabledValue, updatedBy]
+       DO UPDATE SET settings = $2, settings_encrypted = COALESCE($3, integration_configs.settings_encrypted),
+                     enabled = $4, updated_at = NOW(), updated_by = $5`,
+      [key, JSON.stringify(publicSettings), encryptedBlob, enabledValue, updatedBy]
     );
 
     this._invalidateCache();

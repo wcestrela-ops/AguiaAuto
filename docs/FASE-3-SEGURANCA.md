@@ -24,7 +24,7 @@ Documento de diagnóstico, implementação e operação do AguiaAuto.
 | **Alta** | Webhooks aceitos sem secret em dev | Fail-closed em produção |
 | **Alta** | Auditoria com `X-Admin-User` spoofável | Actor derivado de `req.admin` autenticado |
 | **Média** | Senha mínima 6 chars | Política mínima 10 chars + complexidade |
-| **Média** | Tokens em localStorage (XSS) | Migração futura para HttpOnly cookies |
+| **Média** | Tokens em localStorage (XSS) | Cookies HttpOnly admin + CSRF; cliente PWA pendente |
 
 ### Modelo de usuários
 
@@ -72,12 +72,67 @@ Documento de diagnóstico, implementação e operação do AguiaAuto.
 - Meta signature validation
 - Criptografia preparada (`ENCRYPTION_KEY`)
 
-### Bloco 3.6–3.8 — Em progresso
+### Bloco 3.6–3.8 — Seção 13 ✅
 
-- LGPD: tabela `lgpd_consents` criada, endpoints pendentes
-- CSRF/HttpOnly cookies: pendente (requer mudança frontend)
-- Permissões em todas rotas admin: aplicar incrementalmente
-- Argon2id: pendente (bcrypt 12 mantido por compatibilidade)
+- **Cookies HttpOnly + CSRF (admin):** `aguia_admin_access`, `aguia_admin_refresh` (HttpOnly) e `aguia_csrf` (legível); middleware `csrfProtection` em mutações `/v1/admin/*`
+- **RBAC em rotas admin:** middleware `adminRbac` com mapeamento por prefixo (`admin-route-permissions.js`)
+- **UI de segurança:** `/admin/seguranca` — dashboard, sessões, tentativas de login, 2FA
+- **Credenciais criptografadas:** coluna `settings_encrypted` + `migrateEncryptedSettings()` no bootstrap
+- **Endpoints LGPD:** cliente (`/v1/lgpd/export`, `/v1/lgpd/deletion-request`); admin (`/v1/admin/lgpd/consents`, `/v1/admin/lgpd/anonymize/:userId`)
+- **Argon2id:** novos hashes com Argon2id; bcrypt legado com rehash progressivo no login
+
+---
+
+## 7. Seção 13 — Cookies, CSRF, RBAC e LGPD
+
+### Cookies administrativos
+
+| Cookie | HttpOnly | Uso |
+|--------|----------|-----|
+| `aguia_admin_access` | Sim | JWT access admin |
+| `aguia_admin_refresh` | Sim | Refresh token admin |
+| `aguia_csrf` | Não | Token CSRF (header `X-CSRF-Token`) |
+
+Variáveis:
+
+```env
+COOKIE_SECURE=true          # obrigatório em produção HTTPS
+COOKIE_DOMAIN=.seudominio.com
+CORS_ALLOWED_ORIGINS=https://app.seudominio.com
+```
+
+### CSRF
+
+- Aplica-se a `POST`, `PUT`, `PATCH`, `DELETE` em `/v1/admin/*`
+- Isento: `/v1/admin/auth/login`, `/refresh`, `/logout`
+- Frontend envia `credentials: 'include'` e header `X-CSRF-Token`
+
+### RBAC por prefixo
+
+Rotas `/v1/admin/*` passam por `adminAuth` + `adminRbac`. Permissões mapeadas em `admin-route-permissions.js` (ex.: `security.view`, `vehicles.update`, `integrations.manage`).
+
+### LGPD
+
+| Endpoint | Auth | Descrição |
+|----------|------|-----------|
+| `GET /v1/lgpd/export` | Cliente JWT | Exportação de dados pessoais |
+| `POST /v1/lgpd/deletion-request` | Cliente JWT | Solicitação de exclusão |
+| `GET /v1/admin/lgpd/consents` | Admin + `audit.view` | Consentimentos recentes |
+| `POST /v1/admin/lgpd/anonymize/:userId` | Admin + `customers.update` | Anonimização |
+
+### Argon2id
+
+- Novos usuários: hash Argon2id (`password-hash.js`)
+- Login com bcrypt legado: rehash automático para Argon2id
+- Variáveis opcionais: `ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`
+
+### Pendências futuras (pós-seção 13)
+
+- HttpOnly cookies para cliente PWA
+- CSRF em rotas cliente
+- PIN transacional em comandos veículo
+- UI PWA para LGPD/consentimento no cadastro
+- CI gitleaks e `.dockerignore`
 
 ---
 
@@ -86,6 +141,9 @@ Documento de diagnóstico, implementação e operação do AguiaAuto.
 ```env
 ENCRYPTION_KEY=           # 32+ chars — criptografia AES-256-GCM
 SESSION_SECRET=           # fallback encryption
+COOKIE_SECURE=true        # cookies admin em HTTPS
+COOKIE_DOMAIN=            # opcional, ex: .seudominio.com
+CORS_ALLOWED_ORIGINS=     # origens permitidas (vírgula)
 TOTP_ISSUER=AguiaAuto
 JWT_ACCESS_SECRET=        # opcional, fallback JWT_SECRET
 JWT_ACCESS_EXPIRES_IN=1h
@@ -119,20 +177,23 @@ WEBHOOK_ALLOW_UNVERIFIED=false
 ## 5. Checklist de validação
 
 - [ ] Login admin individual funciona
+- [ ] Cookies HttpOnly + CSRF em mutações admin
 - [ ] ADMIN_SECRET retorna header de depreciação
 - [ ] 2FA obrigatório configurado para superadmin/admin/financeiro
-- [ ] Sessões listáveis e revogáveis
+- [ ] Sessões listáveis e revogáveis em `/admin/seguranca`
+- [ ] RBAC bloqueia rotas sem permissão
 - [ ] Webhook Meta rejeita assinatura inválida em produção
 - [ ] WebSocket rejeita subscribe de veículo alheio
 - [ ] Auditoria registra login/falha login
+- [ ] Credenciais integrações em `settings_encrypted` (com ENCRYPTION_KEY)
+- [ ] Argon2id aplicado em novos hashes / rehash bcrypt
 - [ ] `npm run test:api` passa
 
 ---
 
 ## 6. Riscos residuais
 
-- Tokens admin ainda em localStorage (XSS)
-- bcrypt em vez de Argon2id
-- Permissões RBAC não aplicadas em 100% das rotas admin
+- Tokens cliente ainda em localStorage (XSS)
+- Permissões RBAC por prefixo — rotas atípicas podem precisar `requirePermission` extra
 - Multitenancy preparado (`tenant_id`) mas single-tenant operacional
-- Criptografia de integrações requer migração de dados existentes
+- UI PWA LGPD/consentimento ainda não implementada

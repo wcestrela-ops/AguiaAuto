@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const { getAdminUserRepository } = require('../repositories/admin-user-repository');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getRbacRepository } = require('../repositories/rbac-repository');
@@ -11,6 +10,7 @@ const { getAuditService } = require('./audit-service');
 const { validatePassword } = require('../lib/security/password-policy');
 const { roleRequires2FA } = require('../lib/security/permissions');
 const { getClientIp } = require('../lib/client-ip');
+const { verifyPassword, rehashIfNeeded } = require('../lib/security/password-hash');
 const logger = require('../logger');
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || '';
@@ -138,8 +138,8 @@ class AdminAuthService {
     }
 
     const fullUser = await this.admins.findByIdWithSecrets(user.id);
-    const passwordOk = await bcrypt.compare(password, fullUser.password_hash);
-    if (!passwordOk) {
+    const passwordResult = await verifyPassword(password, fullUser.password_hash);
+    if (!passwordResult.valid) {
       await this.admins.recordFailedLogin(user.id);
       await this.attempts.record({
         email, userId: user.id, ipAddress: ip, userAgent, success: false, reason: 'invalid_password', sessionType: 'admin',
@@ -155,6 +155,12 @@ class AdminAuthService {
         severity: 'warning',
       });
       throw new Error(GENERIC_LOGIN_ERROR);
+    }
+
+    if (passwordResult.needsRehash) {
+      await rehashIfNeeded(user.id, password, fullUser.password_hash, (id, hash) =>
+        this.users.updatePasswordHash(id, hash),
+      );
     }
 
     const requires2FA = user.two_factor_enabled || roleRequires2FA(user.role);

@@ -3,7 +3,13 @@ const BASE = import.meta.env.VITE_API_URL || '/api';
 const STORAGE_KEYS = {
   rememberMe: 'client_remember_me',
   savedEmail: 'client_saved_email',
+  adminUser: 'admin_user',
 };
+
+function readCookie(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
 
 function decodeJwtPayload(token) {
   try {
@@ -64,15 +70,35 @@ class ApiClient {
 
   hasAdminSession() {
     return Boolean(
-      this.adminToken
+      readCookie('aguia_admin_access')
+      || readCookie('aguia_csrf')
+      || localStorage.getItem(STORAGE_KEYS.adminUser)
+      || this.adminToken
       || localStorage.getItem('admin_access_token')
       || localStorage.getItem('admin_token'),
     );
   }
 
+  async ensureAdminSession() {
+    if (!this.hasAdminSession()) return null;
+    try {
+      const me = await this.request('/v1/admin/auth/me', {}, { useAdmin: true, retry: false });
+      if (me?.data) localStorage.setItem(STORAGE_KEYS.adminUser, JSON.stringify(me.data));
+      return me?.data || null;
+    } catch {
+      this.clearAdminSession();
+      return null;
+    }
+  }
+
+  getAdminCsrfToken() {
+    return readCookie('aguia_csrf');
+  }
+
   async adminLogin({ email, password, totp_code, recovery_code }) {
     const response = await fetch(`${BASE}/v1/admin/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, totpCode: totp_code, recoveryCode: recovery_code }),
     });
@@ -81,32 +107,89 @@ class ApiClient {
       throw new Error(data?.error?.message || data?.error || 'Falha no login.');
     }
     const payload = data.data;
-    if (payload?.access_token) {
+    if (payload?.access_token && payload?.refresh_token) {
       this.setAdminTokens({
         access_token: payload.access_token,
         refresh_token: payload.refresh_token,
       });
-      if (payload.user) localStorage.setItem('admin_user', JSON.stringify(payload.user));
+    }
+    if (payload?.user) localStorage.setItem(STORAGE_KEYS.adminUser, JSON.stringify(payload.user));
+    if (payload?.cookie_auth) {
+      this.adminToken = '';
+      this.adminRefreshToken = '';
+      localStorage.removeItem('admin_access_token');
+      localStorage.removeItem('admin_refresh_token');
+      localStorage.removeItem('admin_token');
     }
     return payload;
   }
 
+  async adminLogout() {
+    await fetch(`${BASE}/v1/admin/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.getAdminCsrfToken() ? { 'X-CSRF-Token': this.getAdminCsrfToken() } : {}),
+      },
+      body: JSON.stringify({ refresh_token: this.adminRefreshToken || undefined }),
+    }).catch(() => null);
+    this.clearAdminSession();
+  }
+
   async refreshAdminAccessToken() {
-    const refreshToken = this.adminRefreshToken || localStorage.getItem('admin_refresh_token');
-    if (!refreshToken) throw new Error('Sessão administrativa expirada.');
     const response = await fetch(`${BASE}/v1/admin/auth/refresh`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({
+        refresh_token: this.adminRefreshToken || localStorage.getItem('admin_refresh_token') || undefined,
+      }),
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) throw new Error(data?.error?.message || 'Sessão expirada.');
-    this.setAdminTokens({
-      access_token: data.data.access_token,
-      refresh_token: data.data.refresh_token,
-    });
-    if (data.data.user) localStorage.setItem('admin_user', JSON.stringify(data.data.user));
+    if (data.data?.access_token) {
+      this.setAdminTokens({
+        access_token: data.data.access_token,
+        refresh_token: data.data.refresh_token,
+      });
+    }
+    if (data.data?.user) localStorage.setItem(STORAGE_KEYS.adminUser, JSON.stringify(data.data.user));
     return data.data;
+  }
+
+  getSecurityDashboard() {
+    return this.request('/v1/admin/security/dashboard', {}, { useAdmin: true }).then((r) => r.data);
+  }
+
+  getAdminSessions() {
+    return this.request('/v1/admin/security/sessions', {}, { useAdmin: true }).then((r) => r.data);
+  }
+
+  revokeAdminSession(id) {
+    return this.request(`/v1/admin/security/sessions/${id}`, { method: 'DELETE' }, { useAdmin: true });
+  }
+
+  revokeOtherAdminSessions() {
+    return this.request('/v1/admin/security/sessions/revoke-others', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: this.adminRefreshToken || undefined }),
+    }, { useAdmin: true });
+  }
+
+  getAdminLoginAttempts() {
+    return this.request('/v1/admin/security/login-attempts', {}, { useAdmin: true }).then((r) => r.data);
+  }
+
+  setupAdmin2fa() {
+    return this.request('/v1/admin/auth/2fa/setup', { method: 'POST' }, { useAdmin: true }).then((r) => r.data);
+  }
+
+  verifyAdmin2fa(code) {
+    return this.request('/v1/admin/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }, { useAdmin: true }).then((r) => r.data);
   }
 
   // ─── Cliente JWT ─────────────────────────────────────────────────────────
@@ -255,19 +338,28 @@ class ApiClient {
   }
 
   async request(path, options = {}, { useAdmin = false, useClient = false, retry = true } = {}) {
+    const legacyAdminToken = this.adminToken
+      || localStorage.getItem('admin_access_token')
+      || localStorage.getItem('admin_token');
     const token = useAdmin
-      ? (this.adminToken || localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token'))
+      ? legacyAdminToken
       : useClient
         ? this.accessToken
-        : this.adminToken;
+        : legacyAdminToken;
 
+    const csrfToken = useAdmin ? this.getAdminCsrfToken() : '';
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(useAdmin && csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
       ...(options.headers || {}),
     };
 
-    const response = await fetch(`${BASE}${path}`, { ...options, headers });
+    const response = await fetch(`${BASE}${path}`, {
+      ...options,
+      headers,
+      credentials: useAdmin ? 'include' : options.credentials,
+    });
     const data = await response.json().catch(() => null);
 
     if (response.status === 401 && useClient && retry && this.refreshToken) {
@@ -275,9 +367,13 @@ class ApiClient {
       return this.request(path, options, { useAdmin, useClient, retry: false });
     }
 
-    if (response.status === 401 && useAdmin && retry && (this.adminRefreshToken || localStorage.getItem('admin_refresh_token'))) {
-      await this.refreshAdminAccessToken();
-      return this.request(path, options, { useAdmin, useClient, retry: false });
+    if (response.status === 401 && useAdmin && retry) {
+      try {
+        await this.refreshAdminAccessToken();
+        return this.request(path, options, { useAdmin, useClient, retry: false });
+      } catch {
+        this.clearAdminSession();
+      }
     }
 
     if (!response.ok) {
@@ -1044,10 +1140,22 @@ class ApiClient {
     return this.request('/v1/admin/contratos/aceites', {}, { useAdmin: true });
   }
 
+  _adminFetchHeaders(extra = {}) {
+    const token = this.adminToken
+      || localStorage.getItem('admin_access_token')
+      || localStorage.getItem('admin_token');
+    const csrfToken = this.getAdminCsrfToken();
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      ...extra,
+    };
+  }
+
   async downloadAdminContractDocument(acceptanceId) {
-    const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}/v1/admin/contratos/aceites/${acceptanceId}/documento`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+      headers: this._adminFetchHeaders(),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -1155,9 +1263,9 @@ class ApiClient {
   }
 
   async openAdminFrotaDocumentFile(id) {
-    const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}/v1/admin/frota/documentos/${id}/arquivo`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+      headers: this._adminFetchHeaders(),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -1210,9 +1318,9 @@ class ApiClient {
     });
     query.set('format', format);
 
-    const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}/v1/admin/export/${resource}?${query}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+      headers: this._adminFetchHeaders(),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -1231,10 +1339,10 @@ class ApiClient {
   }
 
   async uploadAdminForm(path, formData, method = 'POST') {
-    const token = this.adminToken || localStorage.getItem('admin_token');
     const response = await fetch(`${BASE}${path}`, {
       method,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+      headers: this._adminFetchHeaders(),
       body: formData,
     });
     const data = await response.json().catch(() => null);

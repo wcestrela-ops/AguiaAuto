@@ -1,8 +1,6 @@
-const bcrypt = require('bcryptjs');
+const { hashPassword, verifyPassword: verifyPasswordHash, rehashIfNeeded } = require('../lib/security/password-hash');
 const crypto = require('crypto');
 const { getPool } = require('../db/pool');
-
-const SALT_ROUNDS = 12;
 
 const CLIENT_SORT_SQL = {
   created_desc: 'u.created_at DESC',
@@ -91,7 +89,7 @@ class UserRepository {
   }
 
   async create({ email, password, name, phone, cpf_cnpj, role = 'client' }) {
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const passwordHash = await hashPassword(password);
     const { rows } = await this.pool.query(
       `INSERT INTO users (email, password_hash, name, phone, cpf_cnpj, role)
        VALUES ($1, $2, $3, $4, $5, $6)
@@ -108,7 +106,7 @@ class UserRepository {
     cpf_cnpj,
     asaas_customer_id,
   }) {
-    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString('base64url'), SALT_ROUNDS);
+    const passwordHash = await hashPassword(crypto.randomBytes(16).toString('base64url'));
     const { rows } = await this.pool.query(
       `INSERT INTO users (
         email, password_hash, name, phone, cpf_cnpj, role,
@@ -129,9 +127,16 @@ class UserRepository {
   }
 
   async updatePassword(userId, newPassword) {
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const passwordHash = await hashPassword(newPassword);
     await this.pool.query(
-      'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+      'UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW() WHERE id = $1',
+      [userId, passwordHash]
+    );
+  }
+
+  async updatePasswordHash(userId, passwordHash) {
+    await this.pool.query(
+      'UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW() WHERE id = $1',
       [userId, passwordHash]
     );
   }
@@ -150,7 +155,12 @@ class UserRepository {
   }
 
   async verifyPassword(user, password) {
-    return bcrypt.compare(password, user.password_hash);
+    const result = await verifyPasswordHash(password, user.password_hash);
+    return result.valid;
+  }
+
+  async verifyPasswordDetailed(user, password) {
+    return verifyPasswordHash(password, user.password_hash);
   }
 
   async saveRefreshToken(userId, tokenHash, expiresAt) {

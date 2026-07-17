@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { getUserRepository } = require('../repositories/user-repository');
 const { getPasswordResetRepository } = require('../repositories/password-reset-repository');
 const authNotifications = require('./auth-notifications');
+const { rehashIfNeeded } = require('../lib/security/password-hash');
 const {
   normalizePasswordResetChannel,
   buildPasswordResetMessage,
@@ -255,9 +256,16 @@ class AuthService {
       throw new Error('Credenciais inválidas.');
     }
 
-    const valid = await this.users.verifyPassword(user, password);
-    if (!valid) {
+    const fullUser = await this.users.findByIdWithPassword(user.id);
+    const passwordResult = await this.users.verifyPasswordDetailed(fullUser, password);
+    if (!passwordResult.valid) {
       throw new Error('Credenciais inválidas.');
+    }
+
+    if (passwordResult.needsRehash) {
+      await rehashIfNeeded(fullUser.id, password, fullUser.password_hash, (id, hash) =>
+        this.users.updatePasswordHash(id, hash),
+      );
     }
 
     return this._issueTokens(user, {
