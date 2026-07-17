@@ -13,6 +13,7 @@ test('OpenAPI spec.json é válido e cobre rotas SaaS', () => {
   assert.ok(spec.paths['/health/ready']);
   assert.ok(spec.paths['/metrics']);
   assert.ok(spec.paths['/v1/openapi.json']);
+  assert.ok(spec.paths['/v1/docs']);
   assert.ok(spec.paths['/v1/platform/onboarding/tenants']);
   assert.ok(spec.components.securitySchemes.bearerAuth);
   assert.ok(spec.components.securitySchemes.adminCookie);

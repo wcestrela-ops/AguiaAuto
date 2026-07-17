@@ -8,8 +8,21 @@ Especificação REST da API AguiaAuto.
 |----------|-----|
 | Local | `http://localhost:3000/v1/openapi.json` |
 | Produção | `https://<dominio>/api/v1/openapi.json` |
+| **Swagger UI** | `http://localhost:3000/v1/docs` |
 
 Arquivo fonte no repositório: [`services/api/openapi/spec.json`](../../services/api/openapi/spec.json)
+
+## Swagger UI
+
+Interface interativa em **`GET /v1/docs`** — carrega a spec de `/v1/openapi.json` e permite testar rotas com **Try it out**.
+
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `OPENAPI_DOCS_ENABLED` | `true` | Defina `false` para desabilitar `/v1/docs` em produção |
+
+Autenticação na UI:
+- **Cliente:** botão Authorize → `bearerAuth` → JWT
+- **Admin:** login via `/v1/admin/auth/login` no browser (cookies) + CSRF em mutações
 
 ## Importar no Postman / Insomnia
 

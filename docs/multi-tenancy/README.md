@@ -441,3 +441,19 @@ TENANT_INTEGRATION_TEST=true DATABASE_URL=postgresql://... npm run test:api
 - Cobre: `/health/live`, `/v1/openapi.json`, `/v1/tenant/branding`, rejeição tenant spoofed
 
 Ver ADR: [`docs/architecture/adr/001-multi-tenant-modular-saas.md`](../architecture/adr/001-multi-tenant-modular-saas.md)
+
+---
+
+## Fase 13 — Swagger UI
+
+### Endpoint
+- `GET /v1/docs` — interface Swagger UI interativa (OpenAPI 3.1)
+- Carrega spec dinamicamente de `/v1/openapi.json`
+- Flag: `OPENAPI_DOCS_ENABLED=false` desabilita em produção
+
+### Dependência
+- `swagger-ui-express` — assets servidos pela API
+
+### Testes
+- `test/infrastructure/openapi-docs.test.js` — flag de habilitação
+- E2E: `GET /v1/docs` retorna HTML Swagger

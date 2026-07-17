@@ -41,6 +41,14 @@ test('GET /v1/openapi.json retorna spec OpenAPI', async () => {
   assert.ok(res.body.paths['/health/live']);
 });
 
+test('GET /v1/docs retorna Swagger UI', async () => {
+  const app = createApp();
+  const res = await request(app).get('/v1/docs/');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'] || '', /html/);
+  assert.match(res.text, /swagger/i);
+});
+
 test('GET /v1/tenant/branding retorna branding padrão', { skip: process.env.DATABASE_URL ? false : 'DATABASE_URL ausente' }, async () => {
   const app = createApp();
   const res = await request(app).get('/v1/tenant/branding');
