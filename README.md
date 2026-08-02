@@ -52,6 +52,20 @@ docker compose up -d --build
 
 Produção usa `docker-compose.prod.yml` com Nginx no serviço `web` (API em `/api`, WebSocket em `/ws`).
 
+### Instalador automático (recomendado)
+
+```bash
+chmod +x scripts/install.sh
+./scripts/install.sh
+# ou não interativo:
+# ./scripts/install.sh --domain https://app.seudominio.com \
+#   --admin-email admin@empresa.com --admin-password 'SenhaForte10!' --yes
+```
+
+Gera `.env` com segredos, valida e sobe a stack. Guia: [`docs/deploy/install.md`](docs/deploy/install.md).
+
+### Manual
+
 ```bash
 cp .env.production.example .env
 # Preencha segredos, CORS_ORIGIN (https) e ADMIN_BOOTSTRAP_*
@@ -62,9 +76,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 | Documento | Conteúdo |
 |-----------|----------|
+| [`docs/deploy/install.md`](docs/deploy/install.md) | Instalador `scripts/install.sh` |
 | [`docs/deploy/easypanel.md`](docs/deploy/easypanel.md) | Guia passo a passo EasyPanel |
 | [`docs/operations/runbook.md`](docs/operations/runbook.md) | Backup, multi-tenant, troubleshooting |
-| [`docs/multi-tenancy/README.md`](docs/multi-tenancy/README.md) | Transformação SaaS (Fases 1–9) |
+| [`docs/multi-tenancy/README.md`](docs/multi-tenancy/README.md) | Transformação SaaS (Fases 1–17) |
 
 Health probes: `GET /health/live`, `GET /health/ready`, `GET /health`.  
 OpenAPI: `GET /v1/openapi.json` · Swagger UI: `GET /v1/docs` · Prometheus: `GET /metrics` (com `PROMETHEUS_ENABLED=true`).

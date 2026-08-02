@@ -49,15 +49,25 @@ Rede interna (aguia_network):
 
 ## Passo 2 — Variáveis de ambiente
 
-1. Copie o template:
+**Opção A (recomendado)** — gerar com o instalador:
+
+```bash
+./scripts/install.sh --domain https://app.seudominio.com \
+  --admin-email admin@empresa.com --admin-password 'SenhaForte10!' \
+  --skip-up --yes
+```
+
+Isso cria `.env` com segredos seguros. Guia: [`install.md`](install.md).
+
+**Opção B** — manual:
 
 ```bash
 cp .env.production.example .env
 ```
 
-2. No EasyPanel, cole o conteúdo do `.env` em **Environment** (ou monte o arquivo na raiz do projeto).
+No EasyPanel, cole o conteúdo do `.env` em **Environment** (ou monte o arquivo na raiz do projeto).
 
-3. Variáveis **obrigatórias**:
+Variáveis **obrigatórias**:
 
 | Variável | Exemplo | Notas |
 |----------|---------|-------|
