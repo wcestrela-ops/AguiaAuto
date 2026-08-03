@@ -1,5 +1,20 @@
 # Deploy no EasyPanel — AguiaAuto SaaS
 
+## Modo simples (recomendado para começar)
+
+**App + Dockerfile único** — sem Compose, sem conflito de porta 3000:
+
+→ Guia: **[`easypanel-app.md`](easypanel-app.md)**
+
+1. Postgres no EasyPanel  
+2. App com `Dockerfile` na raiz, porta **80**  
+3. Domínio `gestao.aguiaon.com`  
+4. Environment (`.env.easypanel-app.example`)
+
+---
+
+## Modo completo (Docker Compose)
+
 Guia passo a passo para publicar o monorepo em VPS com [EasyPanel](https://easypanel.io), usando `docker-compose.prod.yml`.
 
 ## Arquitetura em produção
