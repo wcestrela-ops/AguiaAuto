@@ -23,6 +23,7 @@
     "test:gateway": "npm run test -w @aguia/gpswox-gateway",
     "load-test": "node scripts/load-test.js",
     "load-test:k6": "k6 run scripts/k6/auth-smoke.js",
+    "install:check": "bash scripts/test-install.sh",
     "diagnostico": "npm run diagnostico -w @aguia/gpswox-gateway"
   }
 }

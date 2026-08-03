@@ -80,4 +80,4 @@ if [[ "${ERRORS}" -gt 0 ]]; then
 fi
 
 echo "Resultado: pronto para deploy."
-echo "Próximo passo: docs/deploy/easypanel.md"
+echo "Próximo passo: ./scripts/install.sh  ou  docs/deploy/install.md"
