@@ -1,0 +1,15 @@
+# Override local — portas no host (NÃO use no EasyPanel).
+# Uso: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  web:
+    ports:
+      - "8080:80"
+
+  api:
+    ports:
+      - "3000:3000"

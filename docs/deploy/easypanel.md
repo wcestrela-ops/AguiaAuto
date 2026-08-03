@@ -47,6 +47,8 @@ Rede interna (aguia_network):
 
 > Se o log de deploy mostrar `docker-compose.yml`, a porta **3000** do EasyPanel conflita com a API.
 > Confirme no painel: **Compose File** / **Arquivo Compose** = `docker-compose.prod.yml`.
+>
+> Avisos `container_name` / `ports` = arquivo de desenvolvimento. O `docker-compose.prod.yml` não usa esses campos.
 
 ---
 
