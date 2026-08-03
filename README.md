@@ -43,10 +43,13 @@ cp .env.example .env
 # Preencha GPSWOX_URL, credenciais e segredos
 
 npm install
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 # Painel admin: http://localhost:8080/admin
-# API: http://localhost:3000
+# API (via Nginx): http://localhost:8080/api
+# API direta (local): http://localhost:3000
 ```
+
+> Em VPS/EasyPanel use `docker-compose.prod.yml` (sem `container_name` e sem `ports` no host).
 
 ## Deploy (EasyPanel / VPS)
 

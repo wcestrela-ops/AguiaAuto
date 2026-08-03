@@ -1,13 +1,18 @@
-# Desenvolvimento local.
-# ⚠ EasyPanel / produção: use docker-compose.prod.yml (API sem porta pública).
-# A porta 3000 do host costuma ser do próprio EasyPanel — não publique a API nela.
-version: "3.8"
+# Base Compose — compatível com EasyPanel (sem container_name / sem ports no host).
+#
+# Produção (recomendado):
+#   Compose file no EasyPanel = docker-compose.prod.yml
+#
+# Desenvolvimento local (com portas no host):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+#   → http://localhost:8080
+#
+# ⚠ Não publique a API na porta 3000 do host — o EasyPanel já usa 0.0.0.0:3000.
 
 services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: aguia-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: aguia
@@ -15,17 +20,15 @@ services:
       POSTGRES_DB: aguia
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Host 5432 só em local; em VPS/EasyPanel evite publicar
-    ports:
-      - "5432:5432"
     networks:
       - aguia_network
+    expose:
+      - "5432"
 
   gpswox-gateway:
     build:
       context: .
       dockerfile: services/gpswox-gateway/Dockerfile
-    container_name: aguia-gpswox-gateway
     restart: unless-stopped
     env_file:
       - .env
@@ -45,7 +48,6 @@ services:
     build:
       context: .
       dockerfile: services/api/Dockerfile
-    container_name: aguia-api
     restart: unless-stopped
     env_file:
       - .env
@@ -54,7 +56,6 @@ services:
       GATEWAY_URL: http://gpswox-gateway:3001
       DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
       CORS_ORIGIN: http://localhost:8080
-    # Sem bind no host (EasyPanel usa :3000). Acesso local via web :8080/api
     expose:
       - "3000"
     depends_on:
@@ -67,14 +68,13 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: aguia-web
     restart: unless-stopped
-    ports:
-      - "8080:80"
     depends_on:
       - api
     networks:
       - aguia_network
+    expose:
+      - "80"
 
 networks:
   aguia_network:
