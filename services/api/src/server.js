@@ -56,7 +56,8 @@ const http = require('http');
 const { createApp } = require('./create-app');
 
 const PROCESS_ROLE = process.env.PROCESS_ROLE || 'api';
-const PORT = process.env.API_PORT || process.env.PORT || 3000;
+// EasyPanel App injeta PORT=80 (Nginx). A API escuta em API_PORT (default 3000).
+const PORT = parseInt(process.env.API_PORT || '3000', 10);
 
 async function bootstrap() {
   initSentry();

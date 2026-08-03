@@ -104,8 +104,10 @@ Para stack completa (gateway + worker + scheduler + redis no compose): veja [`ea
 |------|---------|
 | `open dockerfile: no such file` | Path = `Dockerfile` (raiz), tipo **App** |
 | `DATABASE_URL é obrigatória` | Crie Postgres e cole a URL no Environment |
+| `api entered FATAL` / exit status 1 | Veja logs `[api]` / `[entrypoint]`; confira `DATABASE_URL` (host interno) e `API_PORT=3000` |
+| `Postgres não respondeu` | Postgres Up? Hostname = nome do serviço (ex. `aguia_postgres`) |
 | `port 3000 already allocated` | App na porta **80**, não 3000 |
-| 502 / health fail | Logs do App; Postgres healthy? `DATABASE_URL` com host interno |
+| 502 / health fail | Logs do App; Postgres healthy? |
 | CORS | `CORS_ORIGIN=https://gestao.aguiaon.com` (sem `/`) |
 
 ---
