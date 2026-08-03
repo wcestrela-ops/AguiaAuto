@@ -1,3 +1,6 @@
+# Desenvolvimento local.
+# ⚠ EasyPanel / produção: use docker-compose.prod.yml (API sem porta pública).
+# A porta 3000 do host costuma ser do próprio EasyPanel — não publique a API nela.
 version: "3.8"
 
 services:
@@ -12,6 +15,7 @@ services:
       POSTGRES_DB: aguia
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Host 5432 só em local; em VPS/EasyPanel evite publicar
     ports:
       - "5432:5432"
     networks:
@@ -34,6 +38,8 @@ services:
     shm_size: "512mb"
     security_opt:
       - seccomp:unconfined
+    expose:
+      - "3001"
 
   api:
     build:
@@ -48,8 +54,9 @@ services:
       GATEWAY_URL: http://gpswox-gateway:3001
       DATABASE_URL: postgresql://aguia:aguia@postgres:5432/aguia
       CORS_ORIGIN: http://localhost:8080
-    ports:
-      - "3000:3000"
+    # Sem bind no host (EasyPanel usa :3000). Acesso local via web :8080/api
+    expose:
+      - "3000"
     depends_on:
       - postgres
       - gpswox-gateway
