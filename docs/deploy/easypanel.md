@@ -42,8 +42,11 @@ Rede interna (aguia_network):
 1. **New Project** → nome ex.: `aguiaauto`
 2. **Add Service** → **Docker Compose**
 3. **Source:** Git (recomendado) ou imagens pré-buildadas
-4. **Compose file path:** `docker-compose.prod.yml`
+4. **Compose file path:** `docker-compose.prod.yml`  ← **obrigatório** (não use `docker-compose.yml`)
 5. **Working directory:** raiz do repositório
+
+> Se o log de deploy mostrar `docker-compose.yml`, a porta **3000** do EasyPanel conflita com a API.
+> Confirme no painel: **Compose File** / **Arquivo Compose** = `docker-compose.prod.yml`.
 
 ---
 
