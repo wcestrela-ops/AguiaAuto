@@ -55,17 +55,16 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 
 Produção usa `docker-compose.prod.yml` com Nginx no serviço `web` (API em `/api`, WebSocket em `/ws`).
 
-### Instalador automático (recomendado)
+### Instalador / EasyPanel
+
+**Modo simples (App + Dockerfile):** [`docs/deploy/easypanel-app.md`](docs/deploy/easypanel-app.md) — um container, porta 80.
+
+**Compose completo:** [`docs/deploy/easypanel.md`](docs/deploy/easypanel.md) · instalador: [`docs/deploy/install.md`](docs/deploy/install.md)
 
 ```bash
 chmod +x scripts/install.sh
 ./scripts/install.sh
-# ou não interativo:
-# ./scripts/install.sh --domain https://app.seudominio.com \
-#   --admin-email admin@empresa.com --admin-password 'SenhaForte10!' --yes
 ```
-
-Gera `.env` com segredos, valida e sobe a stack. Guia: [`docs/deploy/install.md`](docs/deploy/install.md).
 
 ### Manual
 
