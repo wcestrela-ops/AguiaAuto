@@ -6,10 +6,9 @@
 **/logs
 **/*.log
 .env
-.env.*
-!.env.example
+.env.local
+.env.*.local
 **/coverage
 **/.cursor
 **/terminals
-README.md
 apps/sms-hub-web
